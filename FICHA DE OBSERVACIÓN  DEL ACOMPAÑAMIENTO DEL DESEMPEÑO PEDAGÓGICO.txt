@@ -1,0 +1,141 @@
+﻿FICHA DE OBSERVACIÓN  DEL ACOMPAÑAMIENTO DEL DESEMPEÑO PEDAGÓGICO
+
+
+
+
+1. Acompañamiento al desempeño docente Pedagógico y Contenido
+de valorar el desempeño pedagógico, el uso de recursos digitales y la interacción con los estudiantes.
+
+
+DATOS INFORMATIVOS
+	Asignatura:
+	{{Asignatura}}
+	Docente
+	{{Nombre docente}}
+	Programa
+	{{Programa}}
+	Tema
+	{{Tema}}
+	Semestre
+	{{Semestre}}
+	Fecha
+	{{Fecha_Ficha}}
+	CRITERIOS E INDICADORES
+	CRITERIOS
+	DESCRIPTORES
+	ESCALA DE VALORACIÓN
+	1
+	2
+	3
+	4
+	A. INICIO DE LA SESIÓN
+	
+
+	1
+Objetivos y contenidos de aprendizaje
+	Comunica el título del tema, de acuerdo con el sílabo, así como las competencias, capacidades y contenidos educativos que se desarrollarán durante la sesión, utilizando la plantilla institucional y reforzándolo mediante una explicación verbal.
+	{{A_C01_OBJ}}
+	2 Recuperación de saberes previos y motivación
+	Recupera los saberes previos de los estudiantes mediante diversas dinámicas pedagógicas y fomenta su interés y participación activa en la sesión, a través del uso de recursos educativos como noticias, videos, anécdotas, comentarios y herramientas digitales, entre otros.
+	{{A_C02_SAB}}
+	3 Conflicto cognitivo
+	Plantea problemas teórico-prácticos relacionados con el contenido a desarrollarse, destacando su importancia, utilidad y aplicación en la vida personal y profesional del estudiante, con el fin de generar expectativas por el aprendizaje mediante preguntas y situaciones problemáticas contextualizadas.
+	{{A_C03_CCO}}
+	B. DESARROLLO DE LA SESIÓN
+	
+
+	4
+Desarrollo del contenido educativo
+	Desarrolla el contenido educativo programado en el sílabo siguiendo la secuencia didáctica; incorpora pausas activas para la resolución de actividades significativas de aprendizaje; y vincula la información abordada con experiencias y buenas prácticas de la vida real, considerando los aspectos éticos, la estimulación de la investigación formativa y el uso de referencias bibliográficas, cuando corresponda.
+	{{B_C04_CON}}
+	5
+Aplicación del contenido
+	Realiza actividades aplicativas significativas de manera sincrónica y asincrónica, promoviendo la interacción de los estudiantes a través de diversas estrategias que favorezcan el aprendizaje contextualizado (trabajo en grupo, búsqueda de información, uso de organizadores de aprendizaje, simulaciones, juego de roles, talleres, debates, foros, wikis, videos, etc.)
+	{{B_C05_APL}}
+	6
+Estrategias didácticas
+	Utiliza recursos interactivos pedagógicos que favorezcan la construcción del conocimiento de los estudiantes: exposiciones interactivas, aprendizaje colaborativo, problematización, estudio de casos, organizadores gráficos de aprendizaje (mapas, esquemas, flujogramas y otros), demostraciones, juegos, simulaciones, búsqueda y análisis de información de repositorios bibliográficos, plataformas web institucionales entre otros).
+	{{B_C06_EST}}
+	7
+Recursos didácticos
+	Utiliza material audiovisual (videos, presentaciones, imágenes), plataformas en línea, software y aplicaciones, así como materiales impresos en físico o digitales (textos de lectura, fichas de actividades, diapositivas, material de laboratorio), uso de herramientas de IA, entre otros, para favorecer el interés de los estudiantes.
+	{{B_C07_REC}}
+	8
+Comunicación pedagógica
+	Promueve la interacción docente-estudiante en la relación pedagógica que asegure la transferencia del contenido educativo, la construcción de conocimientos y el cultivo de los valores institucionales a través del trabajo en equipo, en pares, uso de recursos visuales y audiovisuales (presentaciones ppt, videos, herramientas colaborativas TIC, plataformas de aprendizaje en línea), que faciliten la comprensión de los contenidos.
+	{{B_C08_COM}}
+	9
+Desarrollo de capacidades cognitivas
+	Orienta al estudiante a desarrollar las capacidades transversales cognoscitivas (conocimiento, comprensión, aplicación, análisis, síntesis, evaluación) e innovación, que le facilitan el aprender con sentido crítico, el desarrollo de capacidades para el logro de la competencia del perfil del graduado.
+	{{B_C09_CAP}}
+	C: CIERRE DE LA SESIÓN
+	
+
+	10
+Evaluación de logros de aprendizaje y reforzamiento
+	Aplica la metacognicación y refuerza los temas críticos detectados, mediante diversas técnicas pedagógicas de reforzamiento y realimentación.
+	{{C_C10_EVA}}
+	11
+Extensión
+	Orienta a los estudiantes sobre las tareas académicas encargadas para las siguientes sesiones y la investigación formativa a realizarse en las horas de trabajo independiente (HTI) fuera de aula, para fortalecer el aprendizaje autónomo.
+	{{C_C11_EXT}}
+	Total puntaje: A+B+C
+	{{PT}}
+	Oportunidades de mejora
+	
+
+{{}}
+
+
+
+
+	
+
+
+
+
+
+Fuente: Facultad de Ciencias Administrativas y Recursos Humanos - USMP (2024).
+
+
+
+
+
+
+Matrices de Puntaje
+
+
+NIVEL 1: Deficiente
+	NIVEL 2: Regular
+	NIVEL 3: bueno
+	NIVEL 4: Muy bueno
+	1 puntos
+	2 puntos
+	3 puntos
+	4 puntos
+	Nivel de desempeño docente insatisfactorio
+	Nivel de desempeño docente no satisfactorio
+	Nivel de desempeño docente satisfactorio
+	Nivel excepcional de desempeño docente
+	Su desempeño presenta debilidades que afectan significativamente                su actividad docente. Se evidencia ausencia o deficiente planificación de la sesión de aprendizaje en línea y un desarrollo inadecuado del contenido. Predomina la exposición tradicional sin estrategias didácticas activas, con escasa o nula participación de los estudiantes. No se utilizan        recursos pedagógicos                        ni herramientas tecnológicas pertinentes, y no se aplican procedimientos adecuados de evaluación de los logros de aprendizaje.
+	Evidencia una planificación básica de la sesión de aprendizaje en línea y un desarrollo parcial del contenido. Aunque continúa con una metodología         mayormente expositiva, incorpora de manera limitada algunos recursos o estrategias. La participación de los estudiantes es reducida y no se aplican de forma sistemática métodos        pedagógicos centrados en el estudiante ni herramientas tecnológicas interactivas. La evaluación de los aprendizajes es incipiente y poco estructurada.
+	Evidencia una buena planificación de la sesión de aprendizaje en línea y cumplimiento adecuado de la secuencia didáctica. Se utilizan estrategias de enseñanza que favorecen la comprensión del contenido        y                la participación activa de los estudiantes.                Emplea
+métodos        didácticos
+centrados en el aprendizaje, así como herramientas tecnológicas interactivas. Realiza de manera oportuna la evaluación de los logros de                aprendizaje, promoviendo el desarrollo de        capacidades cognitivas.
+	Evidencia una excelente planificación de la sesión de aprendizaje en línea y un alto dominio del contenido disciplinar. Cumple de manera integral con la secuencia        didáctica,
+combinando                        métodos didácticos activos, recursos tecnológicos innovadores y estrategias centradas en el estudiante.        Promueve permanentemente                                la participación, el pensamiento crítico y la construcción del conocimiento. Realiza una evaluación                continua, pertinente y formativa de los logros de aprendizaje.
+	Máximo: 19
+	Máximo: 29
+	Máximo: 39
+	Máximo: 44
+	Puntaje nivel 1:
+de 1 a 19 ptos.
+	Puntaje nivel 2:
+de 20 a 29 ptos.
+	Puntaje nivel 3:
+de 30 a 39 ptos.
+	Puntaje nivel 4:
+de 40 a 44 ptos.
+	
+
+Fuente: Facultad de Ciencias Administrativas y Recursos Humanos - USMP (2024).

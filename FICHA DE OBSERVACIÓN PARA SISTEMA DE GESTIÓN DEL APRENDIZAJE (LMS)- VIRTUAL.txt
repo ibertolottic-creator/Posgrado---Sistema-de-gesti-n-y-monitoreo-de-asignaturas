@@ -1,0 +1,180 @@
+﻿FICHA DE OBSERVACIÓN PARA SISTEMA DE GESTIÓN DEL APRENDIZAJE (LMS)- VIRTUAL
+
+
+
+
+Sistema de gestión del aprendizaje (LMS)
+
+
+Revisar el aula virtual dentro del Sistema de Gestión del Aprendizaje (LMS) para analizar aspectos como la organización de la asignatura, la calidad y pertinencia de los materiales, el cumplimiento del cronograma de actividades y la interacción entre docente y estudiantes.
+
+
+
+
+DATOS INFORMATIVOS
+	Asignatura:
+	{{Asignatura}}
+	Docente
+	{{Nombre docente}}
+	Programa
+	{{Programa}}
+	Semestre
+	{{Semestre}}
+	Fecha
+	{{Fecha_Ficha}}
+	
+
+
+
+ASIGNATURAS VIRTUALES
+	ESCALA DE VALORACIÓN
+	Categoría
+	Indicadores
+	Frecuencia
+	1 2 3 4
+	1. Organización y gestión académica virtual
+	Actualiza los materiales de acuerdo al contenido de la asignatura y los lineamientos institucionales
+	Antes S1
+	{{c_1_1_pre}}
+
+
+	Crea enlaces de las sesiones de la asignatura de todo el mes (Bienvenida, sesiones y tutoría)
+Programa anuncios para cada semana en la plataforma Canvas de acuerdo a las plantillas
+	S1
+	{{c_1_2_s1}}
+	2. Sesiones de clase en línea
+	Realiza y graba las sesiones en línea de acuerdo al cronograma de la asignatura
+	Bienvenida
+	{{c_2_1_b}}
+	S1
+	{{c_2_1_s1}}
+	S2
+	{{c_2_1_s2}}
+	S3
+	{{c_2_1_s3}}
+	S4
+	{{c_2_1_s4}}
+	Uso de formatos institucionales (Plantillas institucionales, fondo Zoom, cámara encendida, etc.) para las sesiones en línea
+	Bienvenida
+	{{c_2_2_b}}
+	S1
+	{{c_2_2_s1}}
+	S2
+	{{c_2_2_s2}}
+	S3
+	{{c_2_2_s3}}
+	S4
+	{{c_2_2_s4}}
+	Tutoría
+	Realiza y graba las sesiones de tutoría académica (Plantillas institucionales, fondo Zoom, cámara encendida, etc.)
+	S1
+	{{c_3_1_s1}}
+	S2
+	{{c_3_1_s2}}
+	S3
+	{{c_3_1_s3}}
+	S4
+	{{c_3_1_s4}}
+	Calificación y retroalimentación de actividades
+	Califica las actividades de aprendizaje dentro del plazo establecido según el cronograma de actividades.
+	S1
+	{{c_4_1_s1}}
+	S2
+	{{c_4_1_s2}}
+	S3
+	{{c_4_1_s3}}
+	S4
+	{{c_4_1_s4}}
+	Retroalimenta las actividades de aprendizaje según rúbrica de evaluación
+	S1
+	{{c_4_2_s1}}
+	S2
+	{{c_4_2_s2}}
+	S3
+	{{c_4_2_s3}}
+	S4
+	{{c_4_2_s4}}
+	Atención a consultas
+	Brinda respuesta a comunicaciones de estudiantes en un plazo menor a 24 horas.
+	S1
+	{{c_5_1_s1}}
+	S2
+	{{c_5_1_s2}}
+	S3
+	{{c_5_1_s3}}
+	S4
+	{{c_5_1_s4}}
+	Atención y seguimiento a estudiantes en riesgo académico
+	Incentiva la participación de estudiantes con riesgo académico mediante anuncios y bandeja de entrada
+	S1
+	{{c_6_1_s1}}
+	S2
+	{{c_6_1_s2}}
+	S3
+	{{c_6_1_s3}}
+	S4
+	{{c_6_1_s4}}
+	Conformidad y desarrollo de Informes (Tutoría, desarrollo de asignatura y riesgo académico)
+	Realiza en tiempo indicado la conformidad
+	S4
+	{{c_7_1_s4}}
+	Realiza en tiempo indicado los informes
+	S4
+	{{c_7_2_s4}}
+	Total
+	
+
+	{{total_score}}
+	
+
+
+
+Fuente: Unidad de Virtualización Académica (2026)
+
+
+
+
+________________
+Matrices de Puntaje
+
+
+NIVEL 1: Deficiente
+	NIVEL 2: Regular
+	NIVEL 3: bueno
+	NIVEL 4: Muy bueno
+	1 puntos
+	2 puntos
+	3 puntos
+	4 puntos
+	Nivel de desempeño
+docente insatisfactorio
+	Nivel de desempeño
+docente no satisfactorio
+	Nivel de desempeño
+docente satisfactorio
+	Nivel excepcional de
+desempeño docente
+	El docente presenta serias dificultades en el cumplimiento de los ítems evaluados en la ficha. No organiza adecuadamente la asignatura en la plataforma virtual, no crea los enlaces mensuales de las sesiones ni programa los anuncios semanales conforme a las plantillas institucionales. El desarrollo y grabación de las sesiones de aprendizaje en línea y tutoría es irregular o inexistente, no utiliza los formatos institucionales establecidos y la retroalimentación de las actividades de aprendizaje es deficiente. Asimismo, la atención a consultas y el seguimiento a estudiantes en riesgo académico no se realiza de manera oportuna, evidenciando incumplimiento en la entrega de informes académicos.
+	El docente cumple de manera parcial con los ítems establecidos en la ficha.  
+Organiza la asignatura de forma básica en la plataforma virtual y programa algunos anuncios semanales; sin embargo, el desarrollo de las sesiones de aprendizaje en línea y tutoría no siempre se realiza conforme al cronograma ni con el uso adecuado de los formatos institucionales. La calificación y retroalimentación de las actividades se realiza con retrasos, la atención a consultas es ocasional y el seguimiento a estudiantes en riesgo académico es limitado. Se requiere fortalecer la gestión académica virtual y el cumplimiento oportuno de los procesos establecidos.
+	El docente cumple adecuadamente con los ítems evaluados en la ficha.
+Organiza la asignatura en la plataforma virtual creando los enlaces de las sesiones mensuales y programando anuncios semanales conforme a las plantillas institucionales. Realiza y graba las sesiones de aprendizaje en línea y tutoría de acuerdo con el cronograma, utilizando los formatos institucionales establecidos. Califica y retroalimenta las actividades de aprendizaje dentro de los plazos establecidos, atiende las consultas de los estudiantes oportunamente y realiza seguimiento a los estudiantes en riesgo académico, cumpliendo además con la entrega de informes académicos en el tiempo indicado.
+	El docente evidencia un cumplimiento óptimo y consistente de todos los ítems de la ficha de actividades académicas. Organiza de manera eficiente la asignatura en la plataforma virtual, creando oportunamente los enlaces de bienvenida, sesiones y tutoría, y programando anuncios semanales alineados a las plantillas institucionales.
+Desarrolla y graba puntualmente las sesiones de aprendizaje en línea y tutoría, utilizando correctamente los formatos institucionales. Realiza la calificación y retroalimentación formativa de las actividades dentro de los plazos establecidos, mantiene una atención permanente a las consultas de los estudiantes, efectúa un seguimiento efectivo a los estudiantes en riesgo académico y cumple de manera oportuna con la entrega de informes, contribuyendo al aseguramiento de la calidad académica.
+	
+
+Máximo: 33
+	Máximo: 66
+	Máximo: 99
+	Máximo: 132
+	Puntaje nivel 1:
+de 1 a 33 ptos.
+	Puntaje nivel 2:
+de 34 a 66 ptos.
+	Puntaje nivel 3:
+de 67 a 99 ptos.
+	Puntaje nivel 4:
+de 100 a 132 ptos.
+	
+
+Fuente: Unidad de Virtualización Académica (2026).

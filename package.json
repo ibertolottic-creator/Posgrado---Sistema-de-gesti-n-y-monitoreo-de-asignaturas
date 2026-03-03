@@ -1,0 +1,27 @@
+{
+  "name": "pruebas-antigravity",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-googleappsscript": "^1.0.5",
+    "prettier": "^3.8.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ibertolottic-creator/Sistema-de-Monitor-del-Cumplimiento-de-los-Est-ndares-de-Calidad-USMP---Virtual.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ibertolottic-creator/Sistema-de-Monitor-del-Cumplimiento-de-los-Est-ndares-de-Calidad-USMP---Virtual/issues"
+  },
+  "homepage": "https://github.com/ibertolottic-creator/Sistema-de-Monitor-del-Cumplimiento-de-los-Est-ndares-de-Calidad-USMP---Virtual#readme"
+}

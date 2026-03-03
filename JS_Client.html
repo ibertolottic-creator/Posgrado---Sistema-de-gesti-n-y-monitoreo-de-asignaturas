@@ -1,0 +1,1649 @@
+<script>
+  // Global variable to store Spreadsheet name for Area email detection
+  window.SS_NAME = "";
+
+  document.addEventListener("DOMContentLoaded", () => {
+      fetchSpreadsheetInfo();
+  });
+
+  function fetchSpreadsheetInfo() {
+      google.script.run.withSuccessHandler(res => {
+          if (res && res.success && res.name) {
+              window.SS_NAME = res.name.toUpperCase();
+              const homeTitles = document.querySelector('#home-view h1');
+              if (homeTitles) {
+                  let badgeObj = null;
+                  if (window.SS_NAME.includes("PREGRADO")) {
+                      badgeObj = {text: 'PREGRADO', color: 'bg-blue-100 text-blue-800 border-blue-200'};
+                  } else if (window.SS_NAME.includes("POSGRADO")) {
+                      badgeObj = {text: 'POSGRADO', color: 'bg-purple-100 text-purple-800 border-purple-200'};
+                  }
+                  
+                  if (badgeObj) {
+                      const badge = document.createElement('div');
+                      badge.className = `inline-block px-3 py-1 mt-2 mb-4 rounded-full text-xs font-bold border ${badgeObj.color}`;
+                      badge.innerText = `Base de Datos Conectada: ${badgeObj.text}`;
+                      homeTitles.parentNode.insertBefore(badge, homeTitles.nextSibling);
+                  }
+              }
+          }
+      }).getSpreadsheetInfo();
+  }
+
+  const CRITERIA_MAP_VIRTUAL = [
+    // 1. Org y gestión
+    {id:'c_1_1_pre', label:'1.1 Actualiza OVAs (Antes S1)', dim:'1. Organización y gestión académica virtual', week:'S1'},
+    {id:'c_1_2_s1', label:'1.2 Programa Sesiones y Anuncios (S1)', dim:'1. Organización y gestión académica virtual', week:'S1'},
+    // 2. Sesiones
+    {id:'c_2_1_b', label:'2.1 Sesión en línea (Bienvenida)', dim:'2. Sesiones de clase en línea', week:'S1'},
+    {id:'c_2_1_s1', label:'2.1 Sesión en línea (S1)', dim:'2. Sesiones de clase en línea', week:'S1'},
+    {id:'c_2_1_s2', label:'2.1 Sesión en línea (S2)', dim:'2. Sesiones de clase en línea', week:'S2'},
+    {id:'c_2_1_s3', label:'2.1 Sesión en línea (S3)', dim:'2. Sesiones de clase en línea', week:'S3'},
+    {id:'c_2_1_s4', label:'2.1 Sesión en línea (S4)', dim:'2. Sesiones de clase en línea', week:'S4'},
+    {id:'c_2_2_b', label:'2.2 Formatos Institucionales (Bienvenida)', dim:'2. Sesiones de clase en línea', week:'S1'},
+    {id:'c_2_2_s1', label:'2.2 Formatos Institucionales (S1)', dim:'2. Sesiones de clase en línea', week:'S1'},
+    {id:'c_2_2_s2', label:'2.2 Formatos Institucionales (S2)', dim:'2. Sesiones de clase en línea', week:'S2'},
+    {id:'c_2_2_s3', label:'2.2 Formatos Institucionales (S3)', dim:'2. Sesiones de clase en línea', week:'S3'},
+    {id:'c_2_2_s4', label:'2.2 Formatos Institucionales (S4)', dim:'2. Sesiones de clase en línea', week:'S4'},
+    // 3. Tutoría
+    {id:'c_3_1_s1', label:'3.1 Tutoría (S1)', dim:'3. Tutoría', week:'S1'},
+    {id:'c_3_1_s2', label:'3.1 Tutoría (S2)', dim:'3. Tutoría', week:'S2'},
+    {id:'c_3_1_s3', label:'3.1 Tutoría (S3)', dim:'3. Tutoría', week:'S3'},
+    {id:'c_3_1_s4', label:'3.1 Tutoría (S4)', dim:'3. Tutoría', week:'S4'},
+    // 4. Calificación
+    {id:'c_4_1_s1', label:'4.1 Califica actividades (S1)', dim:'4. Calificación y retroalimentación de actividades', week:'S1'},
+    {id:'c_4_1_s2', label:'4.1 Califica actividades (S2)', dim:'4. Calificación y retroalimentación de actividades', week:'S2'},
+    {id:'c_4_1_s3', label:'4.1 Califica actividades (S3)', dim:'4. Calificación y retroalimentación de actividades', week:'S3'},
+    {id:'c_4_1_s4', label:'4.1 Califica actividades (S4)', dim:'4. Calificación y retroalimentación de actividades', week:'S4'},
+    {id:'c_4_2_s1', label:'4.2 Retroalimenta y rúbrica (S1)', dim:'4. Calificación y retroalimentación de actividades', week:'S1'},
+    {id:'c_4_2_s2', label:'4.2 Retroalimenta y rúbrica (S2)', dim:'4. Calificación y retroalimentación de actividades', week:'S2'},
+    {id:'c_4_2_s3', label:'4.2 Retroalimenta y rúbrica (S3)', dim:'4. Calificación y retroalimentación de actividades', week:'S3'},
+    {id:'c_4_2_s4', label:'4.2 Retroalimenta y rúbrica (S4)', dim:'4. Calificación y retroalimentación de actividades', week:'S4'},
+    // 5. Atención
+    {id:'c_5_1_s1', label:'5.1 Comun. Alumnos (S1)', dim:'5. Atención a consultas', week:'S1'},
+    {id:'c_5_1_s2', label:'5.1 Comun. Alumnos (S2)', dim:'5. Atención a consultas', week:'S2'},
+    {id:'c_5_1_s3', label:'5.1 Comun. Alumnos (S3)', dim:'5. Atención a consultas', week:'S3'},
+    {id:'c_5_1_s4', label:'5.1 Comun. Alumnos (S4)', dim:'5. Atención a consultas', week:'S4'},
+    // 6. Riesgo
+    {id:'c_6_1_s1', label:'6.1 Riesgo Académico (S1)', dim:'6. Atención y seguimiento a estudiantes en riesgo académico', week:'S1'},
+    {id:'c_6_1_s2', label:'6.1 Riesgo Académico (S2)', dim:'6. Atención y seguimiento a estudiantes en riesgo académico', week:'S2'},
+    {id:'c_6_1_s3', label:'6.1 Riesgo Académico (S3)', dim:'6. Atención y seguimiento a estudiantes en riesgo académico', week:'S3'},
+    {id:'c_6_1_s4', label:'6.1 Riesgo Académico (S4)', dim:'6. Atención y seguimiento a estudiantes en riesgo académico', week:'S4'},
+    // 7. Conformidad
+    {id:'c_7_1_s4', label:'7.1 Conformidad de cierre (S4)', dim:'7. Conformidad y desarrollo de Informes', week:'S4'},
+    {id:'c_7_2_s4', label:'7.2 Informe Final (S4)', dim:'7. Conformidad y desarrollo de Informes', week:'S4'}
+  ];
+
+  const CRITERIA_MAP_PRESENCIAL = [
+    // 1. Organización
+    {id:'cp_1_1_pre', label:'1.1 Actualiza OVAs (Antes S1)', dim:'1. Organización y gestión', week:'S1'},
+    {id:'cp_1_2_s1', label:'1.2 Programa Sesiones y Anuncios (S1)', dim:'1. Organización y gestión', week:'S1'},
+    // 2. Sesiones
+    {id:'cp_2_1_b', label:'2.1 Realiza Sesión (Bienvenida)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S1'},
+    {id:'cp_2_1_s1', label:'2.1 Realiza Sesión (S1)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S1'},
+    {id:'cp_2_1_s2', label:'2.1 Realiza Sesión (S2)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S2'},
+    {id:'cp_2_1_s3', label:'2.1 Realiza Sesión (S3)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S3'},
+    {id:'cp_2_1_s4', label:'2.1 Realiza Sesión (S4)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S4'},
+    {id:'cp_2_2_b', label:'2.2 Formatos Institucionales (Bienvenida)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S1'},
+    {id:'cp_2_2_s1', label:'2.2 Formatos Institucionales (S1)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S1'},
+    {id:'cp_2_2_s2', label:'2.2 Formatos Institucionales (S2)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S2'},
+    {id:'cp_2_2_s3', label:'2.2 Formatos Institucionales (S3)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S3'},
+    {id:'cp_2_2_s4', label:'2.2 Formatos Institucionales (S4)', dim:'2. Desarrollo de sesiones (Presencial)', week:'S4'},
+    // 3. Evaluaciones
+    {id:'cp_3_1_s1', label:'3.1 Entrega evaluaciones a imprimir (S1)', dim:'3. Evaluaciones', week:'S1'},
+    {id:'cp_3_2_s2', label:'3.2 Realiza y entrega E. Parcial (S2)', dim:'3. Evaluaciones', week:'S2'},
+    {id:'cp_3_3_s4', label:'3.3 Realiza y entrega E. Final (S4)', dim:'3. Evaluaciones', week:'S4'},
+    // 4. Asistencia
+    {id:'cp_4_1_s4', label:'4.1 Registra y comunica inasistencia (S4)', dim:'4. Control de Asistencia', week:'S4'},
+    // 5. Calificación
+    {id:'cp_5_1_s1', label:'5.1 Califica actividades (S1)', dim:'5. Calificación y retroalimentación', week:'S1'},
+    {id:'cp_5_1_s2', label:'5.1 Califica actividades (S2)', dim:'5. Calificación y retroalimentación', week:'S2'},
+    {id:'cp_5_1_s3', label:'5.1 Califica actividades (S3)', dim:'5. Calificación y retroalimentación', week:'S3'},
+    {id:'cp_5_1_s4', label:'5.1 Califica actividades (S4)', dim:'5. Calificación y retroalimentación', week:'S4'},
+    {id:'cp_5_2_s1', label:'5.2 Retroalimenta y rúbrica (S1)', dim:'5. Calificación y retroalimentación', week:'S1'},
+    {id:'cp_5_2_s2', label:'5.2 Retroalimenta y rúbrica (S2)', dim:'5. Calificación y retroalimentación', week:'S2'},
+    {id:'cp_5_2_s3', label:'5.2 Retroalimenta y rúbrica (S3)', dim:'5. Calificación y retroalimentación', week:'S3'},
+    {id:'cp_5_2_s4', label:'5.2 Retroalimenta y rúbrica (S4)', dim:'5. Calificación y retroalimentación', week:'S4'},
+    // 6. Consultas
+    {id:'cp_6_1_s1', label:'6.1 Responde comunicaciones (S1)', dim:'6. Atención a estudiantes', week:'S1'},
+    {id:'cp_6_1_s2', label:'6.1 Responde comunicaciones (S2)', dim:'6. Atención a estudiantes', week:'S2'},
+    {id:'cp_6_1_s3', label:'6.1 Responde comunicaciones (S3)', dim:'6. Atención a estudiantes', week:'S3'},
+    {id:'cp_6_1_s4', label:'6.1 Responde comunicaciones (S4)', dim:'6. Atención a estudiantes', week:'S4'},
+    // 7. Riesgo
+    {id:'cp_7_1_s1', label:'7.1 Incentiva contra Riesgo (S1)', dim:'7. Riesgo Académico', week:'S1'},
+    {id:'cp_7_1_s2', label:'7.1 Incentiva contra Riesgo (S2)', dim:'7. Riesgo Académico', week:'S2'},
+    {id:'cp_7_1_s3', label:'7.1 Incentiva contra Riesgo (S3)', dim:'7. Riesgo Académico', week:'S3'},
+    {id:'cp_7_1_s4', label:'7.1 Incentiva contra Riesgo (S4)', dim:'7. Riesgo Académico', week:'S4'},
+    // 8. Conformidad
+    {id:'cp_8_1_s4', label:'8.1 Conformidad de cierre (S4)', dim:'8. Conformidad y Cierre', week:'S4'},
+    {id:'cp_8_2_s4', label:'8.2 Realiza informes (S4)', dim:'8. Conformidad y Cierre', week:'S4'}
+  ];
+
+  let CURRENT_CRITERIA_MAP = CRITERIA_MAP_VIRTUAL;
+
+  let globalData=null; let currentCourse=null; let currentModule='VIRTUAL'; let currentWeekId='S1';
+
+  // --- LOGIC: STATUS AND COLOR ---
+  function parseDate(dateStr) {
+      if (!dateStr) return null;
+      let d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d;
+      
+      // Fallback for DD/MM/YYYY
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+          // Month is 0-indexed in JS Date(Y, M, D)
+          d = new Date(parts[2], parts[1] - 1, parts[0]);
+          if (!isNaN(d.getTime())) return d;
+      }
+      return null;
+  }
+
+  // --- LOGIC: STATUS AND COLOR ---
+  function getWeekStats(startDateStr, weekKey, grades) {
+      const start = parseDate(startDateStr);
+      if (!start) return { status: 'LOCKED_FUTURE', progress: 0, color: 'ws-gray' };
+      
+      const oneDay = 24*60*60*1000;
+      let startOffset=0, endOffset=0;
+      
+      if(weekKey==='S1'){ startOffset=0; endOffset=9.99; }
+      else if(weekKey==='S2'){ startOffset=7; endOffset=16.99; }
+      else if(weekKey==='S3'){ startOffset=14; endOffset=23.99; }
+      else if(weekKey==='S4'){ startOffset=21; endOffset=30.99; }
+
+      const now = new Date();
+      // Set to midnight for date comparisons
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      const openTime = new Date(start.getTime() + (startOffset*oneDay));
+      const closeTime = new Date(start.getTime() + (endOffset*oneDay));
+      
+      // Adjust to end of day for closeTime
+      closeTime.setHours(23, 59, 59, 999);
+      
+      let timeStatus = 'OPEN';
+      let timeLeftHours = 999;
+      
+      if (now < openTime) timeStatus = 'LOCKED_FUTURE';
+      else if (now > closeTime) timeStatus = 'LOCKED_PAST';
+      else {
+         const diff = closeTime - now.getTime();
+         timeLeftHours = diff / (1000*60*60);
+      }
+
+      const items = CURRENT_CRITERIA_MAP.filter(x => x.week === weekKey);
+      let filled=0;
+      items.forEach(i => { if(grades && grades[i.id] > 0) filled++; });
+      const progress = items.length ? Math.round((filled/items.length)*100) : 0;
+      
+      let color = 'ws-gray';
+      
+      // Reglas estrictas solicitadas:
+      if (progress === 100) {
+          color = 'ws-green'; 
+      } else if (timeStatus === 'LOCKED_PAST') {
+          color = 'ws-red'; // Vencido y no completado
+      } else if (timeStatus === 'LOCKED_FUTURE') {
+          color = 'ws-gray';
+      } else if (timeStatus === 'OPEN') {
+          if (progress === 0) color = 'ws-red';
+          else {
+              if (timeLeftHours < 24) color = 'ws-orange';
+              else color = 'ws-blue';
+          }
+      }
+      
+      return { status: timeStatus, progress: progress, color: color, total: items.length, filled: filled };
+  }
+
+  // --- TEMPLATE SYSTEM (NEW) ---
+
+
+  // --- MANTENIMIENTO GLOBAL (Fase 3.3) ---
+  function showMaintenanceScreen(msg = "Sincronizando Bases de Datos... Por favor, espere.") {
+      let overlay = document.getElementById('maintenance-overlay');
+      if(!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'maintenance-overlay';
+          overlay.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[9999] flex flex-col items-center justify-center text-white';
+          overlay.innerHTML = `
+              <i class="fa-solid fa-gears text-6xl text-purple-400 mb-6 fa-spin"></i>
+              <h2 class="text-3xl font-black tracking-tight mb-3 text-center px-4" id="maintenance-msg">${msg}</h2>
+              <p class="text-gray-300 text-base font-medium animate-pulse text-center px-4 max-w-lg">
+                 Esta operación puede demorar varios minutos. Por favor, no cierre esta pestaña.<br/><br/>
+                 Ningún usuario puede usar la plataforma mientras se actualiza.
+              </p>
+          `;
+          document.body.appendChild(overlay);
+      } else {
+          document.getElementById('maintenance-msg').innerText = msg;
+          overlay.classList.remove('hidden');
+      }
+  }
+
+  function hideMaintenanceScreen() {
+      const overlay = document.getElementById('maintenance-overlay');
+      if(overlay) overlay.classList.add('hidden');
+  }
+
+  function handleMaintenanceResponse(res) {
+      if (res && res.maintenance) {
+          alert("El sistema se encuentra en mantenimiento y sus cambios no han sido guardados. Por favor, intente ingresar más tarde.");
+          setTimeout(() => { window.location.reload(); }, 1500);
+          return true;
+      }
+      return false;
+  }
+
+  // --- MAIN ---
+  function loadModule(key) {
+    if(key === 'ASIGNACION') {
+        loadAssignmentModule();
+        return;
+    }
+    if (key === 'ACOMPANAMIENTO') {
+        currentModule = key;
+        document.getElementById('home-view').classList.add('hidden');
+        document.getElementById('module-acomp').classList.remove('hidden');
+        document.getElementById('module-acomp').style.display='flex';
+        // Podríamos usar un loader específico o el general
+        const spinner = document.getElementById('spinner-box') || document.createElement('div');
+        
+        google.script.run
+        .withSuccessHandler(d => {
+             if(handleMaintenanceResponse(d)) return;
+             if (d && d.role === 'ERROR') {
+                 alert("Error Backend: " + d.message);
+                 return;
+             }
+             if (!d || !d.courses) {
+                 alert("Error: No se recibieron datos de Acompañamiento.");
+                 return;
+             }
+             
+             document.getElementById('user-email-acomp').innerText = d.userEmail;
+             globalData = d;
+             toggleViewAcomp('OVERVIEW');
+        })
+        .withFailureHandler(e => {
+            alert("Error de Conexión: " + e);
+        })
+        .getInitialData(key);
+        
+        return;
+    }
+
+    currentModule = key;
+    CURRENT_CRITERIA_MAP = (key === 'PRESENCIAL') ? CRITERIA_MAP_PRESENCIAL : CRITERIA_MAP_VIRTUAL;
+    
+    document.getElementById('home-view').classList.add('hidden');
+    document.getElementById('module-view').classList.remove('hidden');
+    document.getElementById('module-view').style.display='flex';
+    document.getElementById('spinner-box').classList.remove('hidden');
+    document.getElementById('main-content').classList.add('hidden');
+    
+    // 1°. Título del módulo
+    const dashTitle = document.getElementById('dashboard-main-title');
+    if (dashTitle) {
+       dashTitle.innerText = key === 'PRESENCIAL' ? 'SISTEMA DE MONITOREO DE ASIGNATURAS PRESENCIALES - USMP VIRTUAL' : 'SISTEMA DE MONITOREO DE ASIGNATURAS VIRTUALES - USMP VIRTUAL';
+    }
+    
+    // Ocultar botones de Sincronización en la vista General (Virtual/Presencial) si existen (Falla 5)
+    // Buscamos si hay algún contenedor global de acciones y lo ocultamos proactivamente al entrar a estos módulos
+    const globalActions = document.getElementById('assign-global-actions');
+    if (globalActions) globalActions.style.display = 'none';
+
+    google.script.run
+    .withSuccessHandler(d => {
+         if(handleMaintenanceResponse(d)) return;
+         if (d && d.role === 'ERROR') {
+             alert("Error Backend: " + d.message);
+             document.getElementById('spinner-box').innerHTML = `<p class="text-red-600 font-bold">${d.message}</p>`;
+             return;
+         }
+         if (!d || !d.courses) {
+             alert("Error: No se recibieron datos.");
+             return;
+         }
+
+         document.getElementById('spinner-box').classList.add('hidden');
+         document.getElementById('main-content').classList.remove('hidden');
+         document.getElementById('user-email').innerText = d.userEmail;
+         globalData = d;
+         toggleView('OVERVIEW');
+    })
+    .withFailureHandler(e => {
+        alert("Error de Conexión: " + e);
+        document.getElementById('spinner-box').innerHTML = `<p class="text-red-600 font-bold">Error de Conexión: ${e}</p>`;
+    })
+    .getInitialData(key);
+  }
+  
+  function toggleView(view) {
+     const overview = document.getElementById('overview-panel');
+     const detail = document.getElementById('detail-panel');
+     
+     if(view === 'OVERVIEW') {
+        detail.classList.add('hidden');
+        overview.classList.remove('hidden');
+        renderOverview();
+     } else {
+        overview.classList.add('hidden');
+        detail.classList.remove('hidden');
+     }
+  }
+
+  function goHome() {
+     document.getElementById('module-view').classList.add('hidden');
+     document.getElementById('module-view').style.display='none';
+     document.getElementById('assignment-view').classList.add('hidden');
+     document.getElementById('home-view').classList.remove('hidden');
+     globalData=null; currentCourse=null;
+     document.getElementById('spinner-box').classList.remove('hidden');
+     document.getElementById('main-content').classList.add('hidden');
+  }
+
+  // ==========================================
+  // MÓDULO ASIGNACIÓN (Fase 3)
+  // ==========================================
+  let globalAssignments = [];
+  let globalCoordinators = [];
+
+  let assignChartInstance = null;
+
+  function loadAssignmentModule() {
+      document.getElementById('home-view').classList.add('hidden');
+      document.getElementById('assignment-view').classList.remove('hidden');
+      
+      // Mostrar info del usuario en cabecera
+      if(window.AUTH_DATA) {
+          const name = window.AUTH_DATA.name || window.AUTH_DATA.userEmail;
+          document.getElementById('assign-user-name').innerText = name;
+          document.getElementById('assign-user-role').innerText = window.AUTH_DATA.role;
+          document.getElementById('assign-user-avatar').innerText = name.charAt(0).toUpperCase();
+      }
+
+      document.getElementById('assign-list').innerHTML = `
+          <div class="flex flex-col items-center justify-center p-10 text-gray-500">
+              <i class="fa-solid fa-spinner fa-spin text-3xl mb-4 text-purple-500"></i>
+              <p>Cargando lista de asignaturas y coordinadores...</p>
+          </div>
+      `;
+
+      google.script.run
+      .withSuccessHandler(res => {
+          if(handleMaintenanceResponse(res)) return;
+          if(res && res.error) {
+              alert(res.message);
+              goHome();
+              return;
+          }
+          globalAssignments = res.courses || [];
+          globalCoordinators = res.coordinators || [];
+          renderAssignmentDashboard();
+          populateBulkDropdowns();
+          renderAssignmentList();
+      })
+      .withFailureHandler(e => {
+          alert("Error cargando módulo: " + e);
+          goHome();
+      })
+      .getAssignmentData();
+  }
+
+  function renderAssignmentDashboard() {
+      // 1. Calcular totales por coordinador
+      // El key será 'nombre|email' o solo 'nombre' si email no viene 100% igual. Usaremos nombre+email garantizado por option.
+      const stats = {};
+      let totalAssigned = 0;
+      let totalUnassigned = 0;
+
+      // Inicializar stats para todos los posibles (incluso si tienen 0)
+      globalCoordinators.forEach(c => {
+          stats[`${c.name}|${c.email}`] = { name: c.name, courses: 0, students: 0, color: getRandomColor(c.name) };
+      });
+
+      globalAssignments.forEach(c => {
+          let sCount = parseInt(c.studentsCount) || 0;
+          if(c.currentCoordName && c.currentCoordEmail) {
+              const key = `${c.currentCoordName}|${c.currentCoordEmail}`;
+              if(!stats[key]) {
+                  // Si por alguna razón el asignado actual no está en la lista de coordinadores general
+                  stats[key] = { name: c.currentCoordName, courses: 0, students: 0, color: getRandomColor(c.currentCoordName) };
+              }
+              stats[key].courses++;
+              stats[key].students += sCount;
+              totalAssigned++;
+          } else {
+              totalUnassigned++;
+          }
+      });
+
+      // 2. Dibujar KPI Cards
+      const container = document.getElementById('assign-kpi-container');
+      container.innerHTML = '';
+      
+      const statKeys = Object.keys(stats).sort((a,b) => stats[b].courses - stats[a].courses);
+      
+      statKeys.forEach(k => {
+          const st = stats[k];
+          // Mostrar incluso si están en 0, para que se vea el dashboard completo, o filtrar si son muchos.
+          if(st.courses > 0 || globalCoordinators.find(gc => `${gc.name}|${gc.email}` === k)) {
+              const card = document.createElement('div');
+              card.className = "bg-gray-50 p-3 rounded-lg border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-purple-50 hover:border-purple-200 transition-colors group";
+              // Click en la tarjeta filtra la lista por este coordinador
+              card.onclick = () => {
+                  document.getElementById('assign-search').value = st.name;
+                  renderAssignmentList();
+              };
+              
+              card.innerHTML = `
+                  <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style="background-color: ${st.color}">
+                          ${st.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div class="flex flex-col">
+                          <span class="text-xs font-bold text-gray-700 truncate max-w-[100px] xl:max-w-[150px]" title="${st.name}">${st.name}</span>
+                          <span class="text-[10px] text-gray-400 font-medium group-hover:text-purple-500">${st.courses} asig. | ${st.students} alum.</span>
+                      </div>
+                  </div>
+              `;
+              container.appendChild(card);
+          }
+      });
+
+      // Tarjeta Sin Asignar (Opcional visualmente útil)
+      if(totalUnassigned > 0) {
+          const cardUnassigned = document.createElement('div');
+          cardUnassigned.className = "bg-red-50 p-3 rounded-lg border border-red-100 flex items-center justify-between cursor-pointer hover:bg-red-100 transition-colors";
+          cardUnassigned.onclick = () => { document.getElementById('assign-search').value = "Sin asignar"; renderAssignmentList(); };
+          cardUnassigned.innerHTML = `
+              <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-red-500 bg-red-100 font-bold text-xs"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                  <div class="flex flex-col"><span class="text-xs font-bold text-red-700">Sin Asignar</span><span class="text-[10px] text-red-400 font-medium">${totalUnassigned} asig.</span></div>
+              </div>
+          `;
+          container.appendChild(cardUnassigned);
+      }
+
+      // 3. Dibujar/Actualizar Chart.js
+      renderChart(stats, totalUnassigned);
+  }
+
+  function renderChart(stats, unassignedCount) {
+      const ctx = document.getElementById('assignChart');
+      if(!ctx) return;
+
+      const labels = [];
+      const data = [];
+      const bgColors = [];
+
+      Object.values(stats).forEach(st => {
+          if(st.courses > 0) {
+              labels.push(st.name);
+              data.push(st.courses);
+              bgColors.push(st.color);
+          }
+      });
+
+      if(unassignedCount > 0) {
+          labels.push("Sin Asignar");
+          data.push(unassignedCount);
+          bgColors.push('#fee2e2'); // red-50
+      }
+
+      if(assignChartInstance) {
+          assignChartInstance.destroy();
+      }
+
+      assignChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels: labels,
+              datasets: [{
+                  label: 'Asignaturas',
+                  data: data,
+                  backgroundColor: bgColors,
+                  borderWidth: 1,
+                  borderColor: '#ffffff'
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                      callbacks: {
+                          label: function(context) {
+                              return ' Asignaturas: ' + context.raw;
+                          }
+                      }
+                  }
+              },
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      ticks: {
+                          precision: 0
+                      }
+                  },
+                  x: {
+                      display: false // Ocultar nombres largos en el eje X para mantenerlo limpio
+                  }
+              }
+          }
+      });
+  }
+
+  function getRandomColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+      return '#' + "00000".substring(0, 6 - c.length) + c;
+  }
+
+  function renderAssignmentList() {
+      const isManager = window.AUTH_DATA && (window.AUTH_DATA.role === 'Admin' || window.AUTH_DATA.role === 'Jefe de área');
+      
+      const globalActions = document.getElementById('assign-global-actions');
+      if (globalActions) globalActions.style.display = isManager ? 'flex' : 'none';
+      const bulkBar = document.getElementById('assign-bulk-bar');
+      if (bulkBar) bulkBar.style.display = isManager ? 'flex' : 'none';
+
+      const container = document.getElementById('assign-list');
+      container.innerHTML = '';
+
+      const term = document.getElementById('assign-search').value.toLowerCase();
+      const filtered = globalAssignments.filter(c => {
+          const isUnassigned = term === "sin asignar" && (!c.currentCoordName || c.currentCoordName.trim() === "");
+          return isUnassigned ||
+                 String(c.courseName).toLowerCase().includes(term) || 
+                 String(c.professor).toLowerCase().includes(term) ||
+                 String(c.program).toLowerCase().includes(term) ||
+                 String(c.currentCoordName).toLowerCase().includes(term);
+      });
+
+      document.getElementById('assign-count').innerText = `${filtered.length} REGISTROS`;
+
+      if(filtered.length === 0) {
+          container.innerHTML = `<div class="p-8 text-center text-gray-400">No se encontraron resultados para "${term}".</div>`;
+          return;
+      }
+
+      // Preparar options del select
+      let optionsHTML = `<option value="">-- Seleccionar Coordinador/Jefe --</option>`;
+      globalCoordinators.forEach(coord => {
+          // Remarcar si es jefe
+          const roleMarker = String(coord.role).toLowerCase().includes('jefe') ? '⭐ ' : '';
+          optionsHTML += `<option value="${coord.name}|${coord.email}">${roleMarker}${coord.name}</option>`;
+      });
+
+      filtered.forEach(c => {
+          const row = document.createElement('div');
+          row.className = "bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4";
+          
+          let selectValue = "";
+          if(c.currentCoordName && c.currentCoordEmail) {
+             selectValue = `${c.currentCoordName}|${c.currentCoordEmail}`;
+             // Verificar si ya existe. (Ignorando la estrellita en la validación del value, porque el HTML busca coincidencias exactas del atributo value)
+             if(!optionsHTML.includes(`value="${selectValue}"`)) {
+                 optionsHTML += `<option value="${selectValue}" selected>${c.currentCoordName} (${c.currentCoordEmail})</option>`;
+             }
+          }
+
+          let assignHTML = '';
+          if (isManager) {
+              assignHTML = `
+              <div class="flex items-center gap-3 w-full xl:w-auto mt-2 xl:mt-0">
+                  <select id="select-coord-${c.rowIndex}" onchange="showSaveBtn(${c.rowIndex})" class="flex-1 xl:w-72 text-sm bg-gray-50 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 outline-none">
+                      ${optionsHTML}
+                  </select>
+                  <button id="btn-save-coord-${c.rowIndex}" onclick="saveCoord(${c.rowIndex})" class="hidden bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors min-w-[100px] text-sm flex items-center justify-center">
+                     Guardar
+                  </button>
+              </div>
+              `;
+          } else {
+              const displayName = (c.currentCoordName && c.currentCoordEmail) ? `${c.currentCoordName} (${c.currentCoordEmail})` : 'Sin asignar';
+              assignHTML = `
+              <div class="flex items-center gap-3 w-full xl:w-auto mt-2 xl:mt-0">
+                  <div class="flex-1 xl:w-72 text-sm bg-gray-50 border border-gray-200 rounded-lg p-2 shadow-inner text-gray-700 truncate" title="${displayName}">
+                     <i class="fa-solid fa-user-lock mr-2 text-gray-400"></i>${displayName}
+                  </div>
+              </div>
+              `;
+          }
+
+          row.innerHTML = `
+              <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                      <span class="text-[10px] bg-purple-50 text-purple-600 border border-purple-100 px-2 py-0.5 rounded font-bold uppercase transition-all whitespace-normal break-words">${c.program || 'N/A'}</span>
+                      <span class="text-[10px] text-gray-400 font-bold whitespace-nowrap"><i class="fa-solid fa-users mr-1"></i>${c.studentsCount || 0} alum.</span>
+                      <span class="text-[10px] text-gray-400 px-2">|</span>
+                      <span class="text-[10px] text-gray-400 whitespace-nowrap">F. ${c.rowIndex}</span>
+                  </div>
+                  <h3 class="font-bold text-gray-800 text-sm truncate mb-0.5" title="${c.courseName}">${c.courseName}</h3>
+                  <p class="text-xs text-gray-500 font-medium truncate"><i class="fa-regular fa-user mr-1"></i> ${c.professor}</p>
+              </div>
+              ${assignHTML}
+          `;
+          
+          container.appendChild(row);
+          
+          // Set selected value
+          if(selectValue && isManager) {
+             const sel = document.getElementById(`select-coord-${c.rowIndex}`);
+             if(sel) sel.value = selectValue;
+          }
+      });
+  }
+
+  function showSaveBtn(rowIndex) {
+      const btn = document.getElementById(`btn-save-coord-${rowIndex}`);
+      if(btn) {
+          btn.classList.remove('hidden');
+          // Update visual feedback on select
+          const sel = document.getElementById(`select-coord-${rowIndex}`);
+          sel.classList.add('border-purple-500', 'bg-purple-50');
+      }
+  }
+
+  function saveCoord(rowIndex) {
+      const sel = document.getElementById(`select-coord-${rowIndex}`);
+      const btn = document.getElementById(`btn-save-coord-${rowIndex}`);
+      if(!sel || !btn) return;
+
+      const val = sel.value;
+      let coordName = '', coordEmail = '';
+      if(val) {
+          const parts = val.split('|');
+          coordName = parts[0];
+          coordEmail = parts[1];
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+      google.script.run
+      .withSuccessHandler(res => {
+          if(handleMaintenanceResponse(res)) {
+             btn.disabled = false;
+             btn.innerHTML = 'Guardar';
+             return;
+          }
+          if(res && res.success) {
+              btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+              btn.classList.replace('bg-purple-600', 'bg-green-500');
+              btn.classList.replace('hover:bg-purple-700', 'hover:bg-green-600');
+              sel.classList.remove('border-purple-500', 'bg-purple-50');
+              
+              // Actualizar Dashboard Automáticamente sin recargar todo
+              renderAssignmentDashboard();
+
+              setTimeout(() => {
+                  btn.classList.add('hidden');
+                  btn.disabled = false;
+                  btn.innerHTML = 'Guardar';
+                  btn.classList.replace('bg-green-500', 'bg-purple-600');
+                  btn.classList.replace('hover:bg-green-600', 'hover:bg-purple-700');
+              }, 2000);
+          } else {
+              alert("Error: " + (res?res.message:'Desconocido'));
+              btn.disabled = false;
+              btn.innerHTML = 'Guardar';
+          }
+      })
+      .withFailureHandler(e => {
+          alert("Error de conexión: " + e);
+          btn.disabled = false;
+          btn.innerHTML = 'Guardar';
+      })
+      .saveAssignment(rowIndex, coordName, coordEmail);
+  }
+
+  function populateBulkDropdowns() {
+      const progSelect = document.getElementById('bulk-program-select');
+      const coordSelect = document.getElementById('bulk-coord-select');
+      if(!progSelect || !coordSelect) return;
+
+      // 1. Llenar Programas únicos
+      const programs = [...new Set(globalAssignments.map(c => c.program || 'N/A'))].filter(p => p !== 'N/A').sort();
+      let pHTML = `<option value="">-- Seleccionar Programa --</option>`;
+      programs.forEach(p => { pHTML += `<option value="${p}">${p}</option>`; });
+      progSelect.innerHTML = pHTML;
+      
+      // Agregar el evento onchange para filtrar el buscador abajo
+      progSelect.addEventListener('change', function(e) {
+          const val = e.target.value;
+          document.getElementById('assign-search').value = val;
+          renderAssignmentList(); // Forzar el filtrado instantáneo
+      });
+
+      // 2. Llenar Coordinadores/Jefes
+      let cHTML = `<option value="">-- Seleccionar Responsable --</option>`;
+      globalCoordinators.forEach(coord => {
+          const roleMarker = String(coord.role).toLowerCase().includes('jefe') ? '⭐ ' : '';
+          cHTML += `<option value="${coord.name}|${coord.email}">${roleMarker}${coord.name}</option>`;
+      });
+      coordSelect.innerHTML = cHTML;
+  }
+
+  function saveBulkCoord() {
+      const progSelect = document.getElementById('bulk-program-select');
+      const coordSelect = document.getElementById('bulk-coord-select');
+      const btn = document.getElementById('btn-bulk-save');
+      
+      const prog = progSelect.value;
+      const coordVal = coordSelect.value;
+
+      if(!prog) return alert("Por favor, selecciona un Programa.");
+      if(!coordVal) return alert("Por favor, selecciona un Responsable.");
+
+      // Filtrar filas de este programa
+      const targets = globalAssignments.filter(c => c.program === prog);
+      if(targets.length === 0) return alert("No hay asignaturas para este programa.");
+
+      const confirmMsg = `¿Estás seguro de asignar masivamente ${targets.length} asignaturas del programa "${prog}"?\n\nEsta acción sobreescribirá las asignaciones actuales.`;
+      if(!confirm(confirmMsg)) return;
+
+      const rowIndices = targets.map(c => c.rowIndex);
+      const parts = coordVal.split('|');
+      const coordName = parts[0];
+      const coordEmail = parts[1];
+
+      btn.disabled = true;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Asignando...';
+
+      google.script.run
+      .withSuccessHandler(res => {
+          if(handleMaintenanceResponse(res)) {
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+              return;
+          }
+          if(res && res.success) {
+              // Actualizar caché local
+              targets.forEach(t => {
+                  t.currentCoordName = coordName;
+                  t.currentCoordEmail = coordEmail;
+              });
+
+              // Limpiar selects
+              progSelect.value = '';
+              coordSelect.value = '';
+
+              // Feedback visual
+              btn.classList.replace('bg-purple-600', 'bg-green-500');
+              btn.classList.replace('hover:bg-purple-700', 'hover:bg-green-600');
+              btn.innerHTML = '<i class="fa-solid fa-check"></i> ¡Éxito!';
+
+              // Refrescar UI
+              renderAssignmentDashboard();
+              renderAssignmentList();
+
+              setTimeout(() => {
+                  btn.disabled = false;
+                  btn.innerHTML = originalText;
+                  btn.classList.replace('bg-green-500', 'bg-purple-600');
+                  btn.classList.replace('hover:bg-green-600', 'hover:bg-purple-700');
+              }, 3000);
+          } else {
+              alert("Error guardando masivo: " + (res?res.message:'Desconocido'));
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+          }
+      })
+      .withFailureHandler(e => {
+          alert("Error de conexión: " + e);
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+      })
+      .saveBulkAssignment(rowIndices, coordName, coordEmail);
+  }
+
+  // ==========================================
+  // FIN MÓDULO ASIGNACIÓN
+  // ==========================================
+
+  // --- SINCRONIZACIÓN Y DB (Fase 3.3) ---
+
+  function ejecutarImportacionBD() {
+      if(!confirm("¿Está seguro de Actualizar la BD desde la Matriz de Contrataciones?\n\nLa plataforma se bloqueará temporalmente para todos los usuarios. Esta operación borrará y reescribirá la información base en Todo Matr.")) return;
+      
+      showMaintenanceScreen("Descargando Matriz y Sincronizando...");
+      google.script.run
+          .withSuccessHandler(res => {
+              if(handleMaintenanceResponse(res)) return;
+              hideMaintenanceScreen();
+              if(res && res.error) {
+                  alert("Error de Sincronización: " + res.message);
+              } else {
+                  alert("¡Base de datos matricial actualizada y Acompañamiento sincronizado exitosamente!");
+                  window.location.reload(); 
+              }
+          })
+          .withFailureHandler(err => {
+              hideMaintenanceScreen();
+              alert("Fallo de conexión grave: " + err);
+          })
+          .runImportAndSyncWebApp();
+  }
+
+  function ejecutarSyncLMS() {
+      if(!confirm("¿Está seguro de Ejecutar/Actualizar Asignación?\n\nLa plataforma se bloqueará temporalmente para todos los usuarios. Esta operación actualizará los módulos Virtual, Presencial y Acompañamiento simultáneamente.")) return;
+      
+      showMaintenanceScreen("Sincronizando Plataformas LMS...");
+      google.script.run
+          .withSuccessHandler(res => {
+              if(handleMaintenanceResponse(res)) return;
+              hideMaintenanceScreen();
+              if(res && res.error) {
+                  alert("Error de Sincronización: " + res.message);
+              } else {
+                  alert("¡Plataformas LMS sincronizadas exitosamente!");
+              }
+          })
+          .withFailureHandler(err => {
+              hideMaintenanceScreen();
+              alert("Fallo de conexión grave: " + err);
+          })
+          .runSyncAllWebApp();
+  }
+
+  function getCourseVigesimal(course) {
+      // Calcular promedio real de notas (1-4) y convertir a vigesimal (x5)
+      let total = 0;
+      let count = 0;
+      
+      // Iterar sobre todos los criterios posibles
+      // Iterar sobre todos los criterios posibles
+      CURRENT_CRITERIA_MAP.forEach(item => {
+          const val = parseInt(course.grades[item.id] || 0);
+          if (val > 0) {
+              total += val;
+              count++;
+          }
+      });
+      
+      if (count === 0) return 0;
+      const avg4 = total / count;
+      return (avg4 * 5).toFixed(2); // 4 * 5 = 20
+  }
+
+  function getWeekVigesimal(course, weekId) {
+      let total = 0;
+      let count = 0;
+      CURRENT_CRITERIA_MAP.filter(x => x.week === weekId).forEach(item => {
+          const val = parseInt(course.grades[item.id] || 0);
+          if (val > 0) {
+              total += val;
+              count++;
+          }
+      });
+      if (count === 0) return "0.00";
+      return ((total / count) * 5).toFixed(2);
+  }
+
+  function renderDashboardStats(courses) {
+      // 1. Totales
+      const totalCourses = courses.length;
+      const totalStudents = courses.reduce((acc, c) => acc + (parseInt(c.studentsCount)||0), 0);
+      
+      // 2. Promedio Total Vigesimal
+      let sumDef = 0;
+      let countDef = 0;
+      courses.forEach(c => {
+          const v = parseFloat(getCourseVigesimal(c));
+          if (v > 0) {
+              sumDef += v;
+              countDef++;
+          }
+      });
+      const globalAvg = countDef ? (sumDef / countDef).toFixed(2) : '0.00';
+      
+      // 3. Progreso Semanal (Promedio de % de avance)
+        const weeks = ['S1', 'S2', 'S3', 'S4'];
+        let weekHTML = '';
+        
+        weeks.forEach(w => {
+            let sumProg = 0;
+            courses.forEach(c => {
+                const s = getWeekStats(c.startDate, w, c.grades);
+                sumProg += s.progress;
+            });
+            const avgProg = Math.round(sumProg / Math.max(totalCourses, 1));
+            
+            // Color barra semanal
+            let barColor = 'bg-blue-500';
+            if(avgProg >= 100) barColor = 'bg-green-500';
+            else if(avgProg < 30) barColor = 'bg-red-500';
+            
+            weekHTML += `
+                <div class="flex flex-col gap-1 w-full">
+                    <div class="flex justify-between text-[10px] items-end">
+                        <span class="font-bold text-gray-500">Semana ${w.replace('S','')}</span>
+                        <span class="font-bold text-gray-700">${avgProg}%</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full ${barColor}" style="width: ${avgProg}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+      // Render Dashboard Header
+      const header = document.getElementById('dashboard-stats-header');
+      if(header) {
+          header.innerHTML = `
+             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                 <!-- Card 1: Asignaturas -->
+                 <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                     <div>
+                         <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Asignaturas</p>
+                         <h3 class="text-2xl font-bold text-gray-800">${totalCourses}</h3>
+                     </div>
+                     <div class="p-3 bg-blue-50 rounded-lg text-blue-600">
+                         <i class="fa-solid fa-book text-xl"></i>
+                     </div>
+                 </div>
+                 
+                 <!-- Card 2: Alumnos -->
+                 <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                     <div>
+                         <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Alumnos</p>
+                         <h3 class="text-2xl font-bold text-gray-800">${totalStudents}</h3>
+                     </div>
+                     <div class="p-3 bg-indigo-50 rounded-lg text-indigo-600">
+                         <i class="fa-solid fa-users text-xl"></i>
+                     </div>
+                 </div>
+
+                 <!-- Card 3: Promedio Global -->
+                 <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                     <div>
+                         <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Promedio Global</p>
+                         <h3 class="text-2xl font-bold ${parseFloat(globalAvg)>=14?'text-green-600':parseFloat(globalAvg)>=10.5?'text-yellow-600':'text-red-600'}">${globalAvg}</h3>
+                     </div>
+                     <div class="p-3 bg-green-50 rounded-lg text-green-600">
+                         <i class="fa-solid fa-chart-line text-xl"></i>
+                     </div>
+                 </div>
+
+                 <!-- Card 4: Avance Semanal -->
+                 <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-center gap-2">
+                     ${weekHTML}
+                 </div>
+             </div>
+          `;
+      }
+  }
+
+  function renderOverview() {
+     const container = document.getElementById('overview-list');
+     container.innerHTML = '';
+     
+     const term = document.getElementById('search-input').value.toLowerCase();
+     const filtered = globalData.courses.filter(c => c.courseName.toLowerCase().includes(term) || c.professor.toLowerCase().includes(term));
+     const countEl = document.getElementById('overview-count');
+     if(countEl) countEl.innerText = filtered.length + ' ASIGNATURAS';
+     const countSidebar = document.getElementById('course-count');
+     if(countSidebar) countSidebar.innerText = filtered.length + ' ASIGNATURAS';
+     
+     // Render Header Stats based on FILTERED data (or global? strict requirement says summary of assignments... usually implies global, but consistent UI matches filter)
+     // Let's use GLOBAL for the top stats to give a big picture, or filtered? 
+     // Requirement: "un resumen de las cantidades de asignaturas, cantidad de asigaturas asignadas..."
+     // Usually dashboard headers show total status. Let's use globalData.courses for stats unless filtering is active?
+     // Actually, if I filter, I might want to see stats for that professor. 
+     // Let's pass 'filtered' to renderDashboardStats so it updates dynamically!
+     renderDashboardStats(filtered);
+     
+     const isGuest = window.AUTH_DATA && window.AUTH_DATA.isGuest;
+     if (isGuest) {
+          container.innerHTML = `<div class="p-10 text-center text-gray-500 font-medium bg-gray-50 rounded-2xl border border-dashed border-gray-200 mt-4 md:col-span-2 lg:col-span-3 w-full">
+             <i class="fa-solid fa-lock text-4xl mb-4 text-gray-300 block"></i>
+             Acceso restringido al detalle de asignaturas.<br><span class="text-sm mt-2 block max-w-lg mx-auto leading-relaxed">Usted se encuentra en modo <b>Invitado</b>. Su visualización está limitada estrictamente a los indicadores métricos globales de avance para fines de supervisión general. No cuenta con permisos para inspeccionar o interactuar con el registro individual de asignaturas.</span>
+          </div>`;
+          const searchInput = document.getElementById('search-input');
+          if (searchInput) searchInput.disabled = true;
+          return;
+     }
+     
+     filtered.forEach(c => {
+        const row = document.createElement('div');
+        row.className = "bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer group flex flex-col md:flex-row items-center gap-4 relative";
+        row.onclick = (e) => {
+           if(e.target.tagName === 'A' || e.target.closest('a')) return;
+           selectCourse(c);
+        };
+
+        let totalProgress = 0;
+        let weekHTML = '';
+         const COLOR_MAP = {
+          'ws-gray': 'bg-gray-200',
+          'ws-green': 'bg-green-500',
+          'ws-blue': 'bg-blue-500',
+          'ws-orange': 'bg-orange-500',
+          'ws-red': 'bg-red-500'
+        };
+
+        ['S1','S2','S3','S4'].forEach(w => {
+            const s = getWeekStats(c.startDate, w, c.grades);
+            totalProgress += s.progress;
+            
+            const colorClass = COLOR_MAP[s.color] || 'bg-gray-200';
+            
+            weekHTML += `
+               <div class="flex flex-col items-center gap-1 w-8">
+                  <div class="text-[9px] text-gray-400 font-bold uppercase">${w}</div>
+                  <div class="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden" title="${s.progress}%">
+                     <div class="h-full ${colorClass}" style="width: ${s.progress}%"></div>
+                  </div>
+               </div>
+            `;
+        });
+        
+        // VIGESIMAL CALCULATION
+        const avgScore = getCourseVigesimal(c);
+        const scoreVal = parseFloat(avgScore);
+        // Colores: 0-10.49 Rojo, 10.5-13.99 Ambar, 14-20 Verde (Estándar académico)
+        // O simple: <11 Rojo, <14 Ambar, >=14 Verde
+        const scoreColor = scoreVal>=14?'text-green-600':scoreVal>=10.5?'text-yellow-600':'text-red-600';
+        
+        row.innerHTML = `
+           <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-gray-800 text-sm group-hover:text-red-700 transition-colors truncate mb-0.5">${c.courseName}</h3>
+              <p class="text-xs text-gray-500 font-medium truncate mb-1"><i class="fa-regular fa-user mr-1"></i> ${c.professor}</p>
+              <p class="text-[10px] text-blue-600 font-bold truncate tracking-wide"><i class="fa-solid fa-user-shield mr-1 text-blue-400"></i> ${c.coordName ? c.coordName.toUpperCase() : 'SIN ASIGNAR'}</p>
+           </div>
+           
+           <div class="flex items-center gap-3 border-l border-r border-gray-100 px-4">
+               ${weekHTML}
+           </div>
+
+           <div class="text-center min-w-[60px]">
+              <div class="text-xl font-bold ${scoreColor}">${avgScore}</div>
+              <div class="text-[9px] text-gray-400 uppercase font-bold">Prom.</div>
+           </div>
+           
+           <div class="flex gap-2">
+              <a href="${c.links.AP.url || '#'}" target="_blank" onclick="logAccess('AP')" class="${c.links.AP.url?'':'opacity-50 pointer-events-none'} text-xs bg-blue-50 text-blue-600 px-2 py-1.5 rounded font-bold hover:bg-blue-100 transition-colors" title="Aula Virtual AP"><i class="fa-solid fa-globe"></i></a>
+              <a href="${c.links.USMP.url || '#'}" target="_blank" onclick="logAccess('USMP')" class="${c.links.USMP.url?'':'opacity-50 pointer-events-none'} text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded font-bold hover:bg-red-100 transition-colors" title="Aula Virtual USMP"><i class="fa-solid fa-university"></i></a>
+              <button class="text-xs font-bold text-gray-400 group-hover:text-gray-600 px-2 py-1.5 hover:bg-gray-100 rounded transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
+           </div>
+        `;
+        container.appendChild(row);
+     });
+  }
+
+  function selectCourse(c) {
+     currentCourse = c;
+     toggleView('DETAIL');
+     
+     document.getElementById('detail-course-name').innerText = c.courseName;
+     document.getElementById('detail-professor').innerText = c.professor;
+     document.getElementById('detail-program').innerText = c.program;
+     document.getElementById('detail-students').innerText = c.studentsCount + ' Alumnos';
+     
+     let dateDisplay = '--/--/----';
+     if(c.startDate) {
+        const d = new Date(c.startDate);
+        if(!isNaN(d.getTime())) dateDisplay = d.toLocaleDateString();
+        else dateDisplay = String(c.startDate); 
+     }
+     document.getElementById('detail-start-date').innerText = dateDisplay;
+
+     setupLink('link-ap', c.links.AP.url, c.links.AP.code);
+     setupLink('link-usmp', c.links.USMP.url, c.links.USMP.code);
+     
+     // New Unified Tabs
+     renderUnifiedTabs();
+     // Ensure criteria is rendered for current selection
+     renderCriteria();
+  }
+  
+  function setupLink(id, url, label) {
+     const el = document.getElementById(id);
+     const defaultText = id === 'link-ap' ? 'Aula Virtual AP' : 'Aula Virtual USMP';
+
+     // Validar URL
+     if(url && url.length > 5) {
+        el.href = url;
+        el.classList.remove('hidden', 'opacity-50', 'pointer-events-none');
+        el.classList.add('flex');
+        // TRACKING CLICK
+        const trackType = id==='link-ap' ? 'AP' : 'USMP';
+        el.setAttribute('onclick', `logAccess('${trackType}')`);
+     } else {
+        el.href='#';
+        el.classList.add('opacity-50', 'pointer-events-none');
+     }
+     
+     // Construir contenido HTML
+     let iconClass = "fa-solid fa-globe mr-2 mt-0.5 text-gray-400 group-hover:";
+     iconClass += (id === 'link-ap') ? 'text-blue-500' : 'text-red-500';
+
+     let content = '';
+     if (label && label.length > 3) {
+         // Con código
+         content = `
+            <div class="flex items-start text-left w-full overflow-hidden">
+                <i class="${iconClass}"></i>
+                <div class="flex flex-col min-w-0">
+                    <span class="font-bold text-xs leading-none mb-0.5">${defaultText}</span>
+                    <span class="text-[10px] text-gray-500 font-mono truncate" title="${label}">${label}</span>
+                </div>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-0 group-hover:opacity-100 ml-2"></i>
+         `;
+     } else {
+         // Sin código (solo texto default)
+         content = `
+            <div class="flex items-center">
+                <i class="${iconClass}"></i>
+                <span class="font-medium truncate">${defaultText}</span>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-0 group-hover:opacity-100 ml-2"></i>
+         `;
+     }
+     el.innerHTML = content;
+  }
+
+  function renderUnifiedTabs() {
+     const con = document.getElementById('week-status-container');
+     con.innerHTML = '';
+     
+     ['S1','S2','S3','S4'].forEach(w => {
+         const stats = getWeekStats(currentCourse.startDate, w, currentCourse.grades);
+         const weekNum = w.replace('S','');
+         const isActive = (currentWeekId === w);
+         
+         const btn = document.createElement('button');
+         // Estilo base
+         let cls = "flex items-center gap-2 px-3 py-2 rounded-lg transition-all border ";
+         
+         if (isActive) {
+             cls += "bg-white border-blue-200 shadow-sm ring-1 ring-blue-100";
+         } else {
+             // Eliminamos grayscale para que el color se vea siempre
+             cls += "bg-transparent border-transparent hover:bg-gray-50 text-gray-400 hover:text-gray-600";
+         }
+         
+         btn.className = cls;
+         
+         // Cuadrado de color (Semaforo)
+         const colorClass = stats.color.replace('ws-', 'bg-');
+         const colorTailwind = colorClass === 'bg-gray' ? 'bg-gray-300' : 
+                               colorClass === 'bg-green' ? 'bg-green-500' :
+                               colorClass === 'bg-blue' ? 'bg-blue-500' :
+                               colorClass === 'bg-orange' ? 'bg-orange-500' : 
+                               colorClass === 'bg-red' ? 'bg-red-500' : 'bg-gray-300';
+
+         btn.innerHTML = `
+            <div class="w-4 h-4 rounded ${colorTailwind} shadow-sm"></div>
+            <span class="text-xs font-bold ${isActive ? 'text-gray-700' : 'text-gray-500'}">Semana ${weekNum}</span>
+         `;
+         
+         btn.onclick = () => {
+             currentWeekId = w;
+             renderUnifiedTabs();
+             renderCriteria();
+         };
+         
+         con.appendChild(btn);
+     });
+  }
+
+  /* function renderTabs() REMOVED */
+
+  function renderCriteria() {
+     const parent = document.getElementById('criteria-container');
+     parent.innerHTML = '';
+     const stats = getWeekStats(currentCourse.startDate, currentWeekId, currentCourse.grades);
+     const isLocked = (stats.status !== 'OPEN');
+
+     if(isLocked) {
+         const txt = stats.status==='LOCKED_FUTURE' ? 'Semana no iniciada.' : 'Semana finalizada.';
+         parent.innerHTML = `<div class="bg-gray-100 p-3 rounded text-center text-xs text-gray-500 mb-4 font-bold"><i class="fa-solid fa-lock mr-1"></i> ${txt} (Solo Lectura)</div>`;
+     }
+
+     document.getElementById('week-progress-bar').style.width = stats.progress + '%';
+     document.getElementById('week-progress-text').innerText = stats.progress + '%';
+     
+     // Update Weekly Average Display
+     const weekAvg = getWeekVigesimal(currentCourse, currentWeekId);
+     const weekAvgEl = document.getElementById('week-avg-display');
+     if(weekAvgEl) {
+         weekAvgEl.innerText = weekAvg;
+         // Dynamic color
+         const val = parseFloat(weekAvg);
+         weekAvgEl.className = "text-xs font-bold " + (val>=14?'text-green-600':val>=10.5?'text-yellow-600':'text-red-600');
+     }
+
+     const items = CURRENT_CRITERIA_MAP.filter(x => x.week === currentWeekId);
+     const groups = {};
+     items.forEach(i => { if(!groups[i.dim]) groups[i.dim]=[]; groups[i.dim].push(i); });
+     
+     for(const [dim, list] of Object.entries(groups)) {
+         const box = document.createElement('div');
+         box.className = "bg-white border boundary-gray-200 rounded-lg overflow-hidden";
+         
+         const headerRow = `
+         <div class="flex justify-between items-center px-3 py-2 bg-gray-50 border-b border-gray-100">
+            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">${dim}</div>
+            <div class="flex gap-1 text-center text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                <div class="w-7">Def.</div>
+                <div class="w-7">Reg.</div>
+                <div class="w-7">Bueno</div>
+                <div class="w-7">Muy B.</div>
+            </div>
+         </div>`;
+         
+         box.innerHTML = headerRow;
+         const body = document.createElement('div');
+         body.className="divide-y divide-gray-100";
+         list.forEach(c => {
+             const val = parseInt(currentCourse.grades[c.id] || 0);
+             let light = 'tl-gray';
+             if(val>0) light = (val<=2) ? 'tl-red' : 'tl-green';
+             
+             let labelText = '';
+             let labelColor = 'text-gray-300';
+             if(val===1) { labelText='Deficiente'; labelColor='text-red-600'; }
+             else if(val===2) { labelText='Regular'; labelColor='text-red-600'; }
+             else if(val===3) { labelText='Bueno'; labelColor='text-green-600'; }
+             else if(val===4) { labelText='Muy Bueno'; labelColor='text-green-600'; }
+             
+             let btns = '';
+             [1,2,3,4].forEach(n => {
+                const active = (val==n);
+                const cls = active ? (n<=2?'bg-red-500 text-white border-red-500':'bg-green-500 text-white border-green-500') : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300';
+                
+                // Si la semana está bloqueada, o el usuario es invitado, desactiva onClick
+                const isGuest = window.AUTH_DATA && window.AUTH_DATA.isGuest;
+                const click = (isLocked || isGuest) ? '' : `onclick="save('${c.id}',${n},this)"`;
+                
+                // Opacidad si es invitado y no está activo
+                const extraCls = (isGuest && !active) ? 'opacity-50 cursor-not-allowed' : '';
+
+                btns += `<button ${click} class="w-7 h-7 rounded text-xs font-bold border ${cls} ${extraCls}">${n}</button>`;
+             });
+
+             const row = document.createElement('div');
+             row.className = "p-3 flex items-center justify-between hover:bg-gray-50 transition-colors";
+             row.innerHTML = `
+                <div class="flex items-center gap-3">
+                   <div class="traffic-light ${light} mt-0.5" id="tl-${c.id}"></div>
+                   <span class="text-xs font-bold text-gray-700">${c.label}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="lbl-${c.id}" class="text-[10px] font-bold uppercase ${labelColor} min-w-[60px] text-right hidden md:block">${labelText}</span>
+                    <div class="flex gap-1">${btns}</div>
+                </div>
+             `;
+             body.appendChild(row);
+         });
+         box.appendChild(body);
+         parent.appendChild(box);
+     }
+     
+     // Analytics Btns
+     updateActionButtons();
+  }
+
+  function updateActionButtons() {
+     const btnCongrat = document.getElementById('btn-congratulate');
+     const btnReport = document.getElementById('btn-report');
+     const btnGenDoc = document.getElementById('btn-generate-doc');
+     const btnViewDoc = document.getElementById('btn-view-doc');
+     
+     // Recalculate stats for CURRENT week for Congrat/Report
+     const items = CURRENT_CRITERIA_MAP.filter(x => x.week === currentWeekId);
+     let filled=0;
+     let low=0;
+     
+     items.forEach(i => { 
+         const v = parseInt(currentCourse.grades[i.id] || 0); 
+         if(v > 0) filled++;
+         if(v===1 || v===2) low++; 
+     });
+     
+     const progress = items.length ? Math.round((filled/items.length)*100) : 0;
+     const isGuest = window.AUTH_DATA && window.AUTH_DATA.isGuest;
+
+     // Global Progress para DOCS (Solo cuando es módulo Virtual o Presencial)
+     if (btnGenDoc && btnViewDoc) {
+         if (currentModule === 'VIRTUAL' || currentModule === 'PRESENCIAL') {
+             btnGenDoc.classList.remove('hidden');
+             const allItems = CURRENT_CRITERIA_MAP.filter(x => x.week !== 'Tema'); // Todos los puntuables
+             let globalFilled = 0;
+             allItems.forEach(i => {
+                 if (parseInt(currentCourse.grades[i.id] || 0) > 0) globalFilled++;
+             });
+             const globalProgress = allItems.length ? Math.round((globalFilled / allItems.length) * 100) : 0;
+             
+             if (!isGuest && globalProgress === 100) {
+                 btnGenDoc.disabled = false;
+                 btnGenDoc.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
+                 btnGenDoc.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                 btnGenDoc.title = "Generar documento oficial";
+             } else {
+                 btnGenDoc.disabled = true;
+                 btnGenDoc.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                 btnGenDoc.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
+                 btnGenDoc.title = "Debe completar la evaluación al 100% en las 4 semanas para generar la Ficha.";
+             }
+
+             if (currentCourse.grades['Url_ficha']) {
+                 btnViewDoc.href = currentCourse.grades['Url_ficha'];
+                 btnViewDoc.classList.remove('hidden');
+             } else {
+                 btnViewDoc.classList.add('hidden');
+                 btnViewDoc.href = "#";
+             }
+         } else {
+             btnGenDoc.classList.add('hidden'); // Ocultar si no es VIRTUAL aún
+             btnViewDoc.classList.add('hidden');
+         }
+     }
+
+     if(btnCongrat) {
+         if (isGuest) {
+             btnCongrat.disabled = true;
+             btnCongrat.classList.add('opacity-50', 'cursor-not-allowed');
+         } else {
+             btnCongrat.disabled = !(progress===100 && low===0);
+             btnCongrat.classList.remove('opacity-50', 'cursor-not-allowed');
+         }
+     }
+     if(btnReport) {
+         if (isGuest) {
+             btnReport.disabled = true;
+             btnReport.classList.add('opacity-50', 'cursor-not-allowed');
+         } else {
+             btnReport.disabled = !(low>0);
+             btnReport.classList.remove('opacity-50', 'cursor-not-allowed');
+         }
+     }
+  }
+
+  function generateDocReport() {
+      if (!currentCourse) return;
+      if (window.AUTH_DATA && window.AUTH_DATA.isGuest) {
+          alert("Los invitados no pueden generar reportes oficiales.");
+          return;
+      }
+      
+      const btnGen = document.getElementById('btn-generate-doc');
+      btnGen.disabled = true;
+      btnGen.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-lg"></i> <span class="hidden md:inline">Generando...</span>';
+      btnGen.classList.replace('bg-blue-600', 'bg-blue-400');
+      
+      const indicator = document.getElementById('save-indicator');
+      if (indicator) {
+          indicator.innerHTML = '<div class="bg-white text-gray-800 text-base font-bold px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-4"><i class="fa-solid fa-spinner fa-spin text-2xl text-blue-600"></i> Generando Documento Oficial...</div>';
+          indicator.classList.remove('hidden', 'opacity-0');
+      }
+
+      const backendFuncName = (currentModule === 'VIRTUAL') ? 'generateDocVirtual' : (currentModule === 'PRESENCIAL') ? 'generateDocPresencial' : null;
+      if (!backendFuncName) {
+          alert('Módulo de generación no configurado aún para: ' + currentModule);
+          return;
+      }
+
+      google.script.run
+      .withSuccessHandler(res => {
+         btnGen.disabled = false;
+         btnGen.innerHTML = '<i class="fa-solid fa-robot text-lg"></i> <span class="hidden md:inline">Actualizar Ficha</span>';
+         btnGen.classList.replace('bg-blue-400', 'bg-blue-600');
+         
+         if (indicator) {
+            indicator.classList.add('hidden');
+         }
+
+         if(res && res.success) {
+            alert("¡Ficha generada exitosamente!");
+            if(!currentCourse.grades) currentCourse.grades = {};
+            currentCourse.grades['Url_ficha'] = res.url;
+            updateActionButtons();
+         } else {
+            alert("Error del servidor: " + (res?res.message:"Desconocido"));
+         }
+      })
+      .withFailureHandler(err => {
+         btnGen.disabled = false;
+         btnGen.innerHTML = '<i class="fa-solid fa-robot text-lg"></i> <span class="hidden md:inline">Reintentar</span>';
+         btnGen.classList.replace('bg-blue-400', 'bg-red-500');
+         if (indicator) indicator.classList.add('hidden');
+         alert("Error de conexión: " + err);
+      })
+      [backendFuncName](currentCourse);
+  }
+
+  function save(id, val, btn) {
+      // UI Immediate Feedback (Traffic Light & Buttons)
+      const sibs = btn.parentElement.children;
+      for(let s of sibs) {
+          s.className = "w-7 h-7 rounded text-xs font-bold border bg-white text-gray-400 border-gray-200";
+          s.disabled = true; // Bloquear todos los botones de esta fila
+      }
+      btn.className = "w-7 h-7 rounded text-xs font-bold border " + (val<=2?'bg-red-500 text-white border-red-500':'bg-green-500 text-white border-green-500');
+      document.getElementById(`tl-${id}`).className = "traffic-light " + (val<=2?'tl-red':'tl-green');
+      
+      // Update Dynamic Label
+      const lbl = document.getElementById(`lbl-${id}`);
+      if(lbl) {
+          let txt = ''; let col = '';
+          if(val===1) { txt='Deficiente'; col='text-red-600'; }
+          else if(val===2) { txt='Regular'; col='text-red-600'; }
+          else if(val===3) { txt='Bueno'; col='text-green-600'; }
+          else if(val===4) { txt='Muy Bueno'; col='text-green-600'; }
+          lbl.innerText = txt;
+          lbl.className = `text-[10px] font-bold uppercase ${col} min-w-[60px] text-right hidden md:block`;
+      }
+      
+      // Bloqueo global opcional: Mostrar mensaje de Guardando
+      // Bloqueo global: Mostrar overlay de Guardando
+      const indicator = document.getElementById('save-indicator');
+      if(indicator) {
+          indicator.innerHTML = '<div class="bg-white text-gray-800 text-base font-bold px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-4"><i class="fa-solid fa-spinner fa-spin text-2xl text-red-600"></i> Guardando cambios, por favor espere...</div>';
+          indicator.classList.remove('hidden', 'opacity-0');
+      }
+
+      google.script.run.withSuccessHandler(res=>{
+           currentCourse.grades[id] = val;
+           currentCourse.timestamps[id] = res.timestamp;
+           
+           // Calculate and Save Total Score (Virtual/Presencial -> Columna BC)
+           let totalScore = 0;
+           CURRENT_CRITERIA_MAP.forEach(i => {
+               if(currentCourse.grades[i.id] > 0) {
+                   totalScore += parseFloat(currentCourse.grades[i.id]);
+               }
+           });
+           currentCourse.grades['total_score'] = totalScore;
+           google.script.run.saveGrade(currentCourse.rowIndex, 'total_score', totalScore, currentWeekId, currentModule);
+           
+           // Recalculate Logic
+           const stats = getWeekStats(currentCourse.startDate, currentWeekId, currentCourse.grades);
+           document.getElementById('week-progress-bar').style.width = stats.progress + '%';
+           document.getElementById('week-progress-text').innerText = stats.progress + '%';
+           
+           // Update Weekly Average
+           const weekAvg = getWeekVigesimal(currentCourse, currentWeekId);
+           const weekAvgEl = document.getElementById('week-avg-display');
+           if(weekAvgEl) {
+               weekAvgEl.innerText = weekAvg;
+               const val = parseFloat(weekAvg);
+               weekAvgEl.className = "text-xs font-bold " + (val>=14?'text-green-600':val>=10.5?'text-yellow-600':'text-red-600');
+           }
+
+           renderUnifiedTabs();
+           updateActionButtons(); // Update buttons immediately
+           
+           // HIDE SAVE INDICATOR & REHABILITAR BOTONES
+           for(let s of sibs) s.disabled = false;
+           if(indicator) {
+               indicator.innerHTML = '<div class="bg-white text-gray-800 text-base font-bold px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-4"><i class="fa-solid fa-check text-green-500 text-2xl"></i> ¡Guardado exitosamente!</div>';
+               setTimeout(() => {
+                   indicator.classList.add('opacity-0'); // Animate out
+                   setTimeout(() => {
+                       indicator.classList.add('hidden');
+                       indicator.innerHTML = '';
+                   }, 300); // Hide after transition
+               }, 1000); // Reduce time holding screen
+           }
+
+      }).withFailureHandler((e) => {
+           alert("Error al guardar: " + e);
+           for(let s of sibs) s.disabled = false;
+           if(indicator) {
+               indicator.classList.add('opacity-0');
+               setTimeout(() => indicator.classList.add('hidden'), 300);
+           }
+      }).saveGrade(currentCourse.rowIndex, id, val, currentWeekId, currentModule);
+  }
+  
+  function openEmailModal(t){ 
+      if(window.AUTH_DATA && window.AUTH_DATA.isGuest) {
+          alert("Acceso denegado: Los invitados no tienen permiso para enviar correos.");
+          return;
+      }
+
+      document.getElementById('email-modal').classList.remove('hidden'); 
+      
+      // Concatenar todos los correos: Docente + Docente2 + Coordinador + Área
+      let toEmails = currentCourse.email1;
+      if (currentCourse.email2 && currentCourse.email2.trim() !== '') {
+          toEmails += ',' + currentCourse.email2;
+      }
+      
+      if (currentCourse.coordEmail && currentCourse.coordEmail.trim() !== '') {
+          toEmails += ',' + currentCourse.coordEmail;
+      }
+
+      // Detectar correo de área basado en nombre del spreadsheet
+      const ssName = window.SS_NAME || '';
+      if (ssName.includes("PREGRADO")) {
+          toEmails += ',pregrado@usmpvirtual.edu.pe';
+      } else if (ssName.includes("POSGRADO")) {
+          toEmails += ',posgrado@usmpvirtual.edu.pe';
+      }
+
+      document.getElementById('email-to').value = toEmails; 
+      
+      const tpl = getTemplate(t, currentCourse, currentWeekId);
+      document.getElementById('email-subject').value = tpl.subject;
+      document.getElementById('email-body').innerHTML = tpl.body;
+  }
+
+  function closeEmailModal(){ document.getElementById('email-modal').classList.add('hidden'); }
+  
+  function sendEmailFromModal(){ 
+      const btn = document.getElementById('btn-send-email');
+      const originalText = btn.innerText;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+
+      google.script.run
+      .withSuccessHandler(() => {
+          closeEmailModal();
+          btn.disabled = false;
+          btn.innerText = originalText;
+          btn.innerText = originalText;
+          alert("¡Correo enviado correctamente!");
+          
+          // TRACKING
+          const subj = document.getElementById('email-subject').value;
+          const type = (subj && subj.includes('Mención')) ? 'CONGRATULATE' : 'REPORT';
+          logInteraction('email', type);
+      })
+      .withFailureHandler((e) => {
+          alert("Error al enviar: " + e);
+          btn.disabled = false;
+          btn.innerText = originalText;
+      })
+      .sendTeacherEmail(
+          document.getElementById('email-to').value, 
+          document.getElementById('email-subject').value, 
+          document.getElementById('email-body').innerHTML
+      ); 
+  }
+
+  // --- PASTE HANDLER (IMAGES) ---
+  // Fix for Gmail clipping: Compress images before inserting
+  try {
+      var emailBody = document.getElementById('email-body');
+      if(emailBody) {
+          emailBody.addEventListener('paste', function(e) {
+              var clipboardData = e.clipboardData || e.originalEvent.clipboardData;
+              if (!clipboardData) return;
+              
+              var items = clipboardData.items;
+              var blob = null;
+              for (var i = 0; i < items.length; i++) {
+                  if (items[i].type.indexOf("image") === 0) {
+                      blob = items[i].getAsFile();
+                      break;
+                  }
+              }
+
+              if (blob) {
+                  e.preventDefault();
+                  var reader = new FileReader();
+                  reader.onload = function(event) {
+                      var img = new Image();
+                      img.onload = function() {
+                          var canvas = document.createElement('canvas');
+                          var width = img.width;
+                          var height = img.height;
+                          
+                          // Max width 600px for email safety
+                          var MAX_WIDTH = 600;
+                          if (width > MAX_WIDTH) {
+                              height *= MAX_WIDTH / width;
+                              width = MAX_WIDTH;
+                          }
+                          
+                          canvas.width = width;
+                          canvas.height = height;
+                          var ctx = canvas.getContext('2d');
+                          ctx.drawImage(img, 0, 0, width, height);
+                          
+                          // Compress to JPEG 0.7
+                          var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                          
+                          // Insert image at cursor
+                          var imgTag = '<img src="' + dataUrl + '" style="max-width:100%; border:1px solid #ddd; margin: 10px 0;">';
+                          document.execCommand('insertHTML', false, imgTag);
+                      };
+                      img.src = event.target.result;
+                  };
+                  reader.readAsDataURL(blob);
+              }
+          });
+      }
+  } catch(e) { console.error("Paste handler init error", e); }
+
+  function sendWhatsApp() {
+     // Lógica visual por ahora, ya que requiere API externa o enlace web
+     var phone = currentCourse.phoneNumber || '';
+     var msg = encodeURIComponent(document.getElementById('email-body').innerText);
+     if(phone) {
+         var cleanPhone = phone.replace(/[^0-9]/g,'');
+         var url = 'https://wa.me/' + cleanPhone + '?text=' + msg;
+         window.open(url, '_blank');
+         
+         // TRACKING
+         let type = 'REPORT';
+         const subj = document.getElementById('email-subject').value;
+         if(subj && subj.includes('Mención')) type = 'CONGRATULATE';
+         logInteraction('wa', type);
+     } else {
+         alert('El docente no tiene número registrado.');
+     }
+  }
+  console.log('Script loaded successfully');
+</script>
