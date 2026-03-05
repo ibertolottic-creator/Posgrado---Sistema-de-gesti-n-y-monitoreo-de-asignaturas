@@ -6,8 +6,8 @@
  * ======================================================================
  */
 
-function getConsolidatedData() {
-  const result = sincronizarResultadosGenerales();
+function getConsolidatedData(forceSync = false) {
+  const result = sincronizarResultadosGenerales(forceSync);
   if (!result.success && result.retryLater) {
     return {
       success: false,
@@ -27,6 +27,10 @@ function getConsolidatedData() {
     const lastRow = sheet.getLastRow();
     let data = [];
 
+    const sessionData = getGlobalSessionData();
+    const role = sessionData.role;
+    const userEmail = sessionData.userEmail;
+
     if (lastRow > 1) {
       // Leemos desde la fila 2 para devolver al frontal (27 columnas)
       const rawData = sheet.getRange(2, 1, lastRow - 1, 27).getDisplayValues();
@@ -37,6 +41,11 @@ function getConsolidatedData() {
         let row = rawData[i];
         // Filtramos filas vacías basándonos en ID de Asignación (Col P=15) o Nombre (Col E=4)
         if (!row[4] && !row[15]) continue;
+
+        const coordEmail = String(row[18] || '').trim(); // Col S
+        if (role !== 'Admin' && role !== 'Invitado') {
+          if (coordEmail.toLowerCase() !== userEmail.toLowerCase()) continue;
+        }
 
         data.push({
           id: row[15],
@@ -57,7 +66,7 @@ function getConsolidatedData() {
       }
     }
 
-    return { success: true, data: data };
+    return { success: true, data: data, userEmail: userEmail, role: role };
   } catch (e) {
     return { success: false, message: e.toString() };
   }

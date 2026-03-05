@@ -41,7 +41,9 @@ Versión: 5.0 (Consolidación, Envío Masivo y Arquitectura de Inicio)
 - **Módulo de Consolidación y Envío Masivo (Fase 5):**
   - Nuevo ecosistema backend (`GeneradorResultados.gs`) que clona en la RAM a través de `LockService` todas las variables del sistema para combinarlas de forma multi-dimensional sin corromper la base de datos de producción.
   - Endpoint `sincronizarResultadosGenerales()` lee el índice de la pestaña principal ("Asignación de coordinador"), extrae los nombres en bruto, rastrea sus IDs tanto en "LMS-virtual" o "LMS-presencial" y extrae adicionalmente la nota Base 20 de "Acompañamiento".
+  - **Reconocimiento de Usuario y Filtrado:** El módulo ahora identifica a la sesión activa (`getGlobalSessionData()`) y visualiza su correo en la cabecera del módulo. La lógica del backend filtra automáticamente la base de datos para devolver únicamente las filas asignadas a dicho Responsable (Columna S en Módulo Asignación), salvo que se cuente con rol Admin.
   - Interfaz de tabla de datos interactiva (`View_Resultados.html` y `JS_Resultados.html`) equipada con estado temporal (Loader) previniendo que la pantalla se congele durante el renderizado asíncrono.
+  - **Corrección Visual de Tabla (DataTables):** Se refactorizó la estructura del `<thead/>` haciendo uso de celdas con salto `rowspan="2"` para garantizar compatibilidad total e inyección correcta de iconos por parte de la librería DataTables, eliminando cualquier desfase entre el encabezado y el contenido mostrado.
 
 2. Estructura de Archivos (Google Apps Script)
 

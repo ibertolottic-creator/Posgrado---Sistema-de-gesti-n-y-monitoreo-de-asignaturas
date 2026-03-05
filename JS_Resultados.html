@@ -52,6 +52,9 @@
                 iconSync.classList.remove('fa-spin');
                 
                 if (res.success) {
+                    if (res.userEmail) {
+                        document.getElementById('resultados-user-email').innerText = res.userEmail;
+                    }
                     renderResultadosTable(res.data);
                 } else {
                     if (res.retryLater) {
