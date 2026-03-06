@@ -216,12 +216,16 @@ Generador de correos.
 
 Script Backend estructurado para no interferir con `Code.gs` e independizar el ruteo de red.
 
-- **`sincronizarResultadosGenerales()`:** Motor de lectura multidimensional. Protegido completamente por `LockService.getScriptLock()` con Tiempos de Espera (WaitLock de 30s).
+- **Arquitectura de 33 Columnas (Fase 5.1):** La matriz consolidada mapea 33 parámetros de datos.
+- **`sincronizarResultadosGenerales()`:** Motor de lectura multidimensional. Protegido por `LockService.getScriptLock()` con Tiempos de Espera (WaitLock de 30s).
   - Escanea la hoja madre "Asignación de coordinador".
   - Procesa la integración de datos insertando las sumas totales (LMS vs Presencial vs Acompañamiento).
-  - Convierte la nota centesimal en Base Vigesimal dinámicamente.
+  - Convierte los puntajes individuales y la nota centesimal global en Base Vigesimal dinámicamente.
   - Genera y asigna el "Nivel" corporativo (Ej. "DESTAQUE" 19-20, "DEFICIENTE" 0-10).
-- **`getConsolidatedData()`:** El endpoint API ligero. Al ser invocado por el usuario, lee los valores de "Envío de resultados y fichas" combinándolos cuidadosamente para el renderizado del DataTables.
+- **`construirMapaResultados(hoja, iniciarEnFila... )`:** Hash Mapper Auxiliar.
+  - Extrae y procesa arreglos enteros para calcular el **% Avance**.
+  - **Extractor de Mejoras:** Escanea el DataRange de criterios buscando valores `1` o `2`. Si encuentra coincidencia cruzada, captura el valor descriptivo de la pregunta (Localizado en la **Fila 2** de la base de datos) y retorna un listado en formato texto plano separado por comas hacia la columna principal.
+- **`getConsolidatedData()`:** El endpoint API ligero. Al ser invocado por el usuario, lee los 33 valores de "Envío de resultados y fichas" combinándolos para DataTables.
 
 ---
 
