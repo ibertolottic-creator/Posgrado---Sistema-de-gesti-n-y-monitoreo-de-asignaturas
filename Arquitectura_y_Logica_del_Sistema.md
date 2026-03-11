@@ -72,6 +72,7 @@ Diseñado con plantillas inteligentes integradas (`JS_Templates.html`).
 
 - **Enrutador Inclusivo y Adaptativo (CC Tracking):** El sistema, al llamar a `openEmailModal()`, intercepta las propiedades nativas recuperando el e-mail interno del Docente Primario y Secundario, agregando intrínsecamente a nivel backend el correo del **Coordinador Asistente Responsable** asociado a ese curso. Además, el `SS_NAME` global (`PREGRADO`/`POSGRADO`) dicta la variable para agregar automáticamente a la jefatura pertinente a las copias.
 - **Puerta de Enlace (Gateway):** Construcción y redirección nativa de estructuras textuales hacia el esquema `wa.me/` (WhatsApp Web URL API), integrando reportes automáticos en la plataforma web de mensajería respetando los saltos de línea (URL Encoded).
+- **Plantillas de Resultados Oficiales:** Las plantillas HTML generadas desde backend para consolidación de notas operan bajo el color rojo institucional, explicitando fórmulas matemáticas de base 20 y reemplazando niveles subjetivos por métricas frías. Extraen el "Periodo" formateado como `MM-yyyy` y se envían bajo la identidad unificada de remitente "Acompañamiento docente USMP Virtual".
 
 ---
 

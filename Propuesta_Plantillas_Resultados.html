@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta de Correos - Resultados</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: 'Segoe UI', Arial, sans-serif; background-color: #e2e8f0; }
+        .tab-buttons { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        button { padding: 10px 20px; cursor: pointer; border: none; font-weight: bold; border-radius: 6px; }
+        .btn-rojo { background-color: #fed7d7; color: #9b2c2c; }
+        .btn-azul { background-color: #bee3f8; color: #2a4365; }
+        .btn-verde { background-color: #c6f6d5; color: #276749; }
+        .plantilla-container { display: none; }
+        .plantilla-container.active { display: block; }
+        .title-sec { text-align: center; color: #4a5568; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <h2 class="title-sec">🏢 Propuesta de Plantillas HTML: Correos de Resultados</h2>
+    
+    <div class="tab-buttons">
+        <button class="btn-rojo" onclick="showTab('rojo')">🔴 Ver Plantilla Menor a 14</button>
+        <button class="btn-azul" onclick="showTab('azul')">🔵 Ver Plantilla 14 a 18.99</button>
+        <button class="btn-verde" onclick="showTab('verde')">🟢 Ver Plantilla Mayor a 19</button>
+    </div>
+
+    <!-- =============== PLANTILLA ROJA =============== -->
+    <div id="rojo" class="plantilla-container active">
+        <!-- INICIO DE CÓDIGO HTML DE CORREO (Se puede copiar y pegar en Apps Script) -->
+        <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#f7fafc;box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+          <!-- HEADER -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#c53030;border-radius:8px 8px 0 0;">
+            <tr><td style="padding:24px 30px;text-align:center;">
+              <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;">Universidad de San Martín de Porres</p>
+              <p style="margin:6px 0 0 0;font-size:14px;color:rgba(255,255,255,0.85);">Resultados de Evaluación Docente</p>
+              <p style="margin:8px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">⚠️ Requiere Atención</p>
+            </td></tr>
+          </table>
+
+          <!-- BODY -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <tr><td style="padding:28px 30px;">
+
+              <!-- Saludo -->
+              <p style="margin:0 0 6px 0;font-size:15px;color:#4a5568;">Estimado(a) docente,</p>
+              <p style="margin:0 0 16px 0;font-size:18px;font-weight:bold;color:#1a202c;">Juan Pérez Martinez</p>
+
+              <!-- Contexto Mejorado (Nuevos campos del CSV) -->
+              <p style="margin:0 0 8px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura <strong>Marketing Digital y Estrategias</strong> (Periodo: Marzo 2026, Programa: Administración).
+              </p>
+              <p style="margin:0 0 20px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                Le informamos que ha obtenido resultados que requieren atención en la evaluación del presente periodo. Esta calificación refleja áreas por mejorar y requiere un mayor compromiso de su parte con el cumplimiento estricto de los estándares de calidad establecidos por nuestra casa de estudios. Lo exhortamos a revisar las observaciones de sus coordinadores para subsanar estos puntos a la brevedad.
+              </p>
+
+              <!-- TABLA: RESULTADO GENERAL -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+                <tr>
+                  <td colspan="2" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                    📋 Resultado General
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;width:60%;">Puntaje Centesimal (100%)</td>
+                  <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#1a202c;border-bottom:1px solid #f0f0f0;text-align:center;">45%</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;">Puntaje Vigesimal (Base 20)</td>
+                  <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#e53e3e;border-bottom:1px solid #f0f0f0;text-align:center;">09.00</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;text-align:center;font-style:italic;">
+                    * Se considera resultado positivo si es mayor o igual al 70% (14 en base vigesimal)
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;background-color:#f7fafc;border-top:1px solid #e2e8f0;line-height:1.5;">
+                    <strong>Cálculo del Resultado General:</strong><br>
+                    Sistema de gestión del aprendizaje (LMS) = (50 × puntaje obtenido por el docente) / 136<br>
+                    Acompañamiento al desempeño docente Pedagógico = (50 × puntaje obtenido por el docente) / 44
+                  </td>
+                </tr>
+              </table>
+
+              <!-- TABLA: DETALLE POR MÓDULO -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:6px;">
+                <tr>
+                  <td colspan="3" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                    📊 Detalle por Módulo Evaluado
+                  </td>
+                </tr>
+                <tr style="background-color:#f7fafc;">
+                  <td style="padding:8px 16px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;">Módulo</td>
+                  <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Puntaje</td>
+                  <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Nota Vigesimal</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#2d3748;border-bottom:1px solid #f0f0f0;">Sistema de gestión del aprendizaje (LMS)</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;text-align:center;">60 / 136</td>
+                  <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#2b6cb0;border-bottom:1px solid #f0f0f0;text-align:center;">08.82</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#2d3748;">Acompañamiento del desempeño Pedagógico</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#4a5568;text-align:center;">20 / 44</td>
+                  <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#6b46c1;text-align:center;">09.09</td>
+                </tr>
+              </table>
+
+              <!-- SECCION MEJORA -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
+                <tr><td style="padding:12px 20px;background-color:#fff5f5;border-left:4px solid #c53030;border-radius:0 8px 8px 0;">
+                  <p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#9b2c2c;">Criterios de Mejora Prioritaria</p>
+                  <p style="margin:0 0 6px 0;font-size:13px;color:#4a5568;"><strong>LMS:</strong> 
+                    <span style="display:inline-block;background-color:#fed7d7;color:#9b2c2c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">1.1 Actualiza OVAs</span>
+                    <span style="display:inline-block;background-color:#fed7d7;color:#9b2c2c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">2.1 Realiza y graba sesiones</span>
+                  </p>
+                  <p style="margin:0;font-size:13px;color:#4a5568;"><strong>Acompañamiento:</strong> 
+                    <span style="display:inline-block;background-color:#fed7d7;color:#9b2c2c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">3. Conflicto Cognitivo</span>
+                    <span style="display:inline-block;background-color:#fed7d7;color:#9b2c2c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">10. Evaluación</span>
+                  </p>
+                </td></tr>
+              </table>
+
+              <!-- BOTONES DE DESCARGA PDF -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+                <tr><td style="padding:16px 20px;background-color:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
+                  <p style="margin:0 0 12px 0;font-size:14px;font-weight:bold;color:#2d3748;">📥 Documentos de Evaluación</p>
+                  <p style="margin:0 0 14px 0;font-size:13px;color:#718096;">Descargue las fichas de evaluación detalladas en formato PDF:</p>
+                  <a href="#" style="display:inline-block;padding:10px 20px;background-color:#2b6cb0;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha LMS (PDF)</a>
+                  <a href="#" style="display:inline-block;padding:10px 20px;background-color:#6b46c1;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha Acompañamiento (PDF)</a>
+                </td></tr>
+              </table>
+
+            </td></tr>
+          </table>
+
+          <!-- FOOTER -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#edf2f7;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+            <tr><td style="padding:20px 30px;text-align:center;">
+              <p style="margin:0 0 4px 0;font-size:13px;color:#718096;">Atentamente,</p>
+              <p style="margin:0 0 2px 0;font-size:14px;font-weight:bold;color:#2d3748;">Área de Pregrado</p>
+              <p style="margin:0;font-size:13px;color:#718096;">Universidad de San Martín de Porres</p>
+            </td></tr>
+          </table>
+        </div>
+        <!-- FIN DE CÓDIGO HTML DE CORREO -->
+    </div>
+
+    <!-- =============== PLANTILLA AZUL =============== -->
+    <div id="azul" class="plantilla-container">
+        <!-- INICIO DE CÓDIGO HTML DE CORREO -->
+        <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#f7fafc;box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <!-- HEADER -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#c53030;border-radius:8px 8px 0 0;">
+              <tr><td style="padding:24px 30px;text-align:center;">
+                <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;">Universidad de San Martín de Porres</p>
+                <p style="margin:6px 0 0 0;font-size:14px;color:rgba(255,255,255,0.85);">Resultados de Evaluación Docente</p>
+                <p style="margin:8px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">📊 Periodo Académico</p>
+              </td></tr>
+            </table>
+  
+            <!-- BODY -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <tr><td style="padding:28px 30px;">
+  
+                <!-- Saludo -->
+                <p style="margin:0 0 6px 0;font-size:15px;color:#4a5568;">Estimado(a) docente,</p>
+                <p style="margin:0 0 16px 0;font-size:18px;font-weight:bold;color:#1a202c;">Maria Torres Díaz</p>
+  
+                <!-- Contexto Mejorado (Nuevos campos del CSV) -->
+                <p style="margin:0 0 8px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                  Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura <strong>Marketing Digital y Estrategias</strong> (Periodo: Marzo 2026, Programa: Administración).
+                </p>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                    Valoramos su compromiso en el desarrollo de la asignatura y apostamos por la mejora continua. Confiamos plenamente en que, fortaleciendo algunas áreas de oportunidad en el próximo periodo, logrará alcanzar el cumplimiento de todos los criterios de calidad establecidos por la universidad.
+                </p>
+  
+                <!-- TABLA: RESULTADO GENERAL -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+                  <tr>
+                    <td colspan="2" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                      📋 Resultado General
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;width:60%;">Puntaje Centesimal (100%)</td>
+                    <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#1a202c;border-bottom:1px solid #f0f0f0;text-align:center;">82.5%</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;">Puntaje Vigesimal (Base 20)</td>
+                    <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#3182ce;border-bottom:1px solid #f0f0f0;text-align:center;">16.50</td>
+                  </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;text-align:center;font-style:italic;">
+                    * Se considera resultado positivo si es mayor o igual al 70% (14 en base vigesimal)
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;background-color:#f7fafc;border-top:1px solid #e2e8f0;line-height:1.5;">
+                    <strong>Cálculo del Resultado General:</strong><br>
+                    Sistema de gestión del aprendizaje (LMS) = (50 × puntaje obtenido por el docente) / 136<br>
+                    Acompañamiento al desempeño docente Pedagógico = (50 × puntaje obtenido por el docente) / 44
+                  </td>
+                </tr>
+                </table>
+  
+                <!-- TABLA: DETALLE POR MÓDULO -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:6px;">
+                  <tr>
+                    <td colspan="3" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                      📊 Detalle por Módulo Evaluado
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f7fafc;">
+                    <td style="padding:8px 16px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;">Módulo</td>
+                    <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Puntaje</td>
+                    <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Nota Vigesimal</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#2d3748;border-bottom:1px solid #f0f0f0;">Sistema de gestión del aprendizaje (LMS)</td>
+                    <td style="padding:10px 12px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;text-align:center;">120 / 136</td>
+                    <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#2b6cb0;border-bottom:1px solid #f0f0f0;text-align:center;">17.64</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#2d3748;">Acompañamiento del desempeño Pedagógico</td>
+                    <td style="padding:10px 12px;font-size:13px;color:#4a5568;text-align:center;">34 / 44</td>
+                    <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#6b46c1;text-align:center;">15.45</td>
+                  </tr>
+                </table>
+  
+                <!-- SECCION MEJORA -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
+                  <tr><td style="padding:12px 20px;background-color:#ebf8ff;border-left:4px solid #3182ce;border-radius:0 8px 8px 0;">
+                    <p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#2c5282;">Criterios de Mejora Prioritaria</p>
+                    <p style="margin:0 0 6px 0;font-size:13px;color:#4a5568;"><strong>LMS:</strong> 
+                      <span style="display:inline-block;background-color:#bee3f8;color:#2a4365;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">1.1 Actualiza OVAs</span>
+                    </p>
+                    <p style="margin:0;font-size:13px;color:#4a5568;"><strong>Acompañamiento:</strong> 
+                      <span style="display:inline-block;background-color:#bee3f8;color:#2a4365;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">10. Evaluación</span>
+                    </p>
+                  </td></tr>
+                </table>
+  
+                <!-- BOTONES DE DESCARGA PDF -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+                  <tr><td style="padding:16px 20px;background-color:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
+                    <p style="margin:0 0 12px 0;font-size:14px;font-weight:bold;color:#2d3748;">📥 Documentos de Evaluación</p>
+                    <p style="margin:0 0 14px 0;font-size:13px;color:#718096;">Descargue las fichas de evaluación detalladas en formato PDF:</p>
+                    <a href="#" style="display:inline-block;padding:10px 20px;background-color:#2b6cb0;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha LMS (PDF)</a>
+                    <a href="#" style="display:inline-block;padding:10px 20px;background-color:#6b46c1;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha Acompañamiento (PDF)</a>
+                  </td></tr>
+                </table>
+  
+              </td></tr>
+            </table>
+  
+            <!-- FOOTER -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#edf2f7;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+              <tr><td style="padding:20px 30px;text-align:center;">
+                <p style="margin:0 0 4px 0;font-size:13px;color:#718096;">Atentamente,</p>
+                <p style="margin:0 0 2px 0;font-size:14px;font-weight:bold;color:#2d3748;">Área de Pregrado</p>
+                <p style="margin:0;font-size:13px;color:#718096;">Universidad de San Martín de Porres</p>
+              </td></tr>
+            </table>
+          </div>
+          <!-- FIN DE CÓDIGO HTML DE CORREO -->
+    </div>
+
+    <!-- =============== PLANTILLA VERDE =============== -->
+    <div id="verde" class="plantilla-container">
+        <!-- INICIO DE CÓDIGO HTML DE CORREO -->
+        <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#f7fafc;box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <!-- HEADER -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#c53030;border-radius:8px 8px 0 0;">
+              <tr><td style="padding:24px 30px;text-align:center;">
+                <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;">Universidad de San Martín de Porres</p>
+                <p style="margin:6px 0 0 0;font-size:14px;color:rgba(255,255,255,0.85);">Resultados de Evaluación Docente</p>
+                <p style="margin:8px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">🏆 ¡Felicitaciones!</p>
+              </td></tr>
+            </table>
+  
+            <!-- BODY -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <tr><td style="padding:28px 30px;">
+  
+                <!-- Saludo -->
+                <p style="margin:0 0 6px 0;font-size:15px;color:#4a5568;">Estimado(a) docente,</p>
+                <p style="margin:0 0 16px 0;font-size:18px;font-weight:bold;color:#1a202c;">Carlos Ruiz Vargas</p>
+  
+                <!-- Contexto Mejorado (Nuevos campos del CSV) -->
+                <p style="margin:0 0 8px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                  Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura <strong>Marketing Digital y Estrategias</strong> (Periodo: Marzo 2026, Programa: Administración).
+                </p>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                    ¡Felicitaciones! Queremos expresar nuestro reconocimiento por su excelente desempeño y por cumplir a cabalidad con los estándares de calidad de la universidad. Agradecemos su notable dedicación, proactividad y esfuerzo en pro del aprendizaje de nuestros estudiantes.
+                </p>
+  
+                <!-- TABLA: RESULTADO GENERAL -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+                  <tr>
+                    <td colspan="2" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                      📋 Resultado General
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;width:60%;">Puntaje Centesimal (100%)</td>
+                    <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#1a202c;border-bottom:1px solid #f0f0f0;text-align:center;">98%</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;">Puntaje Vigesimal (Base 20)</td>
+                    <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#38a169;border-bottom:1px solid #f0f0f0;text-align:center;">19.60</td>
+                  </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;text-align:center;font-style:italic;">
+                    * Se considera resultado positivo si es mayor o igual al 70% (14 en base vigesimal)
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;background-color:#f7fafc;border-top:1px solid #e2e8f0;line-height:1.5;">
+                    <strong>Cálculo del Resultado General:</strong><br>
+                    Sistema de gestión del aprendizaje (LMS) = (50 × puntaje obtenido por el docente) / 136<br>
+                    Acompañamiento al desempeño docente Pedagógico = (50 × puntaje obtenido por el docente) / 44
+                  </td>
+                </tr>
+                </table>
+  
+                <!-- TABLA: DETALLE POR MÓDULO -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:6px;">
+                  <tr>
+                    <td colspan="3" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                      📊 Detalle por Módulo Evaluado
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f7fafc;">
+                    <td style="padding:8px 16px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;">Módulo</td>
+                    <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Puntaje</td>
+                    <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Nota Vigesimal</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#2d3748;border-bottom:1px solid #f0f0f0;">Sistema de gestión del aprendizaje (LMS)</td>
+                    <td style="padding:10px 12px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;text-align:center;">132 / 136</td>
+                    <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#2b6cb0;border-bottom:1px solid #f0f0f0;text-align:center;">19.41</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;font-size:13px;color:#2d3748;">Acompañamiento del desempeño Pedagógico</td>
+                    <td style="padding:10px 12px;font-size:13px;color:#4a5568;text-align:center;">44 / 44</td>
+                    <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#6b46c1;text-align:center;">20.00</td>
+                  </tr>
+                </table>
+  
+                <!-- NOTA: En este nivel (verde) NO hay sección de Criterios de Mejora Prioritaria -->
+  
+                <!-- BOTONES DE DESCARGA PDF -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+                  <tr><td style="padding:16px 20px;background-color:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
+                    <p style="margin:0 0 12px 0;font-size:14px;font-weight:bold;color:#2d3748;">📥 Documentos de Evaluación</p>
+                    <p style="margin:0 0 14px 0;font-size:13px;color:#718096;">Descargue las fichas de evaluación detalladas en formato PDF:</p>
+                    <a href="#" style="display:inline-block;padding:10px 20px;background-color:#2b6cb0;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha LMS (PDF)</a>
+                    <a href="#" style="display:inline-block;padding:10px 20px;background-color:#6b46c1;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha Acompañamiento (PDF)</a>
+                  </td></tr>
+                </table>
+  
+              </td></tr>
+            </table>
+  
+            <!-- FOOTER -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#edf2f7;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+              <tr><td style="padding:20px 30px;text-align:center;">
+                <p style="margin:0 0 4px 0;font-size:13px;color:#718096;">Atentamente,</p>
+                <p style="margin:0 0 2px 0;font-size:14px;font-weight:bold;color:#2d3748;">Área de Pregrado</p>
+                <p style="margin:0;font-size:13px;color:#718096;">Universidad de San Martín de Porres</p>
+              </td></tr>
+            </table>
+          </div>
+          <!-- FIN DE CÓDIGO HTML DE CORREO -->
+    </div>
+
+    <script>
+        function showTab(id) {
+            document.querySelectorAll('.plantilla-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+    </script>
+</body>
+</html>

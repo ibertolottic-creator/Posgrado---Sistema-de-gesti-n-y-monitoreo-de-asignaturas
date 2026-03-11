@@ -1,171 +1,229 @@
 <!-- ==================== JS START: MÓDULO DE RESULTADOS GENERALES ==================== -->
 <script>
-    let dtResultadosInstance = null;
-    let isLoadingResultados = false;
-    
-    /**
-     * @description Inicializador al cargar el módulo RESULTADOS
-     */
-    function initResultadosModule() {
-        if(dtResultadosInstance) {
-            // Si ya existe la vista, simplemente refrescamos los datos sin forzar Sincronización
-            fetchResultados(false);
-        } else {
-            // Primera vez: Forzamos sincronización para tener lo más fresco posible
-            fetchResultados(true);
-        }
+  var dtResultadosInstance = null;
+  var isLoadingResultados = false;
+
+  // Fallback nativo: Si showToast no está definido globalmente, usa un alert() para que el código jamás colapse.
+  window.showToast = window.showToast || function(title, msg, type) {
+     alert("[" + title.toUpperCase() + "]\n" + msg);
+  };
+
+  /**
+   * @description Inicializador al cargar el módulo RESULTADOS
+   */
+  function initResultadosModule() {
+    if (dtResultadosInstance) {
+      // Si ya existe la vista, simplemente refrescamos los datos sin forzar Sincronización
+      fetchResultados(false);
+    } else {
+      // Primera vez: Forzamos sincronización para tener lo más fresco posible
+      fetchResultados(true);
+    }
+  }
+
+  /**
+   * @description Llama al backend (Google Apps Script) para sincronizar (opcional) y traer la data.
+   * @param {boolean} forceSync Si es true, activa la función sincronizarResultadosGenerales en backend.
+   */
+  function fetchResultados(forceSync = false) {
+    if (isLoadingResultados) return;
+
+    isLoadingResultados = true;
+
+    // Bloquear UI
+    document.getElementById('resultados-table-container').classList.add('hidden');
+    document.getElementById('resultados-empty-state').classList.add('hidden');
+    document.getElementById('btnEnviarCorreos').disabled = true;
+    document.getElementById('btnEnviarCorreos').classList.add('opacity-50', 'cursor-not-allowed');
+
+    const loader = document.getElementById('resultados-loader');
+    const iconSync = document.getElementById('iconSyncResultados');
+
+    loader.classList.remove('hidden');
+    iconSync.classList.add('fa-spin');
+
+    if (forceSync) {
+      document.getElementById('resultados-loader-title').innerText = 'Forzando Sincronización...';
+      document.getElementById('resultados-loader-msg').innerText =
+        'Ejecutando LockService. Cruzando notas de Virtual, Presencial y Acompañamiento.';
+    } else {
+      document.getElementById('resultados-loader-title').innerText = 'Cargando Resultados...';
+      document.getElementById('resultados-loader-msg').innerText =
+        'Descargando la última instantánea disponible.';
     }
 
-    /**
-     * @description Llama al backend (Google Apps Script) para sincronizar (opcional) y traer la data.
-     * @param {boolean} forceSync Si es true, activa la función sincronizarResultadosGenerales en backend.
-     */
-    function fetchResultados(forceSync = false) {
-        if (isLoadingResultados) return;
-        
-        isLoadingResultados = true;
-        
-        // Bloquear UI
-        document.getElementById('resultados-table-container').classList.add('hidden');
-        document.getElementById('resultados-empty-state').classList.add('hidden');
-        document.getElementById('btnEnviarCorreos').disabled = true;
-        document.getElementById('btnEnviarCorreos').classList.add('opacity-50', 'cursor-not-allowed');
-        
-        const loader = document.getElementById('resultados-loader');
-        const iconSync = document.getElementById('iconSyncResultados');
-        
-        loader.classList.remove('hidden');
-        iconSync.classList.add('fa-spin');
-        
-        if (forceSync) {
-            document.getElementById('resultados-loader-title').innerText = "Forzando Sincronización...";
-            document.getElementById('resultados-loader-msg').innerText = "Ejecutando LockService. Cruzando notas de Virtual, Presencial y Acompañamiento.";
-        } else {
-            document.getElementById('resultados-loader-title').innerText = "Cargando Resultados...";
-            document.getElementById('resultados-loader-msg').innerText = "Descargando la última instantánea disponible.";
-        }
+    google.script.run
+      .withSuccessHandler((res) => {
+        isLoadingResultados = false;
+        loader.classList.add('hidden');
+        iconSync.classList.remove('fa-spin');
 
-        google.script.run
-            .withSuccessHandler(res => {
-                isLoadingResultados = false;
-                loader.classList.add('hidden');
-                iconSync.classList.remove('fa-spin');
-                
-                if (res.success) {
-                    if (res.userEmail) {
-                        document.getElementById('resultados-user-email').innerText = res.userEmail;
-                    }
-                    renderResultadosTable(res.data);
-                } else {
-                    if (res.retryLater) {
-                        showToast('Sistema Ocupado', res.message, 'warning');
-                        document.getElementById('resultados-empty-state').classList.remove('hidden');
-                    } else {
-                        showToast('Error', res.message, 'error');
-                        document.getElementById('resultados-empty-state').classList.remove('hidden');
-                    }
-                }
-            })
-            .withFailureHandler(err => {
-                isLoadingResultados = false;
-                loader.classList.add('hidden');
-                iconSync.classList.remove('fa-spin');
-                showToast('Error de Conexión', err.toString(), 'error');
-                document.getElementById('resultados-empty-state').classList.remove('hidden');
-            })
-            // Llamamos a la nueva función creada en GeneradorResultados.gs
-            // Si forceSync es true, ejecuta sincronizarResultadosGenerales interno.
-            .getConsolidatedData(forceSync); 
+        if (res.success) {
+          if (res.userEmail) {
+            document.getElementById('resultados-user-email').innerText = res.userEmail;
+          }
+          renderResultadosTable(res.data);
+        } else {
+          if (res.retryLater) {
+            showToast('Sistema Ocupado', res.message, 'warning');
+            document.getElementById('resultados-empty-state').classList.remove('hidden');
+          } else {
+            showToast('Error', res.message, 'error');
+            document.getElementById('resultados-empty-state').classList.remove('hidden');
+          }
+        }
+      })
+      .withFailureHandler((err) => {
+        isLoadingResultados = false;
+        loader.classList.add('hidden');
+        iconSync.classList.remove('fa-spin');
+        showToast('Error de Conexión', err.toString(), 'error');
+        document.getElementById('resultados-empty-state').classList.remove('hidden');
+      })
+      // Llamamos a la nueva función creada en GeneradorResultados.gs
+      // Si forceSync es true, ejecuta sincronizarResultadosGenerales interno.
+      .getConsolidatedData(forceSync);
+  }
+
+  /**
+   * @description Renderiza el array de resultados en DataTables.
+   */
+  function renderResultadosTable(dataArray) {
+    const container = document.getElementById('resultados-table-container');
+    const emptyState = document.getElementById('resultados-empty-state');
+    const btnCorreos = document.getElementById('btnEnviarCorreos');
+
+    if (!dataArray || dataArray.length === 0) {
+      container.classList.remove('hidden');
+      emptyState.classList.remove('hidden');
+      document.getElementById('dtResultados').parentElement.classList.add('hidden'); // Ocultar div de tabla
+      document.getElementById('infoResultadosCount').innerText = '0 registros';
+      return;
     }
 
-    /**
-     * @description Renderiza el array de resultados en DataTables.
-     */
-    function renderResultadosTable(dataArray) {
-        const container = document.getElementById('resultados-table-container');
-        const emptyState = document.getElementById('resultados-empty-state');
-        const btnCorreos = document.getElementById('btnEnviarCorreos');
-        
-        if (!dataArray || dataArray.length === 0) {
-            container.classList.remove('hidden');
-            emptyState.classList.remove('hidden');
-            document.getElementById('dtResultados').parentElement.classList.add('hidden'); // Ocultar div de tabla
-            document.getElementById('infoResultadosCount').innerText = "0 registros";
-            return;
-        }
-        
-        // Destruir instancia anterior si existe (para limpiar memoria)
-        if (dtResultadosInstance) {
-            dtResultadosInstance.destroy();
-            dtResultadosInstance = null;
-        }
-        
-        const tbody = document.getElementById('tblResultadosBody');
-        tbody.innerHTML = '';
-        
-        dataArray.forEach(row => {
-            // Badge para Nivel
-            let badgeColor = "bg-gray-100 text-gray-800";
-            if (row.nivel === "Muy Bueno") badgeColor = "bg-green-100 text-green-800";
-            else if (row.nivel === "Bueno") badgeColor = "bg-blue-100 text-blue-800";
-            else if (row.nivel === "Regular") badgeColor = "bg-yellow-100 text-yellow-800";
-            else if (row.nivel === "Deficiente" || row.nivel === "Bajo") badgeColor = "bg-red-100 text-red-800";
+    // Destruir instancia anterior si existe (para limpiar memoria)
+    if (dtResultadosInstance) {
+      dtResultadosInstance.destroy();
+      dtResultadosInstance = null;
+    }
 
-            // Enlaces a fichas
-            let linkLmsHtml = row.lmsUrl ? `<a href="${row.lmsUrl}" target="_blank" class="text-blue-600 hover:text-blue-800" title="Ver Ficha LMS"><i class="fa-solid fa-file-pdf text-lg"></i></a>` : `<span class="text-gray-300">-</span>`;
-            let linkAcompHtml = row.acompUrl ? `<a href="${row.acompUrl}" target="_blank" class="text-purple-600 hover:text-purple-800" title="Ver Ficha Acompañamiento"><i class="fa-solid fa-file-pdf text-lg"></i></a>` : `<span class="text-gray-300">-</span>`;
+    const tbody = document.getElementById('tblResultadosBody');
+    tbody.innerHTML = '';
 
-            // Renderizador de Badges de Avance con Colores Pastel
-            const getAvanceBadge = (val) => {
-                let badgeClass = "text-gray-500 bg-gray-100";
-                if (val <= 10) badgeClass = "bg-pink-100 text-pink-700 font-medium";
-                else if (val <= 30) badgeClass = "bg-orange-100 text-orange-700 font-medium";
-                else if (val <= 60) badgeClass = "bg-yellow-100 text-yellow-800 font-medium";
-                else if (val < 100) badgeClass = "bg-blue-100 text-blue-700 font-medium";
-                else badgeClass = "bg-green-100 text-green-700 font-bold";
-                
-                return `<span class="inline-block px-2 py-1 min-w-[3rem] text-center rounded-full text-xs ${badgeClass}">${val.toFixed(0)}%</span>`;
-            };
+    let seleccionablesStr = [];
 
-            // Renderizador de Badges "A Mejorar"
-            const getMejorarBadges = (str) => {
-                if (!str || str.trim() === "") return `<span class="text-gray-300">-</span>`;
-                const arr = str.split(',').map(item => item.trim()).filter(item => item !== "");
-                if (arr.length === 0) return `<span class="text-gray-300">-</span>`;
-                
-                return arr.map(crit => `<span class="inline-block bg-red-100 text-red-700 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-red-200 mr-1 mb-1" title="Criterio a mejorar">${crit}</span>`).join('');
-            };
+    dataArray.forEach((row) => {
+      // Badge para Nivel
+      let badgeColor = 'bg-gray-100 text-gray-800';
+      if (row.nivel === 'Muy Bueno') badgeColor = 'bg-green-100 text-green-800';
+      else if (row.nivel === 'Bueno') badgeColor = 'bg-blue-100 text-blue-800';
+      else if (row.nivel === 'Regular') badgeColor = 'bg-yellow-100 text-yellow-800';
+      else if (row.nivel === 'Deficiente' || row.nivel === 'Bajo')
+        badgeColor = 'bg-red-100 text-red-800';
 
-            // Porcentaje Avance LMS
-            let lmsAvanceHtml = '-';
-            let lmsMejorarHtml = getMejorarBadges(row.lmsMejorar);
-            if (row.lmsAvance !== undefined && row.lmsAvance !== "") {
-                lmsAvanceHtml = getAvanceBadge(parseFloat(row.lmsAvance));
-            }
+      // Validar Estado Envío
+      let estadoEnvioBadge = '-';
+      let yaEnviado = false;
+      if (row.fechaEnvio && String(row.fechaEnvio).trim() !== '') {
+        yaEnviado = true;
+        estadoEnvioBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded textxs font-medium bg-green-100 text-green-800" title="Enviado el ${row.fechaEnvio}"><i class="fa-solid fa-check-double mr-1"></i>Enviado</span>`;
+      } else {
+        estadoEnvioBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fa-regular fa-clock mr-1"></i>Pendiente</span>`;
+      }
 
-            // Porcentaje Avance Acomp
-            let acompAvanceHtml = '-';
-            let acompMejorarHtml = getMejorarBadges(row.acompMejorar);
-            if (row.acompAvance !== undefined && row.acompAvance !== "") {
-                acompAvanceHtml = getAvanceBadge(parseFloat(row.acompAvance));
-            }
+      // Validar Condiciones de Habilitación para Enviar (100% en LMS y Acomp + URLs existen + No enviado aún)
+      const esCienPorCiento =
+        parseFloat(row.lmsAvance) === 100 && parseFloat(row.acompAvance) === 100;
+      const tieneURLs = row.lmsUrl && row.lmsUrl !== '' && row.acompUrl && row.acompUrl !== '';
+      const esMio =
+        (window.AUTH_DATA &&
+          row.coordinadorName &&
+          window.AUTH_DATA.name === row.coordinadorName) ||
+        (document.getElementById('resultados-user-email') &&
+          row.coordinadorEmail === document.getElementById('resultados-user-email').innerText);
+      // Ya que el userEmail no viajará directamente aqui, usaremos un truco visual o lo dejabamos marcado
 
-            // Celdas
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-gray-50 transition-colors";
-            tr.innerHTML = `
-                <td class="px-4 py-3 sticky left-0 bg-white group-hover:bg-gray-50 border-r border-gray-200 z-10 font-medium text-gray-800 truncate shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style="max-width:300px;" title="${row.curso}">${row.curso || '-'}</td>
+      let isDisabled = !(esCienPorCiento && tieneURLs && !yaEnviado);
+      let isChecked = !isDisabled; // Se marca por defecto si cumple todo
+
+      if (isChecked) seleccionablesStr.push(row.id);
+
+      let checkboxHtml = `<input type="checkbox" onchange="actualizarBotonesResultados()" class="chk-resultado w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" value="${row.id}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>`;
+
+      // Enlaces a fichas
+      let linkLmsHtml = row.lmsUrl
+        ? `<a href="${row.lmsUrl}" target="_blank" class="text-blue-600 hover:text-blue-800" title="Ver Ficha LMS"><i class="fa-solid fa-file-pdf text-lg"></i></a>`
+        : `<span class="text-gray-300">-</span>`;
+      let linkAcompHtml = row.acompUrl
+        ? `<a href="${row.acompUrl}" target="_blank" class="text-purple-600 hover:text-purple-800" title="Ver Ficha Acompañamiento"><i class="fa-solid fa-file-pdf text-lg"></i></a>`
+        : `<span class="text-gray-300">-</span>`;
+
+      // Renderizador de Badges de Avance con Colores Pastel
+      const getAvanceBadge = (val) => {
+        let badgeClass = 'text-gray-500 bg-gray-100';
+        if (val <= 10) badgeClass = 'bg-pink-100 text-pink-700 font-medium';
+        else if (val <= 30) badgeClass = 'bg-orange-100 text-orange-700 font-medium';
+        else if (val <= 60) badgeClass = 'bg-yellow-100 text-yellow-800 font-medium';
+        else if (val < 100) badgeClass = 'bg-blue-100 text-blue-700 font-medium';
+        else badgeClass = 'bg-green-100 text-green-700 font-bold';
+
+        return `<span class="inline-block px-2 py-1 min-w-[3rem] text-center rounded-full text-xs ${badgeClass}">${val.toFixed(0)}%</span>`;
+      };
+
+      // Renderizador de Badges "A Mejorar"
+      const getMejorarBadges = (str) => {
+        if (!str || str.trim() === '') return `<span class="text-gray-300">-</span>`;
+        const arr = str
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+        if (arr.length === 0) return `<span class="text-gray-300">-</span>`;
+
+        return arr
+          .map(
+            (crit) =>
+              `<span class="inline-block bg-red-100 text-red-700 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-red-200 mr-1 mb-1" title="Criterio a mejorar">${crit}</span>`
+          )
+          .join('');
+      };
+
+      // Porcentaje Avance LMS
+      let lmsAvanceHtml = '-';
+      let lmsMejorarHtml = getMejorarBadges(row.lmsMejorar);
+      if (row.lmsAvance !== undefined && row.lmsAvance !== '') {
+        lmsAvanceHtml = getAvanceBadge(parseFloat(row.lmsAvance));
+      }
+
+      // Porcentaje Avance Acomp
+      let acompAvanceHtml = '-';
+      let acompMejorarHtml = getMejorarBadges(row.acompMejorar);
+      if (row.acompAvance !== undefined && row.acompAvance !== '') {
+        acompAvanceHtml = getAvanceBadge(parseFloat(row.acompAvance));
+      }
+
+      // Celdas
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 transition-colors';
+      tr.innerHTML = `
+                <td class="px-4 py-3 sticky left-0 bg-white group-hover:bg-gray-50 border-r border-gray-200 z-10 text-center shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                    ${checkboxHtml}
+                </td>
+                <td class="px-4 py-3 bg-white font-medium text-gray-800 truncate" style="max-width:300px;" title="${row.curso}">${row.curso || '-'}</td>
                 <td class="px-4 py-3 truncate" style="max-width:150px;" title="${row.programa}">${row.programa || '-'}</td>
                 <td class="px-4 py-3 truncate" style="max-width:200px;" title="${row.docente}">${row.docente || '-'}</td>
+                <td class="px-4 py-3 border-l border-gray-100 text-center">
+                    ${estadoEnvioBadge}<br><span class="text-[10px] text-gray-400 mt-1 inline-block">${row.fechaEnvio || ''}</span>
+                    ${isDisabled ? '' : `<br><button onclick="enviarCorreoIndividual('${row.id}')" class="mt-2 text-xs text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded shadow-sm transition-colors" title="Enviar ficha a este docente"><i class="fa-solid fa-paper-plane mr-1"></i>Enviar Único</button>`}
+                </td>
                 <td class="px-4 py-3 text-gray-500 text-xs truncate" style="max-width:150px;" title="${row.coordinadorName}">${row.coordinadorName || '-'}</td>
                 
-                <td class="px-4 py-3 border-l border-blue-100 text-blue-900 font-medium">${row.lmsScore !== "" ? row.lmsScore : '-'}</td>
+                <td class="px-4 py-3 border-l border-blue-100 text-blue-900 font-medium">${row.lmsScore !== '' ? row.lmsScore : '-'}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-blue-900 font-bold">${row.lmsVigesimal ? parseFloat(row.lmsVigesimal).toFixed(2) : '-'}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-center bg-blue-50/10">${lmsAvanceHtml}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-left" style="min-width: 120px; max-width: 250px; white-space: normal;">${lmsMejorarHtml}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-center">${linkLmsHtml}</td>
 
-                <td class="px-4 py-3 border-l border-purple-100 text-purple-900 font-medium">${row.acompScore !== "" ? row.acompScore : '-'}</td>
+                <td class="px-4 py-3 border-l border-purple-100 text-purple-900 font-medium">${row.acompScore !== '' ? row.acompScore : '-'}</td>
                 <td class="px-4 py-3 border-l border-purple-50 text-purple-900 font-bold">${row.acompVigesimal ? parseFloat(row.acompVigesimal).toFixed(2) : '-'}</td>
                 <td class="px-4 py-3 border-l border-purple-50 text-center bg-purple-50/10">${acompAvanceHtml}</td>
                 <td class="px-4 py-3 border-l border-purple-50 text-left" style="min-width: 120px; max-width: 250px; white-space: normal;">${acompMejorarHtml}</td>
@@ -177,40 +235,174 @@
                     ${row.nivel ? `<span class="px-2 py-1 rounded-full text-xs font-semibold ${badgeColor}">${row.nivel}</span>` : '<span class="text-gray-300">-</span>'}
                 </td>
             `;
-            tbody.appendChild(tr);
-        });
+      tbody.appendChild(tr);
+    });
 
-        document.getElementById('dtResultados').parentElement.classList.remove('hidden');
-        container.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-        
-        document.getElementById('infoResultadosCount').innerText = `${dataArray.length} registros cargados`;
-        
-        // Habilitar botón de correo
+    // Configurar botón "Seleccionar Todo" en cabecera
+    const chkGlobal = document.getElementById('chkGlobalResultados');
+    if (chkGlobal) {
+      chkGlobal.checked = seleccionablesStr.length > 0;
+      chkGlobal.disabled = seleccionablesStr.length === 0;
+      chkGlobal.onclick = function () {
+        // En DataTables si hay paginación, usar la API para afectar a todos
+        if (dtResultadosInstance) {
+          dtResultadosInstance.$('.chk-resultado:not(:disabled)').prop('checked', chkGlobal.checked);
+        } else {
+          const boxes = document.querySelectorAll('.chk-resultado:not(:disabled)');
+          boxes.forEach((b) => (b.checked = chkGlobal.checked));
+        }
+        actualizarBotonesResultados();
+      };
+    }
+
+    document.getElementById('dtResultados').parentElement.classList.remove('hidden');
+    container.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+
+    document.getElementById('infoResultadosCount').innerText =
+      `${dataArray.length} registros cargados`;
+
+    // Inicializar DataTable Nativo
+    dtResultadosInstance = new DataTable('#dtResultados', {
+      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+      pageLength: 25,
+      ordering: true,
+      info: true,
+      searching: true,
+      responsive: false,
+      // Deshabilitamos scrollX nativo de DataTables para evitar que divida la tabla y cause desfase en zoom/pantallas anchas.
+      // El scroll lo controla el contenedor div.overflow-x-auto con clases CSS tailwind 'sticky'.
+      dom: '<"flex flex-col md:flex-row justify-between items-center mb-4"lf>rt<"flex flex-col md:flex-row justify-between items-center mt-4"ip>',
+    });
+    
+    // Evaluar el estado del botón masivo recién instanciada la tabla
+    actualizarBotonesResultados();
+  }
+
+  /**
+   * @description Analiza cuántos Checkbox están marcados en TODA la tabla
+   * y habilita o deshabilita el botón de Envío Masivo.
+   */
+  function actualizarBotonesResultados() {
+     const btnCorreos = document.getElementById('btnEnviarCorreos');
+     let checkedCount = 0;
+     
+     if (dtResultadosInstance) {
+        checkedCount = dtResultadosInstance.$('.chk-resultado:checked').length;
+     } else {
+        checkedCount = document.querySelectorAll('.chk-resultado:checked').length;
+     }
+     
+     if (checkedCount > 0) {
         btnCorreos.disabled = false;
         btnCorreos.classList.remove('opacity-50', 'cursor-not-allowed');
+     } else {
+        btnCorreos.disabled = true;
+        btnCorreos.classList.add('opacity-50', 'cursor-not-allowed');
+     }
+  }
 
-        // Inicializar DataTable Nativo
-        dtResultadosInstance = new DataTable('#dtResultados', {
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
-            pageLength: 25,
-            ordering: true,
-            info: true,
-            searching: true,
-            responsive: false,
-            // Deshabilitamos scrollX nativo de DataTables para evitar que divida la tabla y cause desfase en zoom/pantallas anchas.
-            // El scroll lo controla el contenedor div.overflow-x-auto con clases CSS tailwind 'sticky'.
-            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4"lf>rt<"flex flex-col md:flex-row justify-between items-center mt-4"ip>'
-        });
+  /**
+   * @description Botón de Ejecución de Correo Individual
+   */
+  function enviarCorreoIndividual(idRegistro) {
+    if (!idRegistro) return;
+    
+    if (confirm('¿Enviar Ficha Individual?\n\nSe exportarán las fichas PDF y se enviarán automáticamente a los correos del docente.')) {
+      showToast('Procesando Envío', 'Exportando PDFs desde Drive y conectando con el servidor MS...', 'info', 7000);
+        
+        google.script.run
+          .withSuccessHandler((response) => {
+            if (response.success) {
+              if (response.message && response.message.trim() !== '') {
+                showToast('Enviado con Observaciones', 'Ficha remitida, pero hubieron problemas:\n' + response.message, 'warning', 8000);
+              } else {
+                showToast('Notificación Enviada', 'La ficha fue remitida al correo exitosamente.', 'success', 5000);
+              }
+              fetchResultados(false);
+            } else {
+              showToast('Error', response.message, 'error');
+            }
+          })
+          .withFailureHandler((error) => {
+            showToast('Error de Conexión', error.toString(), 'error');
+          })
+          // Reutilizamos el backend enviando un Array de 1 solo elemento
+          .enviarCorreosResultadosMasivos([String(idRegistro)]);
+    }
+  }
+
+  /**
+   * @description Botón de Ejecución de Correspondencia Masiva
+   */
+  function openCorreoModalMasivo() {
+    let ids = [];
+    if (dtResultadosInstance) {
+      // Usamos el API de DataTables para ignorar la paginación visual y capturar todas
+      const boxes = dtResultadosInstance.$('.chk-resultado:checked');
+      for(let i=0; i<boxes.length; i++) ids.push(boxes[i].value);
+    } else {
+      const boxes = document.querySelectorAll('.chk-resultado:checked');
+      ids = Array.from(boxes).map((b) => b.value);
     }
 
-    /**
-     * @description Espacio temporal (mock) para abrir modal de correos. 
-     * Se integrará luego con la plantilla que provea el usuario.
-     */
-    function openCorreoModalMasivo() {
-        showToast("Fase Pendiente", "Se activará una vez configurada la plantilla de correo del usuario.", "info");
+    if (ids.length === 0) {
+      showToast(
+        'Sin Selección',
+        'No ha seleccionado ninguna asignatura hábil para envío.',
+        'warning'
+      );
+      return;
     }
 
+    if (confirm(`¿Enviar ${ids.length} correos?\n\nSe remitirán automáticamente los reportes consolidados (Centesimal y Vigesimal) con sus respectivos adjuntos a los docentes seleccionados.`)) {
+        // Estado Loading Visual
+        const btn = document.getElementById('btnEnviarCorreos');
+        const btnOriginalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Enviando...';
+        btn.disabled = true;
+
+        showToast(
+          'Enviando Correos',
+          `Procesando ${ids.length} correos mediante el servidor. Por favor espere.`,
+          'info',
+          6000
+        );
+
+        google.script.run
+          .withSuccessHandler((response) => {
+            btn.innerHTML = btnOriginalHTML;
+            btn.disabled = false;
+
+            if (response.success) {
+              if (response.message && response.message.trim() !== '') {
+                 showToast(
+                  'Envíos con Observaciones',
+                  `Se enviaron ${response.count} correos.\nDetalles: ${response.message}`,
+                  'warning',
+                  8000
+                );
+              } else {
+                 showToast(
+                  'Envíos Exitosos',
+                  `Se despacharon exitosamente ${response.count} correos institucionales.`,
+                  'success',
+                  5000
+                );
+              }
+              // Refrescar tabla forzosamente para ver fechas insertadas
+              fetchResultados(false);
+            } else {
+              showToast('Error', response.message, 'error');
+            }
+          })
+          .withFailureHandler((error) => {
+            btn.innerHTML = btnOriginalHTML;
+            btn.disabled = false;
+            showToast('Error de Conexión', error.toString(), 'error');
+          })
+          .enviarCorreosResultadosMasivos(ids);
+    }
+  }
 </script>
 <!-- ==================== JS END ==================== -->

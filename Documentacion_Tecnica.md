@@ -226,6 +226,7 @@ Script Backend estructurado para no interferir con `Code.gs` e independizar el r
   - Extrae y procesa arreglos enteros para calcular el **% Avance**.
   - **Extractor de Mejoras:** Escanea el DataRange de criterios buscando valores `1` o `2`. Si encuentra coincidencia cruzada, captura el valor descriptivo de la pregunta (Localizado en la **Fila 2** de la base de datos) y retorna un listado en formato texto plano separado por comas hacia la columna principal.
 - **`getConsolidatedData()`:** El endpoint API ligero. Al ser invocado por el usuario, lee los 33 valores de "Envío de resultados y fichas" combinándolos para DataTables.
+- **Inyección de Correos Estructurados:** Utiliza el método `MailApp.sendEmail` para inyectar plantillas HTML (`bodyHtml`). Sustituye descripciones cualitativas ("Muy Bueno", "Deficiente") por la expresión matemática del cálculo Vigesimal Base 20 (`(50 x nota) / 136`). Formatea el Periodo nativo usando `Utilities.formatDate(date, tz, 'MM-yyyy')` junto con el nombre del Programa y firma bajo el **nombre de display: Acompañamiento docente USMP Virtual**.
 
 ---
 

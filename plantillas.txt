@@ -1,0 +1,78 @@
+PLANTILLAS OFICIALES DE RESULTADOS GENERALES
+Sistema de Monitoreo del Cumplimiento de los Estándares de Calidad USMP
+🟥 PLANTILLA 1: Resultados Insuficientes (Nota menor a 14)
+Asunto: Resultados de Evaluación Docente - Requiere Atención
+Estimado(a) docente,
+{{NombreDocente}}
+Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura {{Asignatura}}, dictada durante el periodo académico {{Periodo}}.
+Le informamos que ha obtenido resultados insuficientes en la evaluación del presente periodo. Esta calificación refleja carencias por mejorar y requiere un mayor compromiso de su parte con el cumplimiento estricto de los estándares de calidad establecidos por nuestra casa de estudios. Lo exhortamos a revisar las observaciones de sus coordinadores para subsanar estos puntos a la brevedad.
+A continuación, le presentamos su Resultado General:
+RESULTADO GENERAL
+Puntaje Centesimal (100%)
+{{Resultado general centesimal}}%
+Puntaje Vigesimal (Base 20)
+{{Resultado general Vigesimal}}
+Cálculo
+Nota: El Resultado General se calcula ponderando al 50% la nota del Sistema de gestión del aprendizaje (LMS) y al 50% la nota del Acompañamiento Pedagógico (Resultado = LMS * 50% + Acompañamiento * 50%), según los criterios de calidad vigentes. Se considera resultado positivo al docente que obtenga 70 a 100 %. En escala vigesimal corresponde a 14 y 20 puntos.
+Detalle de los puntajes obtenidos por cada módulo evaluado:
+Sistema de gestión del aprendizaje (LMS)
+Acompañamiento del desempeño Pedagógico
+Puntaje Total: {{Sistema de gestión del aprendizaje}} / 136
+Nota Vigesimal: {{NOTA VIGESIMAL LMS}}
+Puntaje Total: {{Acompañamiento del desempeño Pedagógico}} / 44
+Nota Vigesimal: {{NOTA VIGESIMAL ACOMPAÑAMIENTO}}
+Criterios de mejora prioritaria: 
+ {{CRITERIOS A MEJORAR LMS}}
+Criterios de mejora prioritaria: 
+ {{CRITERIOS A MEJORAR ACOMPAÑAMIENTO}}
+Atentamente,{{Pregrado  o Posgrado}}Universidad de San Martín de Porres
+🟦 PLANTILLA 2: Resultados Regulares/Buenos (Nota entre 14 y 18.99)
+Asunto: Resultados de Evaluación Docente - Periodo Académico
+Estimado(a) docente,
+{{NombreDocente}}
+Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura {{Asignatura}}, dictada durante el periodo académico {{Periodo}}.
+Valoramos su compromiso en el desarrollo de la asignatura y apostamos por la mejora continua. Confiamos plenamente en que, fortaleciendo algunas áreas de oportunidad en el próximo periodo, logrará alcanzar el cumplimiento de todos los criterios de calidad establecidos por la universidad.
+A continuación, le presentamos su Resultado General:
+RESULTADO GENERAL
+Puntaje Centesimal (100%)
+{{Resultado general centesimal}}%
+Puntaje Vigesimal (Base 20)
+{{Resultado general Vigesimal}}
+Cálculo
+Nota: El Resultado General se calcula ponderando al 50% la nota del Sistema de gestión del aprendizaje (LMS) y al 50% la nota del Acompañamiento Pedagógico (Resultado = LMS * 50% + Acompañamiento * 50%), según los criterios de calidad vigentes. Se considera resultado positivo al docente que obtenga 70 a 100 %. En escala vigesimal corresponde a 14 y 20 puntos.
+Detalle de los puntajes obtenidos por cada módulo evaluado:
+Sistema de gestión del aprendizaje (LMS)
+Acompañamiento del desempeño Pedagógico
+Puntaje Total: {{Sistema de gestión del aprendizaje}} / 136
+Nota Vigesimal: {{NOTA VIGESIMAL LMS}}
+Puntaje Total: {{Acompañamiento del desempeño Pedagógico}} / 44
+Nota Vigesimal: {{NOTA VIGESIMAL ACOMPAÑAMIENTO}}
+Criterios de mejora prioritaria: 
+ {{CRITERIOS A MEJORAR LMS}}
+Criterios de mejora prioritaria: 
+ {{CRITERIOS A MEJORAR ACOMPAÑAMIENTO}}
+Atentamente,{{Pregrado  o Posgrado}}
+Universidad de San Martín de Porres
+🟩 PLANTILLA 3: Resultados Excelentes (Nota igual o mayor a 19)
+Asunto: Resultados de Evaluación Docente - ¡Felicitaciones!
+Estimado(a) docente,
+{{NombreDocente}}
+Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura {{Asignatura}}, dictada durante el periodo académico {{Periodo}}.
+¡Felicitaciones! Queremos expresar nuestro reconocimiento por su excelente desempeño y por cumplir a cabalidad con los estándares de calidad de la universidad. Agradecemos su notable dedicación, proactividad y esfuerzo en pro del aprendizaje de nuestros estudiantes.
+A continuación, le presentamos su Resultado General:
+RESULTADO GENERAL
+Puntaje Centesimal (100%)
+{{Resultado general centesimal}}%
+Puntaje Vigesimal (Base 20)
+{{Resultado general Vigesimal}}
+Cálculo
+Nota: El Resultado General se calcula ponderando al 50% la nota del Sistema de gestión del aprendizaje (LMS) y al 50% la nota del Acompañamiento Pedagógico (Resultado = LMS * 50% + Acompañamiento * 50%), según los criterios de calidad vigentes. Se considera resultado positivo al docente que obtenga 70 a 100 %. En escala vigesimal corresponde a 14 y 20 puntos.
+Detalle de los puntajes obtenidos por cada módulo evaluado:
+Sistema de gestión del aprendizaje (LMS)
+Acompañamiento del desempeño Pedagógico
+Puntaje Total: {{Sistema de gestión del aprendizaje}} / 136
+Nota Vigesimal: {{NOTA VIGESIMAL LMS}}
+Puntaje Total: {{Acompañamiento del desempeño Pedagógico}} / 44
+Nota Vigesimal: {{NOTA VIGESIMAL ACOMPAÑAMIENTO}}
+Atentamente,{{Pregrado  o Posgrado}}
+Universidad de San Martín de Porres

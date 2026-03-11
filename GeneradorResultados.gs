@@ -32,8 +32,8 @@ function getConsolidatedData(forceSync = false) {
     const userEmail = sessionData.userEmail;
 
     if (lastRow > 1) {
-      // Leemos desde la fila 2 para devolver al frontal (33 columnas: de A a AG)
-      const rawData = sheet.getRange(2, 1, lastRow - 1, 33).getDisplayValues();
+      // Leemos desde la fila 2 para devolver al frontal (34 columnas: de A a AH)
+      const rawData = sheet.getRange(2, 1, lastRow - 1, 34).getDisplayValues();
 
       // Formatear para el frontend:
       // Nos interesan las columnas A(0) a S(18), y U(20) a AG(32)
@@ -70,6 +70,7 @@ function getConsolidatedData(forceSync = false) {
           centesimal: row[30], // AE
           vigesimal: row[31], // AF
           nivel: row[32], // AG
+          fechaEnvio: row[33] || '', // AH (NUEVO)
         });
       }
     }
@@ -120,6 +121,21 @@ function sincronizarResultadosGenerales(isManualUI = false) {
       return { success: false, message: 'Hoja de resultados no encontrada.' };
     }
 
+    // --- NUEVO: Capturar fechas de envío preexistentes (Columna AH = Índice 34) ---
+    var mapaFechasEnvio = {};
+    var ultFilaResExistente = hojaResultados.getLastRow();
+    if (ultFilaResExistente > 1) {
+      // Leemos Col P (16) para el ID, y Col AH (34) para la fecha
+      var idsAntiguos = hojaResultados.getRange(2, 16, ultFilaResExistente - 1, 1).getValues();
+      var fechasAntiguas = hojaResultados.getRange(2, 34, ultFilaResExistente - 1, 1).getValues();
+      for (var f = 0; f < idsAntiguos.length; f++) {
+        var idStr = String(idsAntiguos[f][0]).trim();
+        if (idStr && idStr !== '') {
+          mapaFechasEnvio[idStr] = String(fechasAntiguas[f][0] || '').trim();
+        }
+      }
+    }
+
     // 2. Extraer datos Base de Asignaciones (Fila 2 hacia abajo, 19 columnas A-S)
     var ultFilaAsig = hojaAsignacion.getLastRow();
     if (ultFilaAsig < 2) {
@@ -129,13 +145,13 @@ function sincronizarResultadosGenerales(isManualUI = false) {
 
     // 3. Crear Diccionarios (Solo las col necesarias)
     // Para Virtual/Presencial: Inicio de Criterios (Col V=22). Son 34 Criterios.
-    // Score BC = Col 55, Url ED = Col 134.
-    var mapVirtual = construirMapaResultados(hojaVirtual, 3, 55, 134, 22, 34);
-    var mapPresencial = construirMapaResultados(hojaPresencial, 3, 55, 134, 22, 34);
+    // Score BC = Col 55, Url ED = colUrl (Dinámico).
+    var mapVirtual = construirMapaResultados(hojaVirtual, 3, 55, 22, 34);
+    var mapPresencial = construirMapaResultados(hojaPresencial, 3, 55, 22, 34);
 
     // Para Acompañamiento: Inicio de Criterios (Col V=22). Son 11 Criterios.
-    // Score AF = Col 32, Url BE = Col 57
-    var mapAcomp = construirMapaResultados(hojaAcomp, 3, 32, 57, 22, 11);
+    // Score AF = Col 32, Url BE = colUrl (Dinámico)
+    var mapAcomp = construirMapaResultados(hojaAcomp, 3, 32, 22, 11);
 
     var resultadosFinales = [];
 
@@ -228,6 +244,10 @@ function sincronizarResultadosGenerales(isManualUI = false) {
       filaDestino.push(af_vigesimal); // AF
       filaDestino.push(ag_nivel); // AG
 
+      // Inyectar fecha histórica de envío rescatada de la RAM (si existe)
+      var fechaHistorica = mapaFechasEnvio[id] || '';
+      filaDestino.push(fechaHistorica); // AH (Índice 33)
+
       resultadosFinales.push(filaDestino);
     }
 
@@ -235,10 +255,10 @@ function sincronizarResultadosGenerales(isManualUI = false) {
     if (resultadosFinales.length > 0) {
       var ultFilaRes = hojaResultados.getLastRow();
       if (ultFilaRes > 1) {
-        hojaResultados.getRange(2, 1, ultFilaRes - 1, 33).clearContent();
+        hojaResultados.getRange(2, 1, ultFilaRes - 1, 34).clearContent();
       }
 
-      hojaResultados.getRange(2, 1, resultadosFinales.length, 33).setValues(resultadosFinales);
+      hojaResultados.getRange(2, 1, resultadosFinales.length, 34).setValues(resultadosFinales);
     }
 
     if (ui) ui.alert('✅ Panel General de Resultados consolidado y actualizado.');
@@ -254,25 +274,33 @@ function sincronizarResultadosGenerales(isManualUI = false) {
 /**
  * Función auxiliar para crear diccionarios en memoria y calcular avance.
  */
-function construirMapaResultados(
-  hoja,
-  iniciarEnFila,
-  colScore,
-  colUrl,
-  colCritStart,
-  colCritCount
-) {
+function construirMapaResultados(hoja, iniciarEnFila, colScore, colCritStart, colCritCount) {
   var mapa = {};
   if (!hoja) return mapa;
 
   var lr = hoja.getLastRow();
+  var lc = hoja.getLastColumn();
   if (lr < iniciarEnFila) return mapa;
 
   var numFilas = lr - iniciarEnFila + 1;
 
+  // Buscar dinámicamente la columna Url_ficha en las primeras 2 filas usando la utilidad nativa
+  var colUrlIndex = -1;
+  var headersRange = hoja.getRange(1, 1, 2, lc).getValues();
+  for (var r = 0; r < headersRange.length; r++) {
+    for (var c = 0; c < headersRange[r].length; c++) {
+      if (String(headersRange[r][c]).trim() === 'Url_ficha') {
+        colUrlIndex = c + 1; // 1-indexed para getRange
+        break;
+      }
+    }
+    if (colUrlIndex !== -1) break;
+  }
+
   var colIds = hoja.getRange(iniciarEnFila, 16, numFilas, 1).getValues(); // Col P
   var colScores = hoja.getRange(iniciarEnFila, colScore, numFilas, 1).getValues();
-  var colUrls = hoja.getRange(iniciarEnFila, colUrl, numFilas, 1).getValues();
+  var colUrls =
+    colUrlIndex !== -1 ? hoja.getRange(iniciarEnFila, colUrlIndex, numFilas, 1).getValues() : null;
 
   // Extraemos la matriz completa de criterios para calcular la proporción de completados y valores bajos
   var critMatrix = [];
@@ -313,7 +341,7 @@ function construirMapaResultados(
 
       mapa[id] = {
         score: colScores[i][0],
-        url: colUrls[i][0],
+        url: colUrls ? colUrls[i][0] : '', // Uso dinámico
         avance: avanceNum, // Número entre 0 y 100
         criteriosBajos: arrCriteriosBajos.join(', '), // String separado porm comas "c_1_1, c_1_2"
       };
@@ -321,4 +349,471 @@ function construirMapaResultados(
   }
 
   return mapa;
+}
+
+/**
+ * ======================================================================
+ * MÓDULO DE CORREOS MASIVOS
+ * ======================================================================
+ * Envia los correos orquestando de acuerdo al arreglo de DNI mandados desde Frontend.
+ * Modifica directamente la Hoja RESULTADOS en su columna AH (Índice 34)
+ */
+
+/**
+ * Transforma una URL de Google Docs para forzar descarga en PDF.
+ * Reemplaza /edit... o /preview... por /export?format=pdf
+ */
+function forcePdfUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  return url.replace(/\/(edit|preview)(\?.*)?$/, '/export?format=pdf');
+}
+
+function enviarCorreosResultadosMasivos(idsArray) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaResultados = ss.getSheetByName(SHEET_MAP['RESULTADOS']);
+
+    if (!hojaResultados) {
+      return { success: false, message: 'Hoja de Resultados no encontrada.' };
+    }
+
+    var lastRow = hojaResultados.getLastRow();
+    if (lastRow < 2 || !idsArray || idsArray.length === 0) {
+      return { success: false, message: 'Sin datos para enviar.' };
+    }
+
+    // Leemos la data base matriz de resultados (Fila 2 hacia abajo, 34 Columnas)
+    var allData = hojaResultados.getRange(2, 1, lastRow - 1, 34).getValues();
+    var correosEnviados = 0;
+    // Helper
+    var STR_trim = function (str) {
+      return str ? String(str).trim() : '';
+    };
+
+    var erroresDetalle = [];
+
+    // Iteramos sobre las filas para encontrar coincidencias de ID
+    for (var i = 0; i < allData.length; i++) {
+      var row = allData[i];
+      var idFila = String(row[15]); // Col P
+
+      // Verificamos si este ID fue checkeado y mandado por el FrontEnd
+      if (idsArray.includes(idFila)) {
+        // Ya tiene fecha de envio? Proteccion backend redundante
+        var fechaExistente = String(row[33] || '').trim();
+        if (fechaExistente !== '') continue;
+
+        // Extracción Variables Plantillas
+        var docenteNombre = row[6] || 'Docente'; // Col G
+        var asignatura = row[4] || 'Asignatura'; // Col E
+        var programa = row[2] || 'Coordinación Académica'; // Col C
+
+        // Parsear el periodo
+        var periodoRaw = row[16]; // Col Q
+        var periodo = '';
+        if (periodoRaw) {
+          if (periodoRaw instanceof Date) {
+            // "MM-yyyy" (ej: 02-2026)
+            periodo = Utilities.formatDate(periodoRaw, Session.getScriptTimeZone(), 'MM-yyyy'); 
+          } else {
+            // Fallback en caso sea un string y se pueda parsear
+            var dateObj = new Date(periodoRaw);
+            if (!isNaN(dateObj)) {
+               periodo = Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'MM-yyyy'); 
+            } else {
+               periodo = String(periodoRaw);
+            }
+          }
+        }
+
+        var LMS_Score = row[20]; // Col U
+        var LMS_Vigesimal = row[21] !== '' ? parseFloat(row[21]).toFixed(2) : '-'; // Col V
+        var ACOMP_Score = row[25]; // Col Z
+        var ACOMP_Vigesimal = row[26] !== '' ? parseFloat(row[26]).toFixed(2) : '-'; // Col AA
+
+        var mejorarLMS = row[23] || 'Ninguno'; // Col X
+        var mejorarACOMP = row[28] || 'Ninguno'; // Col AC
+
+        var URL_LMS = row[24]; // Col Y
+        var URL_ACOMP = row[29]; // Col AD
+
+        var resCentesimal = row[30] !== '' ? parseFloat(row[30]).toFixed(2) : '0'; // Col AE
+        var resVigesimalRaw = row[31] !== '' ? parseFloat(row[31]) : 0; // Col AF
+        var resVigesimal = row[31] !== '' ? resVigesimalRaw.toFixed(2) : '0'; // Col AF
+
+        // Determinar nivel y colores
+        var nivelTexto = '';
+        var headerColor = '';
+        var headerSubtitle = '';
+        var nivelBadgeBg = '';
+        var nivelBadgeColor = '';
+
+        if (resVigesimalRaw >= 17) {
+          nivelTexto = 'Muy Bueno';
+          nivelBadgeBg = '#c6f6d5';
+          nivelBadgeColor = '#276749';
+        } else if (resVigesimalRaw >= 14) {
+          nivelTexto = 'Bueno';
+          nivelBadgeBg = '#bee3f8';
+          nivelBadgeColor = '#2a4365';
+        } else if (resVigesimalRaw >= 11) {
+          nivelTexto = 'Regular';
+          nivelBadgeBg = '#fefcbf';
+          nivelBadgeColor = '#744210';
+        } else if (resVigesimalRaw >= 10) {
+          nivelTexto = 'Deficiente';
+          nivelBadgeBg = '#fed7d7';
+          nivelBadgeColor = '#9b2c2c';
+        } else {
+          nivelTexto = 'Bajo';
+          nivelBadgeBg = '#fed7d7';
+          nivelBadgeColor = '#9b2c2c';
+        }
+
+        // Botones de descarga PDF
+        var btnLmsHtml =
+          URL_LMS && STR_trim(URL_LMS) !== ''
+            ? `<a href="${forcePdfUrl(URL_LMS)}" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#2b6cb0;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha LMS (PDF)</a>`
+            : '';
+        var btnAcompHtml =
+          URL_ACOMP && STR_trim(URL_ACOMP) !== ''
+            ? `<a href="${forcePdfUrl(URL_ACOMP)}" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#6b46c1;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;margin:5px 5px 5px 0;">📄 Descargar Ficha Acompañamiento (PDF)</a>`
+            : '';
+
+        // Criterios de mejora como tags
+        var buildMejorarTags = function (str) {
+          if (!str || str === 'Ninguno')
+            return '<span style="color:#718096;font-style:italic;">Ninguno</span>';
+          return str
+            .split(',')
+            .map(function (item) {
+              return (
+                '<span style="display:inline-block;background-color:#fed7d7;color:#9b2c2c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin:2px 3px;">' +
+                item.trim() +
+                '</span>'
+              );
+            })
+            .join(' ');
+        };
+
+        var tagsLMS = buildMejorarTags(mejorarLMS);
+        var tagsACOMP = buildMejorarTags(mejorarACOMP);
+
+        var emailsRaw = String(row[7] || '') + ',' + String(row[8] || ''); // Emails Col H y I
+
+        // SELECCIONAR PLANTILLA SEGÚN NOTA
+        var isPregrado = ss.getName().toUpperCase().indexOf('PREGRADO') !== -1;
+        var sedeString = isPregrado ? 'Pregrado' : 'Posgrado';
+
+        var correoInstitucional = isPregrado
+          ? 'pregrado@usmpvirtual.edu.pe'
+          : 'posgrado@usmpvirtual.edu.pe';
+
+        var correoCoordinador = String(row[18] || '').trim(); // Col S
+        if (correoInstitucional) emailsRaw += ',' + correoInstitucional;
+        if (correoCoordinador) emailsRaw += ',' + correoCoordinador;
+
+        var subjectStr = '';
+        var mensajeCentral = '';
+
+        if (resVigesimalRaw < 14) {
+          headerColor = '#c53030';
+          headerSubtitle = '⚠️ Requiere Atención';
+          subjectStr = 'Resultados de Evaluación Docente - Requiere Atención';
+          mensajeCentral =
+            'Le informamos que ha obtenido resultados que requieren atención en la evaluación del presente periodo. Esta calificación refleja áreas por mejorar y requiere un mayor compromiso de su parte con el cumplimiento estricto de los estándares de calidad establecidos por nuestra casa de estudios. Lo exhortamos a revisar las observaciones de sus coordinadores para subsanar estos puntos a la brevedad.';
+        } else if (resVigesimalRaw >= 14 && resVigesimalRaw < 19) {
+          headerColor = '#c53030';
+          headerSubtitle = '📊 Periodo Académico';
+          subjectStr = 'Resultados de Evaluación Docente - Periodo Académico';
+          mensajeCentral =
+            'Valoramos su compromiso en el desarrollo de la asignatura y apostamos por la mejora continua. Confiamos plenamente en que, fortaleciendo algunas áreas de oportunidad en el próximo periodo, logrará alcanzar el cumplimiento de todos los criterios de calidad establecidos por la universidad.';
+        } else {
+          headerColor = '#c53030';
+          headerSubtitle = '🏆 ¡Felicitaciones!';
+          subjectStr = 'Resultados de Evaluación Docente - ¡Felicitaciones!';
+          mensajeCentral =
+            '¡Felicitaciones! Queremos expresar nuestro reconocimiento por su excelente desempeño y por cumplir a cabalidad con los estándares de calidad de la universidad. Agradecemos su notable dedicación, proactividad y esfuerzo en pro del aprendizaje de nuestros estudiantes.';
+        }
+
+        // Sección de criterios de mejora (solo si nota < 19)
+        var seccionMejora = '';
+        if (resVigesimalRaw < 19) {
+          seccionMejora = `
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
+              <tr><td style="padding:12px 20px;background-color:#fff5f5;border-left:4px solid #c53030;border-radius:0 8px 8px 0;">
+                <p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#9b2c2c;">Criterios de Mejora Prioritaria</p>
+                <p style="margin:0 0 6px 0;font-size:13px;color:#4a5568;"><strong>LMS:</strong> ${tagsLMS}</p>
+                <p style="margin:0;font-size:13px;color:#4a5568;"><strong>Acompañamiento:</strong> ${tagsACOMP}</p>
+              </td></tr>
+            </table>`;
+        }
+
+        var bodyHtml = `
+        <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#f7fafc;">
+          <!-- HEADER -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:${headerColor};border-radius:8px 8px 0 0;">
+            <tr><td style="padding:24px 30px;text-align:center;">
+              <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;">Universidad de San Martín de Porres</p>
+              <p style="margin:6px 0 0 0;font-size:14px;color:rgba(255,255,255,0.85);">Resultados de Evaluación Docente</p>
+              <p style="margin:8px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">${headerSubtitle}</p>
+            </td></tr>
+          </table>
+
+          <!-- BODY -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <tr><td style="padding:28px 30px;">
+
+              <!-- Saludo -->
+              <p style="margin:0 0 6px 0;font-size:15px;color:#4a5568;">Estimado(a) docente,</p>
+              <p style="margin:0 0 16px 0;font-size:18px;font-weight:bold;color:#1a202c;">${docenteNombre}</p>
+
+              <!-- Contexto -->
+              <p style="margin:0 0 8px 0;font-size:14px;color:#4a5568;line-height:1.6;">
+                Reciba un cordial saludo. A través del presente comunicado, le hacemos llegar los resultados oficiales correspondientes a la supervisión y monitoreo de la asignatura <strong>${asignatura}</strong> (Periodo: ${periodo}, Programa: ${programa}).
+              </p>
+              <p style="margin:0 0 20px 0;font-size:14px;color:#4a5568;line-height:1.6;">${mensajeCentral}</p>
+
+              <!-- TABLA: RESULTADO GENERAL -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+                <tr>
+                  <td colspan="2" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                    📋 Resultado General
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;width:60%;">Puntaje Centesimal (100%)</td>
+                  <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#1a202c;border-bottom:1px solid #f0f0f0;text-align:center;">${resCentesimal}%</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;">Puntaje Vigesimal (Base 20)</td>
+                  <td style="padding:10px 16px;font-size:15px;font-weight:bold;color:#1a202c;border-bottom:1px solid #f0f0f0;text-align:center;">${resVigesimal}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;text-align:center;font-style:italic;">
+                    * Se considera resultado positivo si es mayor o igual al 70% (14 en base vigesimal)
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 16px;font-size:12px;color:#718096;background-color:#f7fafc;border-top:1px solid #e2e8f0;line-height:1.5;">
+                    <strong>Cálculo del Resultado General:</strong><br>
+                    Sistema de gestión del aprendizaje (LMS) = (50 × puntaje obtenido por el docente) / 136<br>
+                    Acompañamiento al desempeño docente Pedagógico = (50 × puntaje obtenido por el docente) / 44
+                  </td>
+                </tr>
+              </table>
+
+              <!-- TABLA: DETALLE POR MÓDULO -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:6px;">
+                <tr>
+                  <td colspan="3" style="background-color:#edf2f7;padding:10px 16px;font-size:14px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;">
+                    📊 Detalle por Módulo Evaluado
+                  </td>
+                </tr>
+                <tr style="background-color:#f7fafc;">
+                  <td style="padding:8px 16px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;">Módulo</td>
+                  <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Puntaje</td>
+                  <td style="padding:8px 12px;font-size:12px;font-weight:bold;color:#718096;border-bottom:1px solid #e2e8f0;text-align:center;">Nota Vigesimal</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#2d3748;border-bottom:1px solid #f0f0f0;">Sistema de gestión del aprendizaje (LMS)</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;text-align:center;">${LMS_Score} / 136</td>
+                  <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#2b6cb0;border-bottom:1px solid #f0f0f0;text-align:center;">${LMS_Vigesimal}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;font-size:13px;color:#2d3748;">Acompañamiento del desempeño Pedagógico</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#4a5568;text-align:center;">${ACOMP_Score} / 44</td>
+                  <td style="padding:10px 12px;font-size:14px;font-weight:bold;color:#6b46c1;text-align:center;">${ACOMP_Vigesimal}</td>
+                </tr>
+              </table>
+
+              ${seccionMejora}
+
+              <!-- BOTONES DE DESCARGA PDF -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+                <tr><td style="padding:16px 20px;background-color:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
+                  <p style="margin:0 0 12px 0;font-size:14px;font-weight:bold;color:#2d3748;">📥 Documentos de Evaluación</p>
+                  <p style="margin:0 0 14px 0;font-size:13px;color:#718096;">Descargue las fichas de evaluación detalladas en formato PDF:</p>
+                  ${btnLmsHtml}
+                  ${btnAcompHtml}
+                </td></tr>
+              </table>
+
+            </td></tr>
+          </table>
+
+          <!-- FOOTER -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#edf2f7;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+            <tr><td style="padding:20px 30px;text-align:center;">
+              <p style="margin:0 0 4px 0;font-size:13px;color:#718096;">Atentamente,</p>
+              <p style="margin:0 0 2px 0;font-size:14px;font-weight:bold;color:#2d3748;">Área de ${sedeString}</p>
+              <p style="margin:0;font-size:13px;color:#718096;">Universidad de San Martín de Porres</p>
+            </td></tr>
+          </table>
+        </div>`;
+
+        // Enviar Correo (To: Todos Juntos, Subj, Html, Cc: Vacío, Sin Adjuntos)
+        var emailResponse = sendTeacherEmail(emailsRaw, subjectStr, bodyHtml, '', []);
+        if (emailResponse.success) {
+          // Registrar el Timestamp en la matriz en local RAM (Índice 33 es Columna AH)
+          var nowStamp = Utilities.formatDate(
+            new Date(),
+            Session.getScriptTimeZone(),
+            'dd/MM/yyyy HH:mm:ss'
+          );
+          allData[i][33] = nowStamp;
+          correosEnviados++;
+        } else {
+          erroresDetalle.push('Fallo correo (' + emailsRaw + '): ' + emailResponse.message);
+        }
+      }
+    }
+
+    // Devolvemos toda la matriz reescrita a la hoja para un guardado asíncrono eficiente (Solo 1 llamada a Google Sheets)
+    hojaResultados.getRange(2, 1, lastRow - 1, 34).setValues(allData);
+
+    if (correosEnviados === 0 && erroresDetalle.length > 0) {
+      return {
+        success: false,
+        message: 'Fallaron los envíos. Detalles: ' + erroresDetalle.join(' | '),
+      };
+    }
+
+    return { success: true, count: correosEnviados, message: erroresDetalle.join(' | ') };
+  } catch (e) {
+    return { success: false, message: 'Error Servidor: ' + e.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ======================================================================
+ * FUNCIÓN PARA PRUEBA DE DIAGNÓSTICO (Ejecutar Manualmente desde Apps Script)
+ * ======================================================================
+ */
+function testEnvioDiagnostico() {
+  try {
+    var emailPrueba = Session.getActiveUser().getEmail();
+    Logger.log('Iniciando prueba de diagnóstico de correos para: ' + emailPrueba);
+
+    // Test 1: Correo básico directo
+    Logger.log('Enviando correo básico HTML nativo de Google...');
+    MailApp.sendEmail({
+      to: emailPrueba,
+      subject: 'Test Antigravity Básico de Sistema',
+      htmlBody: '<b>Hola</b>, si ves esto, MailApp está permitido y funcionando.',
+      name: 'Diagnóstico Sistema',
+    });
+    Logger.log('Éxito en Test 1.');
+
+    // Test 2: Usar sendTeacherEmail
+    Logger.log('Evaluando sendTeacherEmail (Code.gs)...');
+    var resp = sendTeacherEmail(
+      emailPrueba,
+      'Test Antigravity Estructurado',
+      '<b>Cuerpo</b> de prueba',
+      '',
+      []
+    );
+    Logger.log('Respuesta de sendTeacherEmail: ' + JSON.stringify(resp));
+
+    Logger.log('=== PRUEBA FINALIZADA ===');
+  } catch (e) {
+    Logger.log('ERROR CRÍTICO DETECTADO: ' + e.toString());
+  }
+}
+
+/**
+ * Función que permite diagnosticar exactamente el error de generación del PDF y los valores en las columnas
+ */
+function testExtraerPdf() {
+  Logger.log('--- INICIO DE DIAGNÓSTICO PROFUNDO ---');
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_MAP['RESULTADOS']);
+    if (!sheet) {
+      Logger.log('❌ Error: No se encontró la hoja RESULTADOS para leer los links');
+    } else {
+      var lastRow = sheet.getLastRow();
+      if (lastRow >= 2) {
+        var rowData = sheet.getRange(2, 1, 1, 34).getValues()[0];
+        var lmsUrl = rowData[24]; // Col Y
+        var acompUrl = rowData[29]; // Col AD
+        Logger.log('Lectura de la hoja RESULTADOS - FILA 2:');
+        Logger.log(
+          '➡️ Columna Y (LMS URL - Índice 24): [' + lmsUrl + '] (Tipo: ' + typeof lmsUrl + ')'
+        );
+        Logger.log(
+          '➡️ Columna AD (ACOMP URL - Índice 29): [' +
+            acompUrl +
+            '] (Tipo: ' +
+            typeof acompUrl +
+            ')'
+        );
+      } else {
+        Logger.log('⚠️ La hoja RESULTADOS está vacía (solo cabeceras)');
+      }
+    }
+  } catch (e) {
+    Logger.log('❌ Error leyendo hoja: ' + e.message);
+  }
+
+  // Prueba de extracción directa
+  var urlPrueba =
+    'https://docs.google.com/document/d/13GuB-r0to1cap0PyW1OJY4QBKVDl_9eURtYc_hWqpaE/edit?tab=t.0';
+
+  Logger.log('\n--- PRUEBA DE DESCARGA PDF ---');
+  var match = urlPrueba.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match || !match[1]) {
+    Logger.log('❌ Error: La URL no contiene un ID de documento de Google válido.');
+    return;
+  }
+
+  var fileId = match[1];
+  Logger.log('ID extraído correctamente: ' + fileId);
+
+  try {
+    // Intento 1: UrlFetchApp
+    var urlExport = 'https://docs.google.com/document/d/' + fileId + '/export?format=pdf';
+    Logger.log('Intentando descargar vía UrlFetchApp: ' + urlExport);
+    var responseAuth = UrlFetchApp.fetch(urlExport, {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true,
+    });
+
+    var code = responseAuth.getResponseCode();
+    Logger.log('Código HTTP UrlFetchApp: ' + code);
+
+    if (code === 200) {
+      Logger.log('✅ Éxito UrlFetchApp: Se descargó el Blob.');
+      var blob = responseAuth.getBlob();
+      Logger.log('✅ Tipo Mime: ' + blob.getContentType());
+      if (blob.getContentType() !== 'application/pdf') {
+        Logger.log(
+          '⚠️ Alerta: El contenido no es PDF. Es posible que el token no tenga permisos y redirija a login.'
+        );
+      }
+    } else {
+      Logger.log(
+        '⚠️ Falló UrlFetchApp (código ' +
+          code +
+          '). Contenido: ' +
+          responseAuth.getContentText().substring(0, 100)
+      );
+      Logger.log('Pasando al Intento 2 (DriveApp)...');
+
+      // Intento 2: DriveApp (Fallback nativo)
+      var file = DriveApp.getFileById(fileId);
+      Logger.log('✅ Archivo encontrado en DriveApp: ' + file.getName());
+
+      var pdfBlob = file.getAs(MimeType.PDF);
+      Logger.log('✅ Éxito DriveApp: Se generó el Blob del PDF correctamente.');
+    }
+  } catch (e) {
+    Logger.log('❌ ERROR EXCEPCIÓN: ' + e.message);
+    Logger.log('Detalles: ' + e.stack);
+  }
 }
