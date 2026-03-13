@@ -38,6 +38,7 @@ El backend lee/escribe en pestañas específicas. El sistema detecta dinámicame
 - `GeneradorResultados.gs`: Motor en RAM multidimensional (Arquitectura Fase 5.1). Analiza las hojas principales mapeando hasta 33 columnas combinadas. Cruza DNI, calcula notas Vigesimales asíncronas, determina % de avance y atrapa textos descriptivos (Fila 2) de criterios deficientes (Notas 1/2) para generar un JSON de consolidación sin alterar matrices reales.
 - `GeneradorDoc.gs`: Motor de documentos. Clona plantillas de Google Docs y usando RegEx repara campos semánticos `{{variable}}` con datos del Google Sheets, devolviendo hipervínculos para registro histórico.
 - `ImportacionExterna.gs` / `SincronizacionIntern.gs`: Wrappers y Pipelines de limpieza de Data. Operan desde el menú administrativo.
+- `Backend_BI.gs`: Endpoint `getSabanaBIData()` para el Dashboard BI. Lee la "Sábana General Docente" (72 columnas) y retorna datos filtrados por modalidad usando Col D y Col N.
 
 ### 3.2. Frontend - Core (Archivos `.html`)
 
@@ -49,7 +50,8 @@ El backend lee/escribe en pestañas específicas. El sistema detecta dinámicame
 
 - `View_Assignment.html`: Módulo Jefatura. Muestra asignación global de docentes usando la librería externa `Chart.js`.
 - `View_Dashboard_Acomp.html` / `JS_Acompanamiento.html`: Módulo fase 4. Evalúa 11 dimensiones en modelo estricto de 31 días.
-- `View_Resultados.html` / `JS_Resultados.html`: Parsean el JSON nativo multimensional de 33 columnas de `GeneradorResultados.gs`. Usan `DataTables` con `rowspan="2"` y convierten variables en "Pill Badges" estéticas (Ej. Rojos para criterios a mejorar, Pastel para porcentajes de avance).
+- `View_Resultados.html` / `JS_Resultados.html`: Parsean el JSON nativo multimensional de 33 columnas de `GeneradorResultados.gs`. Usan `DataTables` con `rowspan="2"` y convierten variables en "Pill Badges" estéticas.
+- `View_Dashboard_BI.html` / `JS_BI.html`: Módulo BI (Fase 7). Dashboard con KPIs (4 cards), gráfico Doughnut de distribución y barras dinámicas de criterios exclusivos. Usa inline styles para layout y Chart.js para visualización. Consume `Backend_BI.gs`.
 - `View_Modal.html` / `JS_Templates.html`: Módulos de mensajería (Emails / API WhatsApp Link).
 
 ---
@@ -59,7 +61,9 @@ El backend lee/escribe en pestañas específicas. El sistema detecta dinámicame
 1.  **Bloqueo de UI (UI Lock):** Al guardar una nota del 1 al 4, el frontend inyecta `pointer-events-none` y `opacity-50` en el campo, forzando la asincronía obligatoria hasta que GAS devuelva el callback de éxito. Nunca permitir "double spam" de clics.
 2.  **Exclusión Mutua de Acciones:** El sistema jamás debe mostrar los botones "Felicitar (Nota 20)" y "Reportar" al mismo tiempo. El código frontend valora la base vigesimal y hace render condicional para evitar confusiones al usuario.
 3.  **Algoritmo Asimétrico Vigesimal:** El promedio base 20 nunca debe penalizar celdas vacías. Si de 10 criterios, hay 2 calificados, el promedio de su equivalente vigesimal se calcula dividiendo la suma entre el máximo _posible_ de esos solos 2 criterios.
-4.  **Aislamiento de Invitados:** Si el objeto global `AUTH_DATA.isGuest === true`, debes interrumpir la carga del DOM en `renderOverview()`, permitiendo ver datos agregados globales (promedios macros), pero ocultando el detalle unitario y anulando las subrutinas de botones de guardado.
+4.  **Aislamiento de Invitados:** Si el objeto global `AUTH_DATA.isGuest === true`, debes interrumpir la carga del DOM en `renderOverview()`, permitiendo ver datos agregados globales, pero ocultando el detalle unitario.
+5.  **Modalidad BI (Doble Columna):** La determinación Virtual/Presencial en el módulo BI usa Col D (índice 3, "Modalidad") y Col N (índice 13, "Tipo de metodología"). Virtual/Híbrida = Col D="Virtual" O Col N="Híbrida". Presencial = Col D="Presencial" Y Col N≠"Híbrida".
+6.  **Vista BI Inline:** El módulo BI usa `style.display` para show/hide (no clases CSS). El contenedor inicia con `style="display:none"` y `Index.html` fuerza el ocultamiento en `window.onload`.
 
 ---
 

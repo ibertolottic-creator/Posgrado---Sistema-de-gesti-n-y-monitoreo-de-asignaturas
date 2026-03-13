@@ -165,6 +165,16 @@ Controlador autónomo para la vista de Consolidación General y Envío Masivo.
 - **Protección Visual (Loader):** Oscurece e inutiliza la pantalla mientras el Backend está escaneando las hojas para mitigar impaciencia del usuario.
 - **Integración de Rutas Seguras:** Posee una función explícita interconectada al sistema de ruteo universal para regresar al Dashboard principal sin alterar el `Index.html`.
 
+### `JS_BI.html` (NUEVO - FASE 7: Dashboard BI)
+
+Controlador autónomo para la vista de Análisis de Resultados de Docentes.
+
+- **`mostrarModuloBI()`:** Punto de entrada. Oculta todas las vistas principales usando `style.display='none'` (bulletproof, no depende de clases CSS) y muestra el dashboard BI con `style.display='flex'`.
+- **`cargarDataSabanaBI()`:** Consume `getSabanaBIData()` del backend, maneja estados de carga/error, y almacena los datos en `biDataGlobal`.
+- **`renderBiDashboard()`:** Filtra datos según modalidad (Todas/Virtual/Presencial), calcula 4 KPIs transversales, y renderiza gráficos Chart.js.
+- **`renderChartDistribucion()`:** Gráfico Doughnut con distribución de niveles de desempeño (Muy Bueno 17-20, Bueno 14-16, Regular 11-13, Deficiente ≤10).
+- **`renderPanelDinamicoExclusivo()`:** Gráfico de barras dinámico que cambia según la modalidad seleccionada (Tutorías S1-S4 para Virtual, Evaluaciones para Presencial).
+
 ---
 
 ## 3.5. Sistema Generador de Reportes (Fase 6)
@@ -241,6 +251,20 @@ Script Backend dedicado exclusivamente a la generación del Data Mart "Sábana G
   - **Conversión Base 20 Parcial:** Transforma dinámicamente el puntaje escalado nativo (`LMS_TOTAL` max 136 y `ACOMP_TOTAL` max 44) proyectándolos hacia métricas vigesimales.
   - **Cálculo de Fórmula Final:** Ejecuta la distribución algorítmica matemática depositándola como métrica flotante inmutable en la sábana física.
 
+### `Backend_BI.gs` (Endpoint del Dashboard BI)
+
+Script Backend independiente que sirve como API para el módulo de Análisis de Resultados de Docentes.
+
+- **`getSabanaBIData()`:** Endpoint principal consumido por el frontend.
+  - Lee la hoja "Sábana General Docente" (Fila 1 = códigos, Fila 2 = títulos, Fila 3+ = datos).
+  - Busca columnas dinámicamente por código: `SCORE_VIG`, `LMS_TOTAL`, `ACOMP_TOTAL`, `c_3_1_s1..s4`, `cp_3_1_s1`, `cp_3_2_s2`, `cp_3_3_s4`, `cp_4_1_s4`.
+  - **Algoritmo de Modalidad:**
+    - Col D (índice 3) = "Modalidad" → "Virtual" o "Presencial".
+    - Col N (índice 13) = "Tipo de metodología" → "Híbrida" o vacío.
+    - Virtual/Híbrida: Col D="Virtual" **O** Col N="Híbrida".
+    - Presencial: Col D="Presencial" **Y** Col N≠"Híbrida".
+  - **Retorno:** `{ success: true, biData: [{nombre, asignatura, programa, modalidad, ptsLMS, ptsAcomp, promedio, scoreGral, criteriosExclusivos: {S1,S2,S3,S4}}] }`.
+
 ---
 
 ## 4. Scripts Auxiliares (Pipeline de Datos)
@@ -265,8 +289,8 @@ Para replicar el flujo de datos completo, se necesitan estos scripts independien
 3.  **Editor de Secuencias de Comandos:** Abrir Extensiones > Apps Script.
 4.  **Crear Archivos:**
     - Copiar el contenido de `Code.gs` a `Code.gs`.
-    - Crear scripts auxiliares funcionales: `Menu.gs`, `GeneradorDoc.gs`, `GeneradorResultados.gs` y `GeneradorBI.gs`.
-    - Crear archivos HTML: `Index`, `JS_Client`, `JS_Tracking`, `JS_Templates`, `CSS`, `View_Home`, `View_Dashboard`, `View_Modal`.
+    - Crear scripts auxiliares funcionales: `Menu.gs`, `GeneradorDoc.gs`, `GeneradorResultados.gs`, `GeneradorBI.gs` y `Backend_BI.gs`.
+    - Crear archivos HTML: `Index`, `JS_Client`, `JS_Tracking`, `JS_Templates`, `JS_Acompanamiento`, `JS_Resultados`, `JS_BI`, `CSS`, `View_Home`, `View_Dashboard`, `View_Dashboard_Acomp`, `View_Dashboard_BI`, `View_Assignment`, `View_Resultados`, `View_Modal`.
     - Copiar el código correspondiente a cada uno.
 5.  **Implementar:**
     - Clic en "Implementar" > "Nueva implementación".

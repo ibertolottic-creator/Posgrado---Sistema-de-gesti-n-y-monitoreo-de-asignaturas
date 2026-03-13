@@ -1,83 +1,139 @@
-Estado del Proyecto: LMS Auditoría Docente
-Fecha: 3 de Marzo de 2026
-Versión: 5.0 (Consolidación, Envío Masivo y Arquitectura de Inicio)
+# Estado del Proyecto: Sistema de Monitoreo USMP
+**Fecha de Última Actualización:** 13 de Marzo de 2026
+**Versión:** 2.0 (Dashboard BI + Correcciones Críticas)
 
-1. Resumen Técnico
-   Se ha implementado la Fase 4 completa, además de las actualizaciones previas (Fase 3 enfocadas en seguridad y asignación masiva de carga). El hito actual es la estabilización del seguimiento docente en vivo:
+---
 
-- **Autenticación y Roles:** El sistema ahora lee la hoja `Datos de los coordinadores` (columna G para correo, F para rol, J para nombres). Los usuarios no registrados reciben el rol transitorio de "Invitado".
-- **Restricciones de Invitado:** Los invitados solo tienen acceso de lectura. La interfaz bloquea opcionalmente los botones de guardar calificación y desactiva el envío de correos, mostrando advertencias ("Acceso Limitado").
-- **Módulo de Asignación de Carga (Fase 3.1):** Se creó `View_Assignment.html`, accesible única y exclusivamente por usuarios con rol "Jefe de área" (o "Admin"). Se lee directamente desde la fila 2 para extraer las asignaturas.
-- **Dashboard Visual (NUEVO):** En la parte superior del módulo de asignación se añadió un gráfico circular interactivo (Chart.js) que muestra de inmediato la "Distribución de Carga". Junto a este, aparecen tarjetas de resumen (KPI) para cada coordinador (incluyendo a los Jefes de área) ilustrando la cantidad exacta de asignaturas y alumnos a su cargo.
-- **Filtrado Dinámico:** Al hacer clic en la tarjeta de resumen de un coordinador, la lista se filtra de inmediato para mostrar las asignaturas que tiene asignadas. También puede filtrar manualmente por programa (Columna C), nombre de curso, o nombre de docente.
-- **Auto-asignación de Jefatura:** Los perfiles de "Jefe de área" ahora aparecen listados (marcados con una ⭐ en el menú desplegable) permitiendo que coordinen sus propias asignaturas si lo requieren.
-- **Asignación Masiva por Programa (Fase 3.2):** Se integró una barra morada dedicada a la asignación en lote. Permite elegir un Programa Institucional específico y un Responsable, y mediante el botón "Asignar Todos", transfiere en un solo instante toda la carga académica de ese programa al Jefe/Coordinador seleccionado.
-- **Sincronización Integrada y Mantenimiento (LMS Core):** Se añadieron botones de "Importar Matriz" y "Sincronizar Plataformas" al gestor de asignaciones. Estos ejecutan wrappers seguros (`runImportAndSyncWebApp`, `runSyncAllWebApp`) hacia los scripts nativos `ImportacionExterna.gs` y `SincronizacionIntern.gs`. Además, se implementó un sistema de `MAINTENANCE_MODE` global que bloquea instántaneamente el sistema durante actualizaciones para prevenir corrupciones.
-- **Bloqueo Anti-Concurrencia (Backend):** La función de guardado implementa `LockService` asegurando la consistencia de datos ante colisiones.
-- **Envío de Correos Inteligente (Fase 3.4):** Se optimizó la lógica de comunicación para que al enviar un reporte o felicitación, automáticamente se concatenen en el destinatario ("Para") los correos del Docente (primario y secundario), el correo del Coordinador asignado a esa asignatura específica, y el correo institucional del Área respectiva. Esta concatenación ocurre de forma transparente en la UI, mitigando riesgos de configuración en el servidor al reutilizar la funcionalidad nativa de envíos masivos.
-- **Badge Contextual de Sede (Fase 3.4):** La interfaz Home ahora detecta en tiempo real (vía `getSpreadsheetInfo()`) el nombre de la base de datos conectada (Spreadsheet activo). Inserta dinámicamente una etiqueta visual (Badge) indicando si se está trabajando sobre la matriz de "PREGRADO" (color azul) o "POSGRADO" (color morado), brindando certeza contextual inmediata al usuario.
-- **Panel de Supervisión Global para Invitados:** Los usuarios tipo "Invitado" ahora pueden visualizar exclusivamente las métricas agregadas globales, manteniéndose bloqueado el acceso al detalle de calificación y al envío de correos.
-- **Tolerancia a Fallos en Enlaces (Fix):** Se integró un sistema de rescate (fallback) en App Script para la extracción de "Accesos Directos". Si la hoja de cálculo pierde el formato "RichText" de las aulas virtuales, el sistema leerá el texto plano y forzará la creación algorítmica de enlaces funcionales.
-- **Tolerancia a Códigos Fusionados (NUEVO):** El motor principal de cruces de datos (`GeneradorBI.gs` y `GeneradorResultados.gs`) ahora emplea Expresiones Regulares (`.match(/P[0-9A-Z_]+/g)`) para despiezar celdas de Asignación malformadas (ej. dos códigos de curso pegados en uno solo `P2026..._v01P2026..._v02`). De esta forma extrae de manera limpia todas las calificaciones subyacentes sin generar blancos.
-- **Autosuma de Rescate (Fallback):** Se inyectó una lógica preventiva matemática en los generadores. Si el sistema detecta que un docente tiene rúbricas calificadas pero el puntaje total llega vacío por culpa de una fórmula del Excel rota (Daño colateral recurrente de combinar celdas en el LMS), el backend asume el cálculo, suma las notas una a una por su cuenta y genera el score total automáticamente.
-- **Corrección de Layout UI:** Se ajustó la estructuración de la vista de "Asignación de carga a coordinadores" eliminando etiquetas conflictivas, asegurando que los botones de Sincronización Global permanezcan estrictamente confinados y ocultos si el usuario se encuentra navegando fuera de su jurisdicción.
+## 1. Resumen General del Sistema
 
-- **Módulo de Acompañamiento del Desempeño Pedagógico (Fase 4):** Se desarrolló un nuevo ecosistema independiente con un dashboard propio (`View_Dashboard_Acomp.html`).
-  - **Lógicas Temporales:** Semáforo configurado estrictamente a 31 días (plomo > azul > amarillo 22-28 > naranja 29-31 > rojo pasado el plazo).
-  - **Cálculo Dinámico Base 20:** El promedio se calcula en tiempo real únicamente sobre los criterios que ya han sido calificados, manteniendo la viabilidad estadística (escala 1 a 4 convertida a 20).
-  - **Protección de Interfaz (UI Lock):** Al guardar una calificación, el selector se bloquea visualmente con un factor de transparencia hasta que Google Sheets confirme el guardado, previniendo dobles ingresos accidentales.
-  - **Comunicaciones y WhatsApp:** Rediseño del modal de correos con plantillas automatizadas (`CONGRATULATE` puro para notas de 20 y `REPORT` que lista las deficiencias si hay notas de 1 o 2). Se habilitó la derivación automática de estos textos hacia la API web de WhatsApp.
-  - **Refactorización Estructural UI (Final):** La burbuja de "Guardando..." fue extraída en un componente flotante independiente (`save-indicator-acomp`) garantizando su visibilidad exclusiva sobre el dashboard nuevo. Adicionalmente, las reglas lógicas matemáticas de Felicitar (20) y Reportar (1/2) aplican una estricta exclusión mutua para impedir colisiones visuales.
-  - **Generación de Fichas Oficiales (Acompañamiento):** Se implementó `generateDocAcomp()` que clona la plantilla base, y reemplaza campos clave devolviendo la URL.
-  - **Motor Global de Fichas (Fase 6 Finalizada):** Se expandió el motor `GeneradorDoc.gs` para los módulos académicos.
-    - Se crearon las funciones `generateDocVirtual()` y `generateDocPresencial()`.
-    - Generan dinámicamente el documento en una carpeta de Drive centralizada cruzando las columnas del 1 al 4 para las Semanas 1 a 4.
-    - El Frontend (`JS_Client.html`) ahora rastrea el progreso "Global". Solo cuando un docente virtual o presencial llega al 100% de Evaluación en sus 4 semanas, se activa el botón azul de "Generar Ficha Doc". Al procesarlo, interconecta con la `Url_ficha` guardándola nativamente en la Hoja respectiva para que quede una constancia incrustada.
+Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad** construido como una SPA (Single Page Application) en Google Apps Script. Permite a coordinadores evaluar asignaturas, generar fichas docentes, enviar resultados y analizar métricas de desempeño.
 
-- **Arquitectura Visual de Inicio (Fase 5):** Rediseño total de `View_Home.html`.
-  - Se habilitó **Scroll nativo** (`overflow-y-auto`) permitiendo la escala infinita de módulos.
-  - El menú principal ahora se categoriza en tres vertientes visuales escalonadas (animación tipo Cascada):
-    1. **Área Operativa:** Módulos transaccionales de uso diario (Virtual, Presencial, Acompañamiento, Consolidación).
-    2. **Área de Gestión:** Modulo "Asignación de carga" encapsulado, exclusivo para cuentas Jefatura.
-    3. **Área Estratégica y Análisis:** Interfaces preparadas ("En Desarrollo") para minería de datos de Docentes y Coordinadores.
-- **Módulo de Consolidación y Envío Masivo (Fase 5):**
-  - Nuevo ecosistema backend (`GeneradorResultados.gs`) que clona en la RAM a través de `LockService` todas las variables del sistema para combinarlas de forma multi-dimensional sin corromper la base de datos de producción.
-  - Endpoint `sincronizarResultadosGenerales()` lee el índice de la pestaña principal ("Asignación de coordinador"), extrae los nombres en bruto, rastrea sus IDs tanto en "LMS-virtual" o "LMS-presencial" y extrae adicionalmente la nota Base 20 de "Acompañamiento".
-  - **Reconocimiento de Usuario y Filtrado:** El módulo ahora identifica a la sesión activa (`getGlobalSessionData()`) y visualiza su correo en la cabecera del módulo. La lógica del backend filtra automáticamente la base de datos para devolver únicamente las filas asignadas a dicho Responsable (Columna S en Módulo Asignación), salvo que se cuente con rol Admin.
-  - Interfaz de tabla de datos interactiva (`View_Resultados.html` y `JS_Resultados.html`) equipada con estado temporal (Loader) previniendo que la pantalla se congele durante el renderizado asíncrono.
-  - **Corrección Visual de Tabla (DataTables):** Se refactorizó la estructura del `<thead/>` haciendo uso de celdas con salto `rowspan="2"` para garantizar compatibilidad total e inyección correcta de iconos por parte de la librería DataTables, eliminando cualquier desfase entre el encabezado y el contenido mostrado.
-  - **Reingeniería de 33 Columnas (Fase 5.1):** Se expandió el motor de consolidación para mapear y estructurar 33 columnas de información.
-    - **Cálculo Vigesimal Dinámico:** El backend ahora extrae el puntaje parcial de LMS (sobre 136) y Acompañamiento (sobre 44) e inyecta su respectivo ponderado vigesimal (Base 20) al momento de la consolidación en columnas independientes.
-    - **Píldoras de Avance (%):** Se agregó la cuantificación porcentual de cuántos criterios se han calificado versus el total posible. En el frontend se dibuja como una _etiqueta o pastilla (Badge)_ que cambia en 5 niveles de color pastel desde el rosa (0-10%) hasta el verde (100%).
-    - **Algoritmo Extractor "Criterios a Mejorar":** Se desarrolló un escáner lógico dentro de `GeneradorResultados.gs` que al momento de evaluar filas pregunta: _"¿Esta celda tiene calificación 1 o 2?"_. En caso afirmativo, asciende directamente a la Fila 2 (donde habitan los nombres descriptivos de la rúbrica), y captura la oración completa (Ej: _"Mantiene empatía..."_).
-    - **Renderizado UI de Deficiencias:** El backend inyecta todos estos conceptos bajos en formato de texto separado por comas hacia el frontend `JS_Resultados.html`. Allí se divide el array y se inyecta en el DOM en forma de mini-etiquetas rojas de Bootstrap (Pill Badges) permitiendo al Coordinador detectar la falencia específica en un solo golpe de vista de la tabla.
+- **Arquitectura:** Serverless (Google Workspace). Frontend SPA con HTML/JS/Tailwind CSS. Backend en GAS.
+- **Base de Datos:** Google Sheets como matriz relacional.
+- **Autenticación:** Implícita mediante `Session.getActiveUser().getEmail()`.
+- **Roles:** Admin, Jefe de área, Coordinador, Invitado.
+- **Concurrencia:** `LockService.getScriptLock()` para operaciones de escritura.
 
-- **Subsistema de Inteligencia de Negocios (Data Mart BI):**
-  - **Generación de Cabeceras Dinámicas:** Nueva funcionalidad (`generarCabecerasSabanaGeneral()` en `GeneradorBI.gs`) que escanea las matrices "Virtual", "Asignación" y "Acompañamiento", y ensambla automáticamente 68 columnas (IDs técnicos + Nombres descriptivos) en la nueva hoja `Sábana General Docente`.
-  - **Motor de Consolidación Base 20:** El backend (`sincronizarSabanaBI()`) unifica todas las evaluaciones de un docente. Cruza las notas matemáticas crudas de LMS (ej. puntaje base 136) y Acompañamiento (ej. puntaje base 44), y transfiere ambos totales transformados explícitamente a Base Vigesimal (Máx 20) dentro del Data Mart.
-  - **Cálculo de Fórmula Final:** Se procesa matemáticamente la ecuación final requerida `((50*LMS)/136) + ((50*ACOMP)/44)` para inyectar el Score Centesimal en la sábana física, permitiendo integración directa con Looker Studio o Power BI.
-  - **Arquitectura Unificada (Columnas Expandidas):** Se resolvió el solapamiento de identidades de criterios. La sábana se expande paramétricamente a 38 columnas LMS (separando las 4 exclusivas de Virtual [Tutorías] y las 4 de Presencial [Evaluaciones/Asistencia]). Las celdas incompatibles con la jurisdicción de cada docente se inyectan como estrictamente nulas (`null`), garantizando limpieza absoluta al conectarse con herramientas estadísticas (PowerBI / Looker Studio). Los 11 Criterios de "Acompañamiento Pedagógico" aplican el mismo concepto de transitoriedad y nulidad.
+---
 
-2. Estructura de Archivos (Google Apps Script)
+## 2. Estructura de Archivos (23 archivos en Apps Script)
 
-- **Code.gs:** Lógica backend, funciones `getGlobalSessionData()`, `getAssignmentData()` y `saveAssignment()`.
-- **Index.html:** Controles del flujo inicial, loader (`initial-auth-loader`) y Toast UI.
-- **View_Home.html:** Contiene tarjeta de entrada al módulo de Asignación y módulos académicos.
-- **View_Assignment.html:** Módulo frontend exclusivo para la Jefatura.
-- **View_Dashboard_Acomp.html / JS_Acompanamiento.html:** Interfaces y controladores dedicados al seguimiento docente (Fase Acompañamiento).
-- **JS_Client.html:** Lógica principal de renderizado, validación de estado de `isGuest`.
-- **JS_Tracking.html / JS_Templates.html:** Controles auxiliares de analíticas y correos.
-- **Documentacion_Tecnica.md:** (Mantenida).
+### Backend (.gs) — 8 archivos
 
-3. Pasos para Continuar
+| # | Archivo | Responsabilidad |
+|---|---------|----------------|
+| 1 | `Code.gs` | **Controlador principal** (931 líneas). `doGet()`, `include()`, `getGlobalSessionData()`, `getInitialData()`, `saveGrade()`, `trackAccess()`, `getHeaders()`. Detecta columnas dinámicamente. Filtro de seguridad por email del coordinador (Col S). |
+| 2 | `GeneradorDoc.gs` | Motor de clonado de Fichas Docentes. `generateDocVirtual()`, `generateDocPresencial()`, `generateDocAcomp()`. Usa plantillas Google Docs con variables `{{}}` y RegEx. Regla estricta: solo genera si 100% completado en 4 semanas. |
+| 3 | `GeneradorResultados.gs` | Consolidación multidimensional (33 columnas). `sincronizarResultadosGenerales()`, `getConsolidatedData()`. Cruza DNI entre hojas Virtual/Presencial/Acomp. Calcula vigesimal, % avance, y extrae criterios deficientes (notas 1-2) como texto descriptivo. |
+| 4 | `GeneradorBI.gs` | Generador de la Sábana General Docente (72 columnas). `generarCabecerasSabanaGeneral()` ensambla headers. `sincronizarSabanaBI()` cruza Asignación+LMS+Acomp. Segrega criterios exclusivos Virtual (Tutorías) vs Presencial (Evaluaciones). Convierte a Base 20. |
+| 5 | `Backend_BI.gs` | **(NUEVO v2.0)** Endpoint `getSabanaBIData()`. Lee Sábana (Fila 1=códigos, Fila 3+=datos). Determina modalidad con Col D + Col N. Retorna datos para KPIs y gráficos Chart.js. |
+| 6 | `Menu.gs` | Menú personalizado en Google Sheets para ejecutar sincronizaciones y generaciones desde la interfaz de la hoja. |
+| 7 | `ImportacionExterna.gs` | Pipeline de importación. Conecta a hoja externa por ID, copia datos crudos a "Todo Matr". |
+| 8 | `SincronizacionIntern.gs` | Distribuye data de "Asignación de coordinador" a hojas "LMS-virtual" y "LMS-presencial" según modalidad. Activa `MAINTENANCE_MODE` durante el proceso. |
 
-- **Implementación:** Realiza una nueva implementación como "Aplicación Web" (Nueva versión).
-- **Verificación:**
-  - Ingresar y observar el toast de bienvenida "Autenticando usuario...".
-  - Validar la funcionalidad del panel de `Acompañamiento`.
-  - Probar el bloqueo de UI temporal guardando una calificación lenta.
-  - Verificar envíos de Whatsapp con cuentas conectadas.
-  - **NUEVO:** Probar la sincronización en vivo del padrón "Envío de Resultados Generales" dando clic al botón "Actualizar Datos". Revisar que la interfaz proteja a otros coordinadores vía `LockService`.
-  - Proporcionar la plantilla oficial para el envío masivo de correos (Fase final de reportes).
+### Frontend (.html) — 15 archivos
 
-¡El sistema Fase 5 está listo para ser validado por la Jefatura!
+| # | Archivo | Responsabilidad |
+|---|---------|----------------|
+| 9 | `Index.html` | Punto de entrada. Incluye todos los views/scripts vía `<?!= include() ?>`. Safety hide del módulo BI en `window.onload`. Carga `getGlobalSessionData()` al iniciar. |
+| 10 | `CSS.html` | Tailwind CSS CDN + Font Awesome 6.4 + Chart.js + Google Fonts (Inter). Estilos custom: semáforos, loaders, animaciones. |
+| 11 | `View_Home.html` | Pantalla principal con 3 áreas: **Operativa** (Virtual, Presencial, Acompañamiento, Resultados), **Gestión** (Asignación), **Estratégica** (BI Docentes, BI Coordinadores). |
+| 12 | `View_Dashboard.html` | Dashboard LMS (Virtual/Presencial). Sidebar con lista de cursos, panel de detalle con semáforos semanales (S1-S4), barra de progreso, leyenda de calificación (1-4), accesos directos a Aulas Virtuales. |
+| 13 | `View_Dashboard_Acomp.html` | Dashboard de Acompañamiento Pedagógico. 11 criterios en modelo de 31 días. Semáforo dinámico por plazos (0-21 azul, 22-28 amarillo, 29-31 naranja, >31 rojo bloqueado). |
+| 14 | `View_Dashboard_BI.html` | **(NUEVO v2.0)** Dashboard BI con **inline styles** (no depende de Tailwind para layout). Header fijo con botón retorno + filtro + actualizar. 4 KPI cards (grid 4 cols). 2 gráficos Chart.js (grid 2 cols). |
+| 15 | `View_Assignment.html` | Asignación de coordinadores (exclusivo Jefatura). Gráfico Chart.js de distribución de carga. Asignación masiva por programa. Dashboard KPI por coordinador. |
+| 16 | `View_Resultados.html` | Consolidación y envío masivo. DataTables con 33 columnas, checkboxes de selección, Pills de colores para deficiencias. |
+| 17 | `View_Modal.html` | Modal de correos (Felicitar/Reportar). Plantillas HTML con firma institucional. CC automático al coordinador y jefatura según sede. |
+| 18 | `JS_Client.html` | **Controlador principal frontend**. `loadModule()`, `goHome()`, `renderOverview()`, `renderCriteria()`, `save()`, `getCourseVigesimal()`. Routing de todos los módulos. Semaforización. Control de invitados. |
+| 19 | `JS_Acompanamiento.html` | Controlador autónomo de Acompañamiento. Motor Base 20 asimétrico (no penaliza vacíos). UI Lock System. Botones Felicitar/Reportar mutuamente exclusivos. |
+| 20 | `JS_Resultados.html` | Controlador de Resultados. Init DataTables, procesamiento de consolidado, envío masivo de correos con PDFs adjuntos. Filtro por coordinador. |
+| 21 | `JS_BI.html` | **(NUEVO v2.0)** Controlador BI. `mostrarModuloBI()`, `cargarDataSabanaBI()`, `renderBiDashboard()`, `renderChartDistribucion()`, `renderPanelDinamicoExclusivo()`. Usa `style.display` para show/hide (bulletproof). |
+| 22 | `JS_Templates.html` | Plantillas HTML de correo (Monitoreo + Acompañamiento). Firma adaptativa Pregrado/Posgrado. |
+| 23 | `JS_Tracking.html` | Analítica. `logAccess()` para hits AP/USMP. `logInteraction()` para emails/WhatsApp. Cálculo de semana según días transcurridos. |
+
+---
+
+## 3. Hojas de Cálculo (Base de Datos)
+
+| Pestaña | Función |
+|---------|---------|
+| `Sistema de gestión del aprendizaje (LMS)- virtual` | Datos de asignaturas virtuales. Criterios `c_1_1` a `c_*_*`. Timestamps `_ts`. |
+| `Sistema de gestión del aprendizaje (LMS)- presencial` | Datos de asignaturas presenciales. Criterios `cp_1_1` a `cp_*_*`. |
+| `Acompañamiento del desempeño Pedagógico` | 11 criterios de supervisión. Timestamps `_T`. Reloj de 31 días. |
+| `Asignación de coordinador` | Matriz maestra (19 cols). Col S = Coordinador asignado. |
+| `Datos de los coordinadores` | Roles y permisos de usuarios del sistema. |
+| `Envío de resultados y fichas` | Consolidado de 33 columnas para envío masivo. |
+| `Sábana General Docente` | Data Mart BI (72 cols). Fila 1=Códigos, Fila 2=Títulos, Fila 3+=Datos. |
+
+---
+
+## 4. Reglas de Negocio Críticas
+
+### Seguridad y Concurrencia
+- **Filtrado por Rol:** Backend filtra filas por email del coordinador (Col S). Admin ve todo.
+- **Anti-Colisión:** `LockService.getScriptLock()` en `saveGrade()`. Cerrojo temporal obligatorio.
+- **UI Lock:** `pointer-events-none` + `opacity-50` al guardar. No permite doble clic.
+
+### Evaluación y Calificación
+- **Escala Interna:** 1 (Deficiente) a 4 (Muy Bueno).
+- **Vigesimal Asimétrico:** Promedio Base 20 NO penaliza celdas vacías. Solo divide entre máximo posible de criterios calificados.
+- **Exclusión Mutua:** Botones "Felicitar" (nota 20) y "Reportar" (deficiencias) nunca coexisten.
+- **Regla 4 Semanas:** Generar Ficha Doc solo se habilita al 100% de evaluación completa.
+
+### Módulo BI — Modalidad (v2.0)
+- **Col D** (índice 3) = "Modalidad" → indica "Virtual" o "Presencial".
+- **Col N** (índice 13) = "Tipo de metodología" → indica "Híbrida" o vacío.
+- **Virtual/Híbrida** (criterios tutorías `c_3_1_s1..s4`): Col D = "Virtual" **O** Col N = "Híbrida".
+- **Presencial** (criterios evaluaciones `cp_3_1_s1`, `cp_3_2_s2`, `cp_3_3_s4`, `cp_4_1_s4`): Col D = "Presencial" **Y** Col N ≠ "Híbrida".
+
+### Comunicaciones
+- **CC Automático:** Correo del coordinador + jefatura según sede (Pregrado/Posgrado).
+- **Plantillas:** HTML con color rojo institucional. Remitente: "Acompañamiento docente USMP Virtual".
+- **Periodo:** Formateado como `MM-yyyy` vía `Utilities.formatDate()`.
+
+---
+
+## 5. Cambios de la Sesión Actual (13 Mar 2026)
+
+### Bugs Corregidos
+1. ✅ `ReferenceError: include is not defined` → `Code.gs` restaurado de Git (931 líneas)
+2. ✅ `doGet()` faltante → Restaurado en `Code.gs`
+3. ✅ BI visible debajo del Home → `style="display:none"` inline + JS safety en `window.onload`
+4. ✅ `goHome()` usaba `d-none` (Bootstrap inexistente) → Corregido a `style.display='none'`
+5. ✅ `goHome()` no restauraba Home → Ahora limpia `style.display=''` en `home-view`
+6. ✅ Promedios BI mostraban "-" → Headers corregidos a códigos reales (`SCORE_VIG`, `LMS_TOTAL`)
+7. ✅ Filtro Presencial vacío → Detección de modalidad por Col D + Col N
+
+### Archivos Creados/Modificados
+| Archivo | Acción | Commit |
+|---------|--------|--------|
+| `Backend_BI.gs` | CREADO | `e4bc65c` |
+| `View_Dashboard_BI.html` | CREADO | `e4bc65c` |
+| `JS_BI.html` | CREADO | `e4bc65c` |
+| `Code.gs` | RESTAURADO | `e4bc65c` |
+| `Index.html` | MODIFICADO | `e4bc65c` |
+| `JS_Client.html` | MODIFICADO | `e4bc65c` |
+| `View_Home.html` | MODIFICADO | `e4bc65c` |
+
+---
+
+## 6. Pasos para la Próxima Sesión
+
+1. **Verificar Filtro Presencial:** Confirmar que "Presencial (Evaluaciones)" muestra docentes presenciales no-híbridos.
+2. **Validar Gráfico de Barras:** Verificar criterios exclusivos (Tutorías S1-S4 / Evaluaciones S1-S4).
+3. **Tabla Detallada:** Considerar agregar tabla con listado individual de docentes debajo de gráficos.
+4. **Módulo Coordinadores:** Implementar "Análisis de Resultados de Coordinadores" (botón placeholder activo).
+5. **Testing General:** Probar que los demás módulos (Virtual, Presencial, Acompañamiento, Resultados, Asignación) siguen funcionando correctamente tras los cambios.
+
+---
+
+## 7. Pasos para Desplegar Cambios
+
+1. Abrir proyecto en `script.google.com`
+2. Verificar/actualizar: `Code.gs`, `Index.html`, `JS_Client.html`, `View_Home.html`
+3. Crear archivos nuevos: `Backend_BI` (.gs), `View_Dashboard_BI` (.html), `JS_BI` (.html)
+4. **Implementar** > **Nueva implementación** > Aplicación web
+5. Ejecutar como: "Yo" | Acceso: "Cualquier usuario de la organización"
+6. Probar: Home → clic en "Análisis de Resultados de Docentes" → verificar KPIs y gráficos
+7. Probar: Botón retorno ← → verificar que regresa al Home correctamente
+8. Probar: Filtros Virtual/Presencial → verificar datos correctos en cada filtro

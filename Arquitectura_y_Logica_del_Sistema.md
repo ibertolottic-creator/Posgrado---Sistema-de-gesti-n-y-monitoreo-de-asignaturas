@@ -16,7 +16,7 @@ El ecosistema está construido bajo una arquitectura **Serverless (Sin Servidor)
 
 ## 2. Subsistemas del Proyecto
 
-El sistema integral se divide rigurosamente en 6 subsistemas modulares autónomos pero profundamente interconectados.
+El sistema integral se divide rigurosamente en 8 subsistemas modulares autónomos pero profundamente interconectados.
 
 ### 2.1. Subsistema de Seguridad, Identidad y Control de Concurrencia
 
@@ -74,8 +74,24 @@ Diseñado con plantillas inteligentes integradas (`JS_Templates.html`).
 - **Puerta de Enlace (Gateway):** Construcción y redirección nativa de estructuras textuales hacia el esquema `wa.me/` (WhatsApp Web URL API), integrando reportes automáticos en la plataforma web de mensajería respetando los saltos de línea (URL Encoded).
 - **Plantillas de Resultados Oficiales:** Las plantillas HTML generadas desde backend para consolidación de notas operan bajo el color rojo institucional, explicitando fórmulas matemáticas de base 20 y reemplazando niveles subjetivos por métricas frías. Extraen el "Periodo" formateado como `MM-yyyy` y se envían bajo la identidad unificada de remitente "Acompañamiento docente USMP Virtual".
 
+### 2.8. Subsistema de Inteligencia de Negocios (Dashboard BI)
+
+Módulo analítico (`View_Dashboard_BI.html` / `JS_BI.html` / `Backend_BI.gs`) diseñado para visualizar métricas consolidadas de desempeño docente.
+
+- **Data Mart "Sábana General Docente":** Generada por `GeneradorBI.gs`, consolida 72 columnas de datos: 19 de Asignación + 38 de LMS (criterios expandidos) + 1 LMS_TOTAL + 11 de Acompañamiento + 1 ACOMP_TOTAL + 1 SCORE_GRAL + 1 SCORE_VIG. Fila 1 contiene códigos técnicos, Fila 2 títulos descriptivos, datos desde Fila 3.
+- **Motor de Clasificación de Modalidad:** Utiliza un algoritmo de doble columna:
+  - **Col D** (índice 3) = "Modalidad" → indica "Virtual" o "Presencial".
+  - **Col N** (índice 13) = "Tipo de metodología" → indica "Híbrida" o vacío.
+  - Si Col D = "Virtual" **O** Col N = "Híbrida" → aplica criterios de **Tutorías** (`c_3_1_s1..s4`).
+  - Si Col D = "Presencial" **Y** Col N ≠ "Híbrida" → aplica criterios de **Evaluaciones** (`cp_3_1_s1`, `cp_3_2_s2`, `cp_3_3_s4`, `cp_4_1_s4`).
+- **Capa de Visualización (Chart.js):** Dos gráficos interactivos:
+  - **Doughnut:** Distribución de niveles de desempeño (Muy Bueno/Bueno/Regular/Deficiente).
+  - **Barras dinámicas:** Promedios de criterios exclusivos que cambian según el filtro de modalidad seleccionado.
+- **KPIs Transversales:** 4 indicadores calculados en tiempo real: Docentes Analizados, Promedio General (Base 20), Promedio LMS (Base 20), Promedio Acompañamiento.
+- **Arquitectura Frontend Inline:** Para asegurar renderizado correcto independiente de Tailwind CSS CDN, el layout utiliza **inline styles** para propiedades críticas (grid, display, borders), garantizando compatibilidad total con el sandboxing de Google Apps Script.
+
 ---
 
 ### Conclusión Técnica de la Evolución Sistémica
 
-El LMS del entorno actual de USMP transicionó de un entorno de cuadrícula plana a un ecosistema centralizado donde la lógica no es controlada por Visual Basic for Applications (VBA), sino puramente por una SPA desacoplada apoyada por el Cloud de Google (V8 JS Engine), logrando escabilidad asíncrona, robustez anti-concurrente, roles estructurados y auditoría granular sobre el comportamiento de sus monitores.
+El LMS del entorno actual de USMP transicionó de un entorno de cuadrícula plana a un ecosistema centralizado donde la lógica no es controlada por Visual Basic for Applications (VBA), sino puramente por una SPA desacoplada apoyada por el Cloud de Google (V8 JS Engine), logrando escabilidad asíncrona, robustez anti-concurrente, roles estructurados, auditoría granular, y ahora **análisis visual de resultados docentes** mediante dashboards BI interactivos.
