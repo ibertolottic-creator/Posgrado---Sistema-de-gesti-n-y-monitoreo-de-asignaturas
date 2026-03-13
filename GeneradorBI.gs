@@ -25,9 +25,10 @@ function generarCabecerasSabanaGeneral() {
 
     var hojaAsignacion = ss.getSheetByName(SHEET_MAP['ASIGNACION']);
     var hojaVirtual = ss.getSheetByName(SHEET_MAP['VIRTUAL']);
+    var hojaPresencial = ss.getSheetByName(SHEET_MAP['PRESENCIAL']);
     var hojaAcomp = ss.getSheetByName(SHEET_MAP['ACOMPANAMIENTO']);
 
-    if (!hojaAsignacion || !hojaVirtual || !hojaAcomp) {
+    if (!hojaAsignacion || !hojaVirtual || !hojaAcomp || !hojaPresencial) {
       if(ui) ui.alert("❌ Error: Faltan hojas origen.");
       return;
     }
@@ -35,9 +36,11 @@ function generarCabecerasSabanaGeneral() {
     // 1. Asignación (A a S) - 19 columnas (Solo Fila 1)
     var headersAsig = hojaAsignacion.getRange(1, 1, 1, 19).getValues()[0];
     
-    // 2. LMS Virtual (Criterios Col 22 a 55) - 34 columnas (Fila 1 y 2)
-    var codesLMS = hojaVirtual.getRange(1, 22, 1, 34).getValues()[0];
-    var titlesLMS = hojaVirtual.getRange(2, 22, 1, 34).getValues()[0];
+    // 2. LMS Virtual y Presencial (Criterios Col 21 a 54) - 34 columnas de origen (Fila 1 y 2)
+    var codesLMS = hojaVirtual.getRange(1, 21, 1, 34).getValues()[0];
+    var titlesLMS = hojaVirtual.getRange(2, 21, 1, 34).getValues()[0];
+    var codesPresencial = hojaPresencial.getRange(1, 21, 1, 34).getValues()[0];
+    var titlesPresencial = hojaPresencial.getRange(2, 21, 1, 34).getValues()[0];
 
     // 3. Acompañamiento (Criterios Col 22 a 32) - 11 columnas (Fila 1 y 2)
     var codesAcomp = hojaAcomp.getRange(1, 22, 1, 11).getValues()[0];
@@ -53,8 +56,24 @@ function generarCabecerasSabanaGeneral() {
       fila2.push(headersAsig[i] || 'Asig_Col' + (i+1)); // Mismo título abajo
     }
 
-    // LMS Criterios
-    for (var i = 0; i < 34; i++) {
+    // LMS Criterios Expandidos (38 columnas)
+    // 0 a 11 (Comunes)
+    for (var i = 0; i < 12; i++) {
+      fila1.push(codesLMS[i] || 'LMS_C' + (i+1));
+      fila2.push(titlesLMS[i] || 'Criterio LMS ' + (i+1));
+    }
+    // 12 a 15 (Exclusivos Virtual - Tutorías)
+    for (var i = 12; i < 16; i++) {
+      fila1.push(codesLMS[i] || 'LMS_C' + (i+1));
+      fila2.push(titlesLMS[i] || 'Criterio LMS ' + (i+1));
+    }
+    // 16 a 19 (Exclusivos Presencial - Evaluaciones/Asistencia) - Están en los índices 12 al 15 del origen presencial
+    for (var i = 12; i < 16; i++) {
+      fila1.push(codesPresencial[i] || 'LMS_P_' + (i+1));
+      fila2.push(titlesPresencial[i] || 'Criterio Presencial ' + (i+1));
+    }
+    // 20 a 37 (Comunes - Índices 16 al 33 del origen)
+    for (var i = 16; i < 34; i++) {
       fila1.push(codesLMS[i] || 'LMS_C' + (i+1));
       fila2.push(titlesLMS[i] || 'Criterio LMS ' + (i+1));
     }
@@ -127,20 +146,48 @@ function sincronizarSabanaBI() {
 
     var datosAsignacion = hojaAsignacion.getRange(2, 1, ultFilaAsig - 1, 19).getValues();
 
-    var mapVirtual = construirMapaResultadosParaBI(hojaVirtual, 3, 55, 22, 34);
-    var mapPresencial = construirMapaResultadosParaBI(hojaPresencial, 3, 55, 22, 34);
+    // En Hojas LMS Criterios inician en Columna 21 (U) y son 34
+    // Score LMS está en Columna 55 (BC)
+    var mapVirtual = construirMapaResultadosParaBI(hojaVirtual, 3, 55, 21, 34);
+    var mapPresencial = construirMapaResultadosParaBI(hojaPresencial, 3, 55, 21, 34);
+    
+    // En Hoja Acompañamiento Criterios inician en Columna 22 (V) y son 11
+    // Score Acomp está en Columna 32 (AF)
     var mapAcomp = construirMapaResultadosParaBI(hojaAcomp, 3, 32, 22, 11);
 
     var sabanaDatos = [];
 
     for (var i = 0; i < datosAsignacion.length; i++) {
         var filaAsig = datosAsignacion[i]; // 19 cols
-        var id = String(filaAsig[15]); // ID Col P
+        var id = String(filaAsig[15]).trim(); // ID Col P
         
         if (!id || id === 'undefined' || id === '') continue;
 
-        var objLMS = mapVirtual[id] || mapPresencial[id] || { crit: new Array(34).fill(''), score: '' };
-        var objAcomp = mapAcomp[id] || { crit: new Array(11).fill(''), score: '' };
+        // Buscar en Hashmap de forma exacta y limpia usando fragmentos si es que está amalgamado en Asignación
+        var baseKeyStr = id.toUpperCase().trim();
+        var idFragments = baseKeyStr.match(/P[0-9A-Z_]+/g) || [baseKeyStr];
+
+        var isVirtual = false;
+        var isPresencial = false;
+        var objLMS = { crit: new Array(34).fill(''), score: '' };
+        var objAcomp = { crit: new Array(11).fill(''), score: '' };
+
+        var matchV = undefined;
+        var matchP = undefined;
+        var matchA = undefined;
+
+        // Comprobamos si CUALQUIERA de los fragmentos matriciales existe en las notas
+        for (var f = 0; f < idFragments.length; f++) {
+            var frag = idFragments[f];
+            if (mapVirtual[frag] !== undefined) matchV = mapVirtual[frag];
+            if (mapPresencial[frag] !== undefined) matchP = mapPresencial[frag];
+            if (mapAcomp[frag] !== undefined) matchA = mapAcomp[frag];
+        }
+
+        if (matchV !== undefined) { isVirtual = true; objLMS = matchV; }
+        else if (matchP !== undefined) { isPresencial = true; objLMS = matchP; }
+
+        if (matchA !== undefined) { objAcomp = matchA; }
 
         var u_val = objLMS.score !== '' && !isNaN(objLMS.score) ? parseFloat(objLMS.score) : 0;
         var z_val = objAcomp.score !== '' && !isNaN(objAcomp.score) ? parseFloat(objAcomp.score) : 0;
@@ -169,15 +216,32 @@ function sincronizarSabanaBI() {
 
         var nuevaFila = filaAsig.slice(); // 1 a 19
         
-        // Agregar los 34 criterios de LMS
-        for(var c=0; c<34; c++) {
-           nuevaFila.push(objLMS.crit[c] !== undefined && objLMS.crit[c] !== '' ? objLMS.crit[c] : '');
+        // Agregar los 38 criterios de LMS (fusionados)
+        var critExpandidos = new Array(38).fill(null);
+        if (objLMS.score !== '') {
+            // Llenar 0-11 (Comunes)
+            for (var c=0; c<12; c++) critExpandidos[c] = objLMS.crit[c] === '' ? null : objLMS.crit[c];
+            
+            // Llenar 12-15 (Virtual) o 16-19 (Presencial)
+            if (isVirtual) {
+               for (var c=12; c<16; c++) critExpandidos[c] = objLMS.crit[c] === '' ? null : objLMS.crit[c];
+            } else if (isPresencial) {
+               for (var c=12; c<16; c++) critExpandidos[c+4] = objLMS.crit[c] === '' ? null : objLMS.crit[c];
+            }
+            
+            // Llenar 20-37 (Comunes - origen 16 a 33)
+            for (var c=16; c<34; c++) critExpandidos[c+4] = objLMS.crit[c] === '' ? null : objLMS.crit[c];
+        }
+
+        for (var c=0; c<38; c++) {
+           nuevaFila.push(critExpandidos[c]);
         }
         nuevaFila.push(lms_vig); // LMS_TOTAL (Vigesimal)
 
         // Agregar los 11 criterios de Acomp
         for(var c=0; c<11; c++) {
-           nuevaFila.push(objAcomp.crit[c] !== undefined && objAcomp.crit[c] !== '' ? objAcomp.crit[c] : '');
+           var valAcomp = objAcomp.crit[c] !== undefined && objAcomp.crit[c] !== '' ? objAcomp.crit[c] : null;
+           nuevaFila.push(valAcomp);
         }
         nuevaFila.push(acomp_vig); // ACOMP_TOTAL (Vigesimal)
 
@@ -221,14 +285,79 @@ function construirMapaResultadosParaBI(hoja, iniciarEnFila, colScore, colCritSta
   }
 
   for (var i = 0; i < numFilas; i++) {
-    var id = String(colIds[i][0]);
-    if (id !== '' && id !== 'undefined') {
-       var filaCrit = critMatrix.length > i ? critMatrix[i] : new Array(colCritCount).fill('');
-       mapa[id] = {
-         score: colScores[i][0],
-         crit: filaCrit
-       };
+    // Normalizar ID de la Hoja Hija cruda: Mayúsculas, sin espacios
+    var rawIdStr = String(colIds[i][0]).toUpperCase().trim();
+    if (rawIdStr !== '' && rawIdStr !== 'UNDEFINED' && rawIdStr !== 'NULL') {
+       
+       // MAGIA REGEX: Despiezar IDs fusionados (Ej. P_X_01P_X_02)
+       // Extrae todos los fragmentos que empiezan con 'P' seguidos de números/letras/guiones_bajos
+       var idsLimpiosArr = rawIdStr.match(/P[0-9A-Z_]+/g);
+       
+       if (idsLimpiosArr && idsLimpiosArr.length > 0) {
+           var filaCrit = critMatrix.length > i ? critMatrix[i] : new Array(colCritCount).fill('');
+           
+           var sumaCriterios = 0;
+           for(var c = 0; c < filaCrit.length; c++) {
+              if(filaCrit[c] !== '' && !isNaN(filaCrit[c])) sumaCriterios += Number(filaCrit[c]);
+           }
+
+           var puntajeHoja = colScores[i][0];
+           // Rescate Automático de Fórmula Rota (Si la Excel no mandó score, el backend lo suma manual)
+           var puntajeFinal = (puntajeHoja !== '' && !isNaN(puntajeHoja) && Number(puntajeHoja) > 0) 
+                              ? puntajeHoja 
+                              : (sumaCriterios > 0 ? sumaCriterios : '');
+
+           // Agregamos el paquete de resultados a TODOS LOS IDS extraídos de esa celda maldita
+           for (var j = 0; j < idsLimpiosArr.length; j++) {
+              var splitId = idsLimpiosArr[j];
+              mapa[splitId] = {
+                 score: puntajeFinal,
+                 crit: filaCrit
+              };
+           }
+       }
     }
   }
   return mapa;
+}
+
+/**
+ * ======================================================================
+ * FUNCION DE DIAGNOSTICO DE CADENAS MATRICIALES (SOLO DEBUG)
+ * ======================================================================
+ * Analiza un ID rebelde (ej. P202602PL0102CU2693) buscando retornos de carro
+ * o bytes invisibles que engañan al comparador.
+ */
+function diagnosticarIDsOcultos() {
+  var idRebeldeBuscar = "P202602PL0102CU2693"; // Parte de un curso de RAMIREZ HOYOS
+  Logger.log("--- INICIANDO DIAGNÓSTICO DE ID REBELDE: " + idRebeldeBuscar + " ---");
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaVirtual = ss.getSheetByName(SHEET_MAP['VIRTUAL']);
+  var hojaPresencial = ss.getSheetByName(SHEET_MAP['PRESENCIAL']);
+
+  var escrutador = function(hoja, nombreHoja) {
+    if(!hoja) return;
+    var lr = hoja.getLastRow();
+    if(lr < 3) return;
+    var idsOrigen = hoja.getRange(3, 16, lr - 2, 1).getValues();
+    
+    for (var i = 0; i < idsOrigen.length; i++) {
+      var rawString = String(idsOrigen[i][0]);
+      if (rawString.indexOf(idRebeldeBuscar) !== -1) {
+         Logger.log("\n[!] ENCONTRADO EN HOJA: " + nombreHoja + " (Fila " + (i+3) + ")");
+         Logger.log("Texto Crudo (Raw): [" + rawString + "]");
+         Logger.log("Longitud Cruda: " + rawString.length);
+         Logger.log("--- Desglose de Bytes ---");
+         for (var c = 0; c < rawString.length; c++) {
+            Logger.log("Char '" + rawString.charAt(c) + "' -> CharCode: " + rawString.charCodeAt(c));
+         }
+         var idLimpio = rawString.toUpperCase().trim().replace(/[\r\n\t]/g, '');
+         Logger.log("Texto Saneado Total: [" + idLimpio + "] -> Longitud: " + idLimpio.length);
+      }
+    }
+  };
+
+  escrutador(hojaVirtual, "LMS-virtual");
+  escrutador(hojaPresencial, "LMS-presencial");
+  Logger.log("\n--- FIN DEL DIAGNÓSTICO ---");
 }

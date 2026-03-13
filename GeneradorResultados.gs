@@ -157,7 +157,7 @@ function sincronizarResultadosGenerales(isManualUI = false) {
 
     for (var i = 0; i < datosAsignacion.length; i++) {
       var filaCentral = datosAsignacion[i];
-      var id = String(filaCentral[15]); // Col P (Indice 15)
+      var id = String(filaCentral[15]).trim(); // Col P (Indice 15)
 
       if (!id || id === 'undefined' || id === '') continue;
 
@@ -173,25 +173,41 @@ function sincronizarResultadosGenerales(isManualUI = false) {
       var ac_mejorarAcomp = ''; // NUEVO (AC)
       var ad_urlAcomp = ''; // AD
 
-      // Buscar en diccionarios LMS
-      if (mapVirtual.hasOwnProperty(id)) {
-        u_scoreLMS = mapVirtual[id].score;
-        w_avanceLMS = mapVirtual[id].avance;
-        x_mejorarLMS = mapVirtual[id].criteriosBajos;
-        y_urlLMS = mapVirtual[id].url;
-      } else if (mapPresencial.hasOwnProperty(id)) {
-        u_scoreLMS = mapPresencial[id].score;
-        w_avanceLMS = mapPresencial[id].avance;
-        x_mejorarLMS = mapPresencial[id].criteriosBajos;
-        y_urlLMS = mapPresencial[id].url;
+      // Mantenemos búsqueda por fragmentos purificados, soportando la concatenación en el origen Asignación
+      var baseKeyStr = id.toUpperCase().trim();
+      var idFragments = baseKeyStr.match(/P[0-9A-Z_]+/g) || [baseKeyStr];
+
+      var matchV = undefined;
+      var matchP = undefined;
+      var matchA = undefined;
+
+      // Iteramos cada posible fragmento incrustado buscando cuál pertenece al diccionario
+      for (var f = 0; f < idFragments.length; f++) {
+         var frag = idFragments[f];
+         if (mapVirtual[frag] !== undefined) matchV = mapVirtual[frag];
+         if (mapPresencial[frag] !== undefined) matchP = mapPresencial[frag];
+         if (mapAcomp[frag] !== undefined) matchA = mapAcomp[frag];
       }
 
-      // Buscar en diccionario Acompañamiento
-      if (mapAcomp.hasOwnProperty(id)) {
-        z_scoreAcomp = mapAcomp[id].score;
-        ab_avanceAcomp = mapAcomp[id].avance;
-        ac_mejorarAcomp = mapAcomp[id].criteriosBajos;
-        ad_urlAcomp = mapAcomp[id].url;
+      // Asignar desde diccionarios LMS flexibly
+      if (matchV !== undefined) {
+        u_scoreLMS = matchV.score;
+        w_avanceLMS = matchV.avance;
+        x_mejorarLMS = matchV.criteriosBajos;
+        y_urlLMS = matchV.url;
+      } else if (matchP !== undefined) {
+        u_scoreLMS = matchP.score;
+        w_avanceLMS = matchP.avance;
+        x_mejorarLMS = matchP.criteriosBajos;
+        y_urlLMS = matchP.url;
+      }
+
+      // Asignar desde diccionario Acompañamiento
+      if (matchA !== undefined) {
+        z_scoreAcomp = matchA.score;
+        ab_avanceAcomp = matchA.avance;
+        ac_mejorarAcomp = matchA.criteriosBajos;
+        ad_urlAcomp = matchA.url;
       }
 
       // Cálculos Matemáticos (Centesimal, Vigesimal y Nivel)
@@ -313,38 +329,60 @@ function construirMapaResultados(hoja, iniciarEnFila, colScore, colCritStart, co
   }
 
   for (var i = 0; i < numFilas; i++) {
-    var id = String(colIds[i][0]);
-    if (id !== '' && id !== 'undefined') {
-      var avanceNum = 0;
-      var arrCriteriosBajos = []; // Para almacenar las que tienen 1 o 2
+    // Normalizar ID de la Hoja Hija cruda: Mayúsculas, sin espacios
+    var rawIdStr = String(colIds[i][0]).toUpperCase().trim();
+    if (rawIdStr !== '' && rawIdStr !== 'UNDEFINED' && rawIdStr !== 'NULL') {
+      
+      // MAGIA REGEX: Extrae múltiples fragmentos de ID si el encuestador pegó varios en una celda
+      var idsLimpiosArr = rawIdStr.match(/P[0-9A-Z_]+/g);
 
-      if (critMatrix.length > i) {
-        var filaCrit = critMatrix[i];
-        var completados = 0;
-        for (var c = 0; c < colCritCount; c++) {
-          var celdaCrit = filaCrit[c];
+      if (idsLimpiosArr && idsLimpiosArr.length > 0) {
+        var avanceNum = 0;
+        var arrCriteriosBajos = []; // Para almacenar las que tienen 1 o 2
+        var sumaCriterios = 0; // NUEVO: Rescate matemático
 
-          if (celdaCrit !== '' && celdaCrit !== null) {
-            completados++;
-            // Capturar criterios bajos
-            if (String(celdaCrit) === '1' || String(celdaCrit) === '2') {
-              // Sacamos el nombre del encabezado (Ej: "c_1_1")
-              var titulo = titulosCriterios[c]
-                ? String(titulosCriterios[c]).trim()
-                : `Crit-${c + 1}`;
-              arrCriteriosBajos.push(titulo);
+        if (critMatrix.length > i) {
+          var filaCrit = critMatrix[i];
+          var completados = 0;
+          for (var c = 0; c < colCritCount; c++) {
+            var celdaCrit = filaCrit[c];
+
+            if (celdaCrit !== '' && celdaCrit !== null) {
+              completados++;
+              if (!isNaN(celdaCrit)) sumaCriterios += Number(celdaCrit);
+
+              // Capturar criterios bajos
+              if (String(celdaCrit) === '1' || String(celdaCrit) === '2') {
+                // Sacamos el nombre del encabezado (Ej: "c_1_1")
+                var titulo = titulosCriterios[c]
+                  ? String(titulosCriterios[c]).trim()
+                  : `Crit-${c + 1}`;
+                arrCriteriosBajos.push(titulo);
+              }
             }
           }
+          if (colCritCount > 0) {
+            avanceNum = (completados / colCritCount) * 100;
+          }
         }
-        avanceNum = (completados / colCritCount) * 100;
-      }
 
-      mapa[id] = {
-        score: colScores[i][0],
-        url: colUrls ? colUrls[i][0] : '', // Uso dinámico
-        avance: avanceNum, // Número entre 0 y 100
-        criteriosBajos: arrCriteriosBajos.join(', '), // String separado porm comas "c_1_1, c_1_2"
-      };
+        var puntajeHoja = colScores[i][0];
+        // Rescate Automático de Fórmula Rota (Si la Excel no mandó score, el backend lo suma manual)
+        var puntajeFinal = (puntajeHoja !== '' && !isNaN(puntajeHoja) && Number(puntajeHoja) > 0) 
+                           ? puntajeHoja 
+                           : (sumaCriterios > 0 ? sumaCriterios : '');
+
+        // Insertar el paquete en TODOS los identificadores capturados de la celda amalgamada
+        for (var k = 0; k < idsLimpiosArr.length; k++) {
+            var splitId = idsLimpiosArr[k];
+            mapa[splitId] = {
+              score: puntajeFinal,
+              url: colUrls ? colUrls[i][0] : '', // Uso dinámico
+              avance: avanceNum, // Número entre 0 y 100
+              criteriosBajos: arrCriteriosBajos.join(', '), // String separado por comas
+            };
+        }
+      }
     }
   }
 

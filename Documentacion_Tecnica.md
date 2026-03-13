@@ -224,6 +224,8 @@ Script Backend estructurado para no interferir con `Code.gs` e independizar el r
   - Genera y asigna el "Nivel" corporativo (Ej. "DESTAQUE" 19-20, "DEFICIENTE" 0-10).
 - **`construirMapaResultados(hoja, iniciarEnFila... )`:** Hash Mapper Auxiliar.
   - Extrae y procesa arreglos enteros para calcular el **% Avance**.
+  - **Motor de Despiece Regex:** Las llaves que conectan Asignación con Resultados pasan por un filtrado estricto `.match(/P[0-9A-Z_]+/g)`. Esto blinda al sistema contra encuestadores que peguen dos llaves dentro de una sola celda, creando diccionarios con llaves clonadas y puras para garantizar que los datos fluyan correctamente por cada "sub-id".
+  - **Auto-Rescate Matemático:** Cuenta con un bucle dinámico que suma manualmente los puntajes parciales de los criterios. Si la hoja original carece de fórmula y manda un Score total nulo, el script interviene sumando en RAM y forzando el registro para evitar caídas en UI o BI.
   - **Extractor de Mejoras:** Escanea el DataRange de criterios buscando valores `1` o `2`. Si encuentra coincidencia cruzada, captura el valor descriptivo de la pregunta (Localizado en la **Fila 2** de la base de datos) y retorna un listado en formato texto plano separado por comas hacia la columna principal.
 - **`getConsolidatedData()`:** El endpoint API ligero. Al ser invocado por el usuario, lee los 33 valores de "Envío de resultados y fichas" combinándolos para DataTables.
 - **Inyección de Correos Estructurados:** Utiliza el método `MailApp.sendEmail` para inyectar plantillas HTML (`bodyHtml`). Sustituye descripciones cualitativas ("Muy Bueno", "Deficiente") por la expresión matemática del cálculo Vigesimal Base 20 (`(50 x nota) / 136`). Formatea el Periodo nativo usando `Utilities.formatDate(date, tz, 'MM-yyyy')` junto con el nombre del Programa y firma bajo el **nombre de display: Acompañamiento docente USMP Virtual**.
@@ -233,11 +235,11 @@ Script Backend estructurado para no interferir con `Code.gs` e independizar el r
 Script Backend dedicado exclusivamente a la generación del Data Mart "Sábana General Docente", diseñado para ser consumido por integradores externos como Power BI o Looker Studio.
 
 - **`generarCabecerasSabanaGeneral()`:** Automatiza la creación de la estructura de la base de datos BI. Extrae la Fila 1 y Fila 2 de las hojas origen (Asignación, Virtual, Acompaño) y ensambla 68 columnas perfectamente alineadas en RAM antes de pegarlas sobre la hoja destino.
-- **`sincronizarSabanaBI()`:** Motor de sincronización masiva y procesamiento matemático.
-  - Itera sobre todos los docentes existentes en Asignación.
-  - Absorbe la data complementaria vía la función hash `construirMapaResultadosParaBI()`.
-  - Transforma matemáticamente la base nativa escalar de los totales de cada módulo (`LMS_TOTAL` y `ACOMP_TOTAL`) proyectándolos equitativamente a puntuaciones de Base Vigesimal (Máx 20).
-  - Calcula la ecuación final del sistema `((50*LmsPts)/136) + ((50*AcompPts)/44)` y lo deposita como un metadato numérico transaccional en la sábana física.
+- **`sincronizarSabanaBI()`:** Motor de sincronización asíncrona y estructuración de Business Intelligence.
+  - **Mapeo Dimensional Exclusivo:** Une `Asignación (19) + LMS Expandido (38) + TotalesLMS (1) + Acompañamiento (11) + TotalesAcomp (1) + PuntajesFinales (2)` para un total consolidado unificado.
+  - **Columnas LMS Expandidas:** Detecta si la fila proviene de la matriz Virtual o Presencial. Extrae los 30 criterios en común, y segrega los 4 exclusivos a columnas independientes (Virtuales hacia Tutorías, Presenciales hacia Evaluaciones). Inyecta un dato nulo (`null`) en las celdas contrarias para aislar variables y garantizar limpieza estadística en PowerBI.
+  - **Conversión Base 20 Parcial:** Transforma dinámicamente el puntaje escalado nativo (`LMS_TOTAL` max 136 y `ACOMP_TOTAL` max 44) proyectándolos hacia métricas vigesimales.
+  - **Cálculo de Fórmula Final:** Ejecuta la distribución algorítmica matemática depositándola como métrica flotante inmutable en la sábana física.
 
 ---
 
