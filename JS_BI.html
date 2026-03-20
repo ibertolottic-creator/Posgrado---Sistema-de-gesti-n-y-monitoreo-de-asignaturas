@@ -104,6 +104,9 @@ function cargarDataSabanaBI() {
       biDataGlobal = res.biData || [];
       biHeadersLMS = res.headerCodesLMS || [];
       biHeadersAcomp = res.headerCodesAcomp || [];
+      
+      popularFiltrosBI(biDataGlobal);
+      
       renderBiDashboard();
 
       loader.style.display = 'none';
@@ -117,6 +120,43 @@ function cargarDataSabanaBI() {
     .getSabanaBIData();
 }
 
+/** Puebla los menus de filtros dinamicos */
+function popularFiltrosBI(data) {
+  var selectProg = document.getElementById('filtroBiPrograma');
+  var selectCoord = document.getElementById('filtroBiCoordinador');
+  
+  if (!selectProg || !selectCoord) return;
+  
+  var valProg = selectProg.value;
+  var valCoord = selectCoord.value;
+  
+  var programas = {};
+  var coordinadores = {};
+  
+  for(var i=0; i<data.length; i++) {
+     if(data[i].programa) programas[data[i].programa] = true;
+     if(data[i].coordinador) coordinadores[data[i].coordinador] = true;
+  }
+  
+  var progArr = Object.keys(programas).sort();
+  var coordArr = Object.keys(coordinadores).sort();
+  
+  var htmlProg = '<option value="TODOS" selected>Todos los Programas</option>';
+  for(var i=0; i<progArr.length; i++) {
+     htmlProg += '<option value="'+progArr[i]+'">'+progArr[i]+'</option>';
+  }
+  selectProg.innerHTML = htmlProg;
+  
+  var htmlCoord = '<option value="TODOS" selected>Todos los Coordinadores</option>';
+  for(var i=0; i<coordArr.length; i++) {
+     htmlCoord += '<option value="'+coordArr[i]+'">'+coordArr[i]+'</option>';
+  }
+  selectCoord.innerHTML = htmlCoord;
+  
+  if(valProg && valProg !== 'TODOS') selectProg.value = valProg;
+  if(valCoord && valCoord !== 'TODOS') selectCoord.value = valCoord;
+}
+
 /** Renderiza el dashboard con datos filtrados */
 function renderBiDashboard() {
   if (!biDataGlobal || biDataGlobal.length === 0) {
@@ -124,14 +164,30 @@ function renderBiDashboard() {
     return;
   }
 
-  var filtro = document.getElementById('filtroBiModalidad').value;
+  var filtroMod = document.getElementById('filtroBiModalidad').value;
+  var elProg = document.getElementById('filtroBiPrograma');
+  var elCoord = document.getElementById('filtroBiCoordinador');
+  var filtroProg = elProg ? elProg.value : 'TODOS';
+  var filtroCoord = elCoord ? elCoord.value : 'TODOS';
 
   // Filtrar
   var dataFiltrada = biDataGlobal;
-  if (filtro === 'VIRTUAL_HIBRIDO') {
-    dataFiltrada = biDataGlobal.filter(function(d) { return d.modalidad !== 'PRESENCIAL'; });
-  } else if (filtro === 'PRESENCIAL') {
-    dataFiltrada = biDataGlobal.filter(function(d) { return d.modalidad === 'PRESENCIAL'; });
+  
+  // 1. Modalidad
+  if (filtroMod === 'VIRTUAL_HIBRIDO') {
+    dataFiltrada = dataFiltrada.filter(function(d) { return d.modalidad !== 'PRESENCIAL'; });
+  } else if (filtroMod === 'PRESENCIAL') {
+    dataFiltrada = dataFiltrada.filter(function(d) { return d.modalidad === 'PRESENCIAL'; });
+  }
+  
+  // 2. Programa
+  if (filtroProg !== 'TODOS') {
+    dataFiltrada = dataFiltrada.filter(function(d) { return d.programa === filtroProg; });
+  }
+  
+  // 3. Coordinador
+  if (filtroCoord !== 'TODOS') {
+    dataFiltrada = dataFiltrada.filter(function(d) { return d.coordinador === filtroCoord; });
   }
 
   // Calcular KPIs
@@ -161,7 +217,7 @@ function renderBiDashboard() {
   document.getElementById('kpi-bi-acomp').textContent = cntAcomp > 0 ? (sumAcomp / cntAcomp).toFixed(2) : '-';
 
   renderChartDistribucion(distNiveles);
-  renderPanelDimensiones(filtro, dataFiltrada);
+  renderPanelDimensiones(filtroMod, dataFiltrada);
 }
 
 // ---------------------------------------------------------------

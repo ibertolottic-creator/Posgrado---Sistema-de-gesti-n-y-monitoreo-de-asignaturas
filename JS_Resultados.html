@@ -103,6 +103,8 @@
 
     // Destruir instancia anterior si existe (para limpiar memoria)
     if (dtResultadosInstance) {
+      // Limpiar los filtros inyectados en la cabecera para evitar que DataTables se contamine
+      document.querySelectorAll('.dt-custom-filter').forEach(function(el) { el.remove(); });
       dtResultadosInstance.destroy();
       dtResultadosInstance = null;
     }
@@ -208,9 +210,9 @@
                 <td class="px-4 py-3 sticky left-0 bg-white group-hover:bg-gray-50 border-r border-gray-200 z-10 text-center shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     ${checkboxHtml}
                 </td>
-                <td class="px-4 py-3 bg-white font-medium text-gray-800 truncate" style="max-width:300px;" title="${row.curso}">${row.curso || '-'}</td>
-                <td class="px-4 py-3 truncate" style="max-width:150px;" title="${row.programa}">${row.programa || '-'}</td>
-                <td class="px-4 py-3 truncate" style="max-width:200px;" title="${row.docente}">${row.docente || '-'}</td>
+                <td class="px-4 py-3 bg-white font-medium text-gray-800" style="min-width: 250px; white-space: normal;" title="${row.curso}">${row.curso || '-'}</td>
+                <td class="px-4 py-3" style="min-width: 150px; white-space: normal;" title="${row.programa}">${row.programa || '-'}</td>
+                <td class="px-4 py-3" style="min-width: 200px; white-space: normal;" title="${row.docente}">${row.docente || '-'}</td>
                 <td class="px-4 py-3 border-l border-gray-100 text-center">
                     ${estadoEnvioBadge}<br><span class="text-[10px] text-gray-400 mt-1 inline-block">${row.fechaEnvio || ''}</span>
                     ${isDisabled ? '' : `<br><button onclick="enviarCorreoIndividual('${row.id}')" class="mt-2 text-xs text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded shadow-sm transition-colors" title="Enviar ficha a este docente"><i class="fa-solid fa-paper-plane mr-1"></i>Enviar Único</button>`}
@@ -273,6 +275,105 @@
       // Deshabilitamos scrollX nativo de DataTables para evitar que divida la tabla y cause desfase en zoom/pantallas anchas.
       // El scroll lo controla el contenedor div.overflow-x-auto con clases CSS tailwind 'sticky'.
       dom: '<"flex flex-col md:flex-row justify-between items-center mb-4"lf>rt<"flex flex-col md:flex-row justify-between items-center mt-4"ip>',
+      initComplete: function () {
+        var api = this.api();
+        try {
+            // Función Inteligente: Actualiza las opciones de los selects basándose en lo que está visible
+            var redrawOptions = function() {
+                api.columns([2, 3, 5]).every(function() {
+                    var col = this;
+                    var select = col.header().querySelector('select');
+                    if (!select) return;
+                    
+                    // Si este select tiene filtro activo, no borramos sus hermanos para permitir que deshaga el filtro.
+                    if (select.value !== "") return;
+
+                    var oldVal = select.value;
+                    select.options.length = 1; // Vaciar dejando solo 'Todos'
+
+                    // Obtener opciones únicas SOLO de filas filtradas/actuas
+                    var uniqueData = col.data({search: 'applied'}).unique().sort();
+                    
+                    for (var i = 0; i < uniqueData.length; i++) {
+                        var d = uniqueData[i];
+                        var val = d ? d.toString().replace(/(<([^>]+)>)/gi, "").trim() : "";
+                        if (val !== '' && val !== '-') {
+                            var optionExists = Array.from(select.options).some(function(o) { return o.value === val; });
+                            if (!optionExists) {
+                                select.add(new Option(val.substring(0, 45) + (val.length > 45 ? '...' : ''), val));
+                            }
+                        }
+                    }
+                    select.value = oldVal;
+                });
+            };
+
+            // Búsqueda por columna en cabeceras principales
+            api.columns([1, 2, 3, 5]).every(function () {
+              var column = this;
+              var header = column.header(); // nativo DOM
+              var colIdx = column.index();
+
+              if (!header) return;
+
+              if (colIdx === 1) {
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'dt-custom-filter w-full mt-2 px-2 py-1 text-xs border border-gray-300 rounded font-normal text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500';
+                input.placeholder = '🔍 Buscar Asignatura...';
+                
+                input.addEventListener('keyup', function(e) {
+                    e.stopPropagation();
+                    if (column.search() !== this.value) {
+                      column.search(this.value).draw();
+                    }
+                });
+                
+                input.addEventListener('change', function(e) {
+                    e.stopPropagation();
+                    if (column.search() !== this.value) {
+                      column.search(this.value).draw();
+                    }
+                });
+                
+                input.addEventListener('click', function(e) { e.stopPropagation(); });
+                header.appendChild(input);
+              } else {
+                var select = document.createElement('select');
+                select.className = 'dt-custom-filter w-full mt-2 px-1 py-1 text-xs border border-gray-300 rounded font-normal text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none';
+                select.add(new Option('Todos', ''));
+                
+                var uniqueData = column.data().unique().sort();
+                for (var i = 0; i < uniqueData.length; i++) {
+                    var d = uniqueData[i];
+                    var val = d ? d.toString().replace(/(<([^>]+)>)/gi, "").trim() : "";
+                    if (val !== '' && val !== '-') {
+                        var optionExists = Array.from(select.options).some(function(o) { return o.value === val; });
+                        if (!optionExists) {
+                            select.add(new Option(val.substring(0, 45) + (val.length > 45 ? '...' : ''), val));
+                        }
+                    }
+                }
+                
+                select.addEventListener('change', function(e) {
+                    e.stopPropagation();
+                    var val = this.value;
+                    var searchRegex = val ? "^" + val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$" : "";
+                    column.search(searchRegex, true, false).draw();
+                });
+                
+                select.addEventListener('click', function(e) { e.stopPropagation(); });
+                header.appendChild(select);
+              }
+            });
+
+            // Registrar oyente de evento de reactualización DataTables
+            api.on('draw.dt', redrawOptions);
+
+        } catch (error) {
+            console.error("Error al inyectar filtros personalizados DataTables:", error);
+        }
+      }
     });
     
     // Evaluar el estado del botón masivo recién instanciada la tabla

@@ -46,6 +46,7 @@ function getSabanaBIData() {
     var iPrograma = 2;    // Col C (Programa)
     var iAsignatura = 4;  // Col E (Asignatura/Curso)
     var iDocente = 6;     // Col G (Docente)
+    var iCoordinador = 18; // Col S (Coordinador)
 
     // Puntajes finales (por código)
     var iLmsTotal = findCol('LMS_TOTAL');
@@ -93,6 +94,7 @@ function getSabanaBIData() {
 
       var docente = String(row[iDocente] || '').trim();
       var programa = String(row[iPrograma] || '').trim();
+      var coordinador = String(row[iCoordinador] || '').trim();
 
       // Determinar modalidad según reglas de negocio
       var colD = String(row[3] || '').trim().toUpperCase();
@@ -139,6 +141,7 @@ function getSabanaBIData() {
         asignatura: asignatura,
         programa: programa,
         modalidad: modalidad,
+        coordinador: coordinador,
         ptsLMS: lmsVig,
         ptsAcomp: acompVig,
         promedio: scoreVig,

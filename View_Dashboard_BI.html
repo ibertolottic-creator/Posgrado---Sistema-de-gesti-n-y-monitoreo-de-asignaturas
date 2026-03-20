@@ -17,6 +17,18 @@
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <div style="position:relative; display:flex; align-items:center;">
         <i class="fa-solid fa-filter" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
+        <select id="filtroBiPrograma" onchange="renderBiDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; max-width:250px; appearance:auto; text-overflow:ellipsis;">
+          <option value="TODOS" selected>Todos los Programas</option>
+        </select>
+      </div>
+      <div style="position:relative; display:flex; align-items:center;">
+        <i class="fa-solid fa-filter" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
+        <select id="filtroBiCoordinador" onchange="renderBiDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; max-width:250px; appearance:auto; text-overflow:ellipsis;">
+          <option value="TODOS" selected>Todos los Coordinadores</option>
+        </select>
+      </div>
+      <div style="position:relative; display:flex; align-items:center;">
+        <i class="fa-solid fa-filter" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
         <select id="filtroBiModalidad" onchange="renderBiDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:200px; appearance:auto;">
           <option value="TODAS" selected>Todas las Modalidades</option>
           <option value="VIRTUAL_HIBRIDO">Virtual / Híbrida (Tutorías)</option>

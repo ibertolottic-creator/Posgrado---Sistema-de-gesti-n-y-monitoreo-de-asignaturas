@@ -144,14 +144,14 @@ function sincronizarResultadosGenerales(isManualUI = false) {
     var datosAsignacion = hojaAsignacion.getRange(2, 1, ultFilaAsig - 1, 19).getValues();
 
     // 3. Crear Diccionarios (Solo las col necesarias)
-    // Para Virtual/Presencial: Inicio de Criterios (Col V=22). Son 34 Criterios.
+    // Para Virtual/Presencial: Inicio de Criterios (Col U=21). Son 34 Criterios.
     // Score BC = Col 55, Url ED = colUrl (Dinámico).
-    var mapVirtual = construirMapaResultados(hojaVirtual, 3, 55, 22, 34);
-    var mapPresencial = construirMapaResultados(hojaPresencial, 3, 55, 22, 34);
+    var mapVirtual = construirMapaResultados(hojaVirtual, 3, 55, 21, 34);
+    var mapPresencial = construirMapaResultados(hojaPresencial, 3, 55, 21, 34);
 
-    // Para Acompañamiento: Inicio de Criterios (Col V=22). Son 11 Criterios.
+    // Para Acompañamiento: Inicio de Criterios (Col U=21). Son 11 Criterios.
     // Score AF = Col 32, Url BE = colUrl (Dinámico)
-    var mapAcomp = construirMapaResultados(hojaAcomp, 3, 32, 22, 11);
+    var mapAcomp = construirMapaResultados(hojaAcomp, 3, 32, 21, 11);
 
     var resultadosFinales = [];
 
