@@ -1,3 +1,4 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 /**
  * ======================================================================
@@ -66,6 +67,20 @@ var DIMENSIONES_ACOMP = {
   'B': { nombre: 'Desarrollo', indices: [3,4,5,6,7,8] },
   'C': { nombre: 'Cierre', indices: [9,10] }
 };
+
+var NOMBRES_COMPLETOS_ACOMP = [
+  '1. Objetivos y contenidos de aprendizaje',
+  '2. Recuperación de saberes previos y motivación',
+  '3. Conflicto cognitivo',
+  '4. Desarrollo del contenido educativo',
+  '5. Aplicación del contenido',
+  '6. Estrategias didácticas',
+  '7. Recursos didácticos',
+  '8. Comunicación pedagógica',
+  '9. Desarrollo de capacidades cognitivas',
+  '10. Evaluación de logros de aprendizaje y reforzamiento',
+  '11. Extensión'
+];
 
 /** Punto de entrada: llamado desde loadModule('BI') en JS_Client */
 function mostrarModuloBI() {
@@ -320,8 +335,8 @@ function renderBiViewGeneral(dataFiltrada, modalidad) {
 
   // Radar LMS Gral
   var lmsLabels=[], lmsProms=[];
-  var dimKeysLMS = modalidad === 'PRESENCIAL' ? Object.keys(DIMENSIONES_PRESENCIAL) : Object.keys(DIMENSIONES_TODAS);
-  var dimsMapLMS = modalidad === 'PRESENCIAL' ? DIMENSIONES_PRESENCIAL : DIMENSIONES_TODAS;
+  var dimKeysLMS = modalidad === 'PRESENCIAL' ? Object.keys(DIMENSIONES_PRESENCIAL) : (modalidad === 'VIRTUAL_HIBRIDO' ? Object.keys(DIMENSIONES_VIRTUAL) : Object.keys(DIMENSIONES_TODAS));
+  var dimsMapLMS = modalidad === 'PRESENCIAL' ? DIMENSIONES_PRESENCIAL : (modalidad === 'VIRTUAL_HIBRIDO' ? DIMENSIONES_VIRTUAL : DIMENSIONES_TODAS);
   for(var k=0; k<dimKeysLMS.length; k++) {
     var dim = dimsMapLMS[dimKeysLMS[k]];
     lmsLabels.push(dim.nombre);
@@ -397,8 +412,8 @@ function renderBiViewLms(dataFiltrada, modalidad) {
 
   // Radar LMS Expandido
   var lmsLabels=[], lmsProms=[];
-  var dimKeysLMS = modalidad === 'PRESENCIAL' ? Object.keys(DIMENSIONES_PRESENCIAL) : Object.keys(DIMENSIONES_TODAS);
-  var dimsMapLMS = modalidad === 'PRESENCIAL' ? DIMENSIONES_PRESENCIAL : DIMENSIONES_TODAS;
+  var dimKeysLMS = modalidad === 'PRESENCIAL' ? Object.keys(DIMENSIONES_PRESENCIAL) : (modalidad === 'VIRTUAL_HIBRIDO' ? Object.keys(DIMENSIONES_VIRTUAL) : Object.keys(DIMENSIONES_TODAS));
+  var dimsMapLMS = modalidad === 'PRESENCIAL' ? DIMENSIONES_PRESENCIAL : (modalidad === 'VIRTUAL_HIBRIDO' ? DIMENSIONES_VIRTUAL : DIMENSIONES_TODAS);
   for(var k=0; k<dimKeysLMS.length; k++) {
     var dim = dimsMapLMS[dimKeysLMS[k]];
     lmsLabels.push(dim.nombre);
@@ -459,8 +474,27 @@ function renderBiViewAcomp(dataFiltrada, modalidad) {
   var dimKeysAC = Object.keys(DIMENSIONES_ACOMP);
   for(var k=0; k<dimKeysAC.length; k++) {
     var dim = DIMENSIONES_ACOMP[dimKeysAC[k]];
-    acLabels.push(dim.nombre);
-    acProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosAcomp'));
+    for(var j=0; j<dim.indices.length; j++) {
+      var idx = dim.indices[j];
+      var critTitle = NOMBRES_COMPLETOS_ACOMP[idx] || biTitlesAcomp[idx] || biHeadersAcomp[idx] || 'Criterio '+(idx+1);
+      
+      var words = critTitle.split(' ');
+      var lines = [];
+      var currentLine = '';
+      for(var w=0; w<words.length; w++) {
+        if(currentLine.length + words[w].length > 20) {
+          if(currentLine) lines.push(currentLine.trim());
+          currentLine = words[w] + ' ';
+        } else {
+          currentLine += words[w] + ' ';
+        }
+      }
+      if(currentLine) lines.push(currentLine.trim());
+      if(lines.length > 2) { lines = lines.slice(0,2); lines[1] += '...'; } // max 2 lines
+      
+      acLabels.push(lines);
+      acProms.push(calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp'));
+    }
   }
   createOrUpdateBiChart('chartBiRadarAcomp', 'radar', acLabels, acProms, {bg:'rgba(245,158,11,0.15)', border:BI_COLORS.yellow});
 
@@ -513,8 +547,11 @@ function renderListaAgrupadaGeneral(dataFiltrada) {
   }
   var progs = Object.keys(byProg).sort();
   
-  var h = '<h6 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-table-list" style="color:#64748b; margin-right:6px;"></i>Desempeño Detallado por Programa</h6>';
-  h += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">';
+  var h = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">';
+  h += '<h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-table-list" style="color:#64748b; margin-right:6px;"></i>Desempeño Detallado por Programa</h6>';
+  h += '<button id="btn-export-pdf-prog" onclick="descargarTablaPdfPorPrograma()" style="padding:6px 12px; border:none; border-radius:6px; background:#ef4444; color:#fff; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background=\'#dc2626\'" onmouseout="this.style.background=\'#ef4444\'"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>';
+  h += '</div>';
+  h += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left; background:#fff;">';
   
   for(var i=0; i<progs.length; i++) {
     h += '<tr style="background:#f8fafc;"><td colspan="5" style="padding:10px; font-weight:800; color:#334155; border-bottom:2px solid #e2e8f0; border-top:1px solid #e2e8f0;">'+progs[i]+' <span style="font-weight:600; font-size:11px; color:#64748b; margin-left:8px;">('+byProg[progs[i]].length+' cursos)</span></td></tr>';
@@ -573,9 +610,9 @@ function renderLeyendaDimensiones(dataFiltrada, modalidadActiva) {
       var cColor = cAvg >= 3 ? '#10b981' : (cAvg >= 2 ? '#f59e0b' : '#ef4444');
       
       html += '<div style="margin-bottom:8px;">';
-      html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-bottom:4px;">';
-      html += '<span title="'+critTitle+'" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85%;">'+critTitle+'</span>';
-      html += '<span style="font-weight:700;">'+cAvg.toFixed(2)+'</span>';
+      html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; font-size:11px; color:#64748b; margin-bottom:4px; gap:8px;">';
+      html += '<span title="'+critTitle+'" style="line-height:1.3; flex:1;">'+critTitle+'</span>';
+      html += '<span style="font-weight:700; white-space:nowrap;">'+cAvg.toFixed(2)+'</span>';
       html += '</div>';
       html += '<div style="width:100%; height:4px; background:#e2e8f0; border-radius:2px; overflow:hidden;">';
       html += '<div style="height:100%; width:'+cPct+'%; background:'+cColor+'; transition:width 0.5s;"></div></div>';
@@ -679,15 +716,15 @@ function renderLeyendaAcomp(dataFiltrada) {
     
     for(var j=0; j<dim.indices.length; j++) {
       var idx = dim.indices[j];
-      var critTitle = biTitlesAcomp[idx] || biHeadersAcomp[idx] || 'Criterio '+(idx+1);
+      var critTitle = NOMBRES_COMPLETOS_ACOMP[idx] || biTitlesAcomp[idx] || biHeadersAcomp[idx] || 'Criterio '+(idx+1);
       var cAvg = calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp');
       var cPct = (cAvg / 4) * 100;
       var cColor = cAvg >= 3 ? '#10b981' : (cAvg >= 2 ? '#f59e0b' : '#ef4444');
       
       html += '<div style="margin-bottom:8px;">';
-      html += '<div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-bottom:4px;">';
-      html += '<span title="'+critTitle+'" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85%;">'+critTitle+'</span>';
-      html += '<span style="font-weight:700;">'+cAvg.toFixed(2)+'</span>';
+      html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; font-size:11px; color:#64748b; margin-bottom:4px; gap:8px;">';
+      html += '<span title="'+critTitle+'" style="line-height:1.3; flex:1;">'+critTitle+'</span>';
+      html += '<span style="font-weight:700; white-space:nowrap;">'+cAvg.toFixed(2)+'</span>';
       html += '</div>';
       html += '<div style="width:100%; height:4px; background:#e2e8f0; border-radius:2px; overflow:hidden;">';
       html += '<div style="height:100%; width:'+cPct+'%; background:'+cColor+'; transition:width 0.5s;"></div></div>';
@@ -778,6 +815,53 @@ function renderListaCritica(containerId, dataFiltrada, tipo) {
   h += '</table></div>';
   if(crits.length > 10) h += '<p style="margin:10px 0 0; font-size:11px; color:#94a3b8; font-style:italic;">Y otras '+(crits.length-10)+' asignaturas en nivel crítico...</p>';
   container.innerHTML = h;
+}
+
+// ---------------------------------------------------------------
+// EXPORTACIÓN A PDF
+// ---------------------------------------------------------------
+function descargarTablaPdfPorPrograma() {
+  if (typeof html2pdf === 'undefined') {
+    alert("Error: Librería de PDF (html2pdf) no cargada o bloqueada por el navegador.");
+    return;
+  }
+  
+  var btn = document.getElementById('btn-export-pdf-prog');
+  if(btn) {
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+  }
+
+  var element = document.getElementById('bi-lista-general');
+  // Temporarily hide the button before capturing
+  if(btn) btn.style.display = 'none';
+
+  var opt = {
+    margin:       10,
+    filename:     'Desempeno_Detallado_Por_Programa_USMP.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  
+  html2pdf().set(opt).from(element).save().then(function() {
+    if(btn) {
+      btn.style.display = 'flex';
+      btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Descargar PDF';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
+  }).catch(function(e) {
+    console.error("Error PDF:", e);
+    if(btn) {
+      btn.style.display = 'flex';
+      btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Descargar PDF';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
+    alert("Ocurrió un error al generar el PDF.");
+  });
 }
 
 // END OF FILE
