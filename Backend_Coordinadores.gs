@@ -26,10 +26,11 @@ function getMetricasCoordinadores() {
     var headerCodes = allData[0]; // Fila 1: Códigos de columna (ej. hits_s1_ap)
 
     // Índices Maestros (Base)
-    var indPrograma = 2; // Col C
-    var indCurso = 4;    // Col E
-    var indDocente = 6;  // Col G
-    var indCoordinator = 18; // Col S
+    var indPrograma = 2;     // Col C
+    var indCurso = 4;        // Col E
+    var indDocente = 6;      // Col G
+    var indCoordName = 17;   // Col R — Nombre del Coordinador
+    var indCoordinator = 18; // Col S — Email del Coordinador
 
     var idxScoreLMS = headerCodes.indexOf('LMS_TOTAL');
     var idxScoreAcomp = headerCodes.indexOf('ACOMP_TOTAL');
@@ -53,7 +54,9 @@ function getMetricasCoordinadores() {
           idxTsLms.push(c);
       } else if (code.indexOf('acomp_ts_') !== -1) {
           idxTsAcomp.push(c);
-      } else if (code.indexOf('a_audit_time') !== -1 || (code.indexOf('audit_time_') !== -1 && code.startsWith('a_'))) {
+      } else if (code === 'audit_time' || code === 'audit_time_alll' || code.indexOf('a_audit_time') !== -1) {
+          // Acomp time columns: 'audit_time' (promedio 9 primeros), 'audit_time_alll' (total 11)
+          // NOTA: Deben checarse ANTES de audit_time_s* para no caer en LMS
           idxAuditTimeAcomp.push(c);
       } else if (code.indexOf('audit_time_s') !== -1) {
           idxAuditTimeLms.push(c);
@@ -84,8 +87,9 @@ function getMetricasCoordinadores() {
         var prog = String(row[indPrograma] || '').trim();
         var cur = String(row[indCurso] || '').trim();
         var doc = String(row[indDocente] || '').trim();
-        var cleanName = coordEmail.split('@')[0];
-        cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+        // Usar nombre real de Col R; fallback al email si está vacío
+        var rawName = String(row[indCoordName] || '').trim();
+        var cleanName = rawName || (coordEmail.split('@')[0].charAt(0).toUpperCase() + coordEmail.split('@')[0].slice(1));
 
         // Notas Vigesimales
         var scoreLMS = idxScoreLMS !== -1 ? row[idxScoreLMS] : '';

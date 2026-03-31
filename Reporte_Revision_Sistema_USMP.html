@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revisión Integral — Sistema de Monitoreo USMP v2.3</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --usmp-red: #cc0000;
+      --usmp-dark: #8b0000;
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --green-bg: #ecfdf5;
+      --green-text: #065f46;
+      --green-border: #a7f3d0;
+      --blue-bg: #eff6ff;
+      --blue-text: #1e40af;
+      --blue-border: #bfdbfe;
+      --yellow-bg: #fffbeb;
+      --yellow-text: #92400e;
+      --yellow-border: #fde68a;
+      --purple-bg: #f5f3ff;
+      --purple-text: #5b21b6;
+      --purple-border: #c4b5fd;
+      --orange-bg: #fff7ed;
+      --orange-text: #9a3412;
+      --orange-border: #fed7aa;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--usmp-red) 0%, var(--usmp-dark) 100%);
+      color: white;
+      padding: 48px 0 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 500px;
+      height: 500px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -10%;
+      width: 400px;
+      height: 400px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 50%;
+    }
+    .header-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 32px;
+      position: relative;
+      z-index: 1;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      font-size: 16px;
+      opacity: 0.85;
+      font-weight: 400;
+    }
+    .header-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+    .header-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .header-meta-item span:first-child {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      opacity: 0.6;
+      font-weight: 600;
+    }
+    .header-meta-item span:last-child {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 48px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--usmp-red);
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .section-subtitle {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      padding: 16px 20px;
+      font-weight: 700;
+      font-size: 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: #f1f5f9;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+    .mono {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 12px;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--usmp-red);
+    }
+
+    /* Status Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-green { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border); }
+    .badge-blue { background: var(--blue-bg); color: var(--blue-text); border: 1px solid var(--blue-border); }
+    .badge-yellow { background: var(--yellow-bg); color: var(--yellow-text); border: 1px solid var(--yellow-border); }
+    .badge-purple { background: var(--purple-bg); color: var(--purple-text); border: 1px solid var(--purple-border); }
+    .badge-orange { background: var(--orange-bg); color: var(--orange-text); border: 1px solid var(--orange-border); }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s;
+    }
+    .kpi-card:hover { box-shadow: var(--shadow-md); }
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    /* Architecture Diagram */
+    .arch-diagram {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .arch-diagram svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .arch-layer {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .arch-box {
+      padding: 12px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid;
+      line-height: 1.3;
+    }
+    .arch-box small {
+      display: block;
+      font-weight: 400;
+      font-size: 10px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    .arch-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+    .arrow-down {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 24px;
+      margin: 8px 0;
+      line-height: 1;
+    }
+
+    /* Module Progress */
+    .module-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .module-row:last-child { border-bottom: none; }
+    .module-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+      color: white;
+      background: #22c55e;
+    }
+    .module-info { flex: 1; }
+    .module-name { font-weight: 700; font-size: 14px; }
+    .module-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--usmp-red), var(--green-border));
+      border-radius: 2px;
+    }
+    .timeline-item {
+      position: relative;
+      padding: 0 0 24px 20px;
+    }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid var(--usmp-red);
+    }
+    .timeline-date {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--usmp-red);
+      margin-bottom: 4px;
+    }
+    .timeline-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Alert Callout */
+    .callout {
+      padding: 20px 24px;
+      border-radius: var(--radius);
+      border-left: 4px solid;
+      margin-bottom: 20px;
+    }
+    .callout-success {
+      background: var(--green-bg);
+      border-color: #22c55e;
+    }
+    .callout-success .callout-title { color: var(--green-text); }
+    .callout-warning {
+      background: var(--yellow-bg);
+      border-color: #f59e0b;
+    }
+    .callout-warning .callout-title { color: var(--yellow-text); }
+    .callout-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+    .callout-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Checklist */
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      font-size: 14px;
+    }
+    .check-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .check-done { background: #22c55e; color: white; }
+    .check-pending { background: #e2e8f0; color: var(--text-muted); }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Print */
+    @media print {
+      body { background: white; }
+      .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .card, .kpi-card { break-inside: avoid; box-shadow: none; }
+      .container { padding: 20px; }
+      .section { page-break-inside: avoid; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header h1 { font-size: 24px; }
+      .header-meta { gap: 16px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .container { padding: 24px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="header">
+    <div class="header-content">
+      <div class="header-badge">📋 Reporte Técnico Ejecutivo</div>
+      <h1>Revisión Integral del Sistema de Monitoreo USMP</h1>
+      <p>Sistema de Monitoreo del Cumplimiento de los Estándares de Calidad</p>
+
+      <div class="header-meta">
+        <div class="header-meta-item">
+          <span>Fecha de Revisión</span>
+          <span>30 de Marzo de 2026</span>
+        </div>
+        <div class="header-meta-item">
+          <span>Versión</span>
+          <span>v2.3</span>
+        </div>
+        <div class="header-meta-item">
+          <span>Estado Git</span>
+          <span>✅ Limpio — Sincronizado</span>
+        </div>
+        <div class="header-meta-item">
+          <span>Último Commit</span>
+          <span>d1ef142</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ===================== KPIs RESUMEN ===================== -->
+    <div class="kpi-grid">
+      <div class="kpi-card" style="border-top: 3px solid #22c55e;">
+        <div class="kpi-label">Módulos Completados</div>
+        <div class="kpi-value" style="color: #22c55e;">11 / 11</div>
+        <div class="kpi-sub">100% implementados y funcionales</div>
+      </div>
+      <div class="kpi-card" style="border-top: 3px solid #3b82f6;">
+        <div class="kpi-label">Archivos del Proyecto</div>
+        <div class="kpi-value" style="color: #3b82f6;">57</div>
+        <div class="kpi-sub">9 backend + 17 frontend + 31 docs/config</div>
+      </div>
+      <div class="kpi-card" style="border-top: 3px solid #8b5cf6;">
+        <div class="kpi-label">Líneas de Código Backend</div>
+        <div class="kpi-value" style="color: #8b5cf6;">~3,400</div>
+        <div class="kpi-sub">Google Apps Script (V8 Engine)</div>
+      </div>
+      <div class="kpi-card" style="border-top: 3px solid var(--usmp-red);">
+        <div class="kpi-label">Hojas de Base de Datos</div>
+        <div class="kpi-value" style="color: var(--usmp-red);">7</div>
+        <div class="kpi-sub">Google Sheets como BD relacional</div>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 1: INVENTARIO ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div class="section-title">Inventario de Archivos</div>
+      </div>
+
+      <!-- Backend -->
+      <div class="card">
+        <div class="card-header">
+          ⚙️ Backend (Google Apps Script) — 9 archivos
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Archivo</th>
+              <th>Líneas</th>
+              <th>Función Principal</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">Code.gs</span></td>
+              <td>926</td>
+              <td>Controlador principal — doGet(), autenticación, saveGrade(), auditoría</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">GeneradorResultados.gs</span></td>
+              <td>858</td>
+              <td>Consolidación 34 columnas + envío masivo de correos con PDF</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">GeneradorBI.gs</span></td>
+              <td>525</td>
+              <td>Data Mart «Sábana General Docente» (~100 columnas)</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">GeneradorDoc.gs</span></td>
+              <td>~400</td>
+              <td>Motor de clonado de Fichas Google Docs con RegEx</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">Backend_BI.gs</span></td>
+              <td>182</td>
+              <td>Endpoint getSabanaBIData() para Dashboard BI</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">Backend_Coordinadores.gs</span></td>
+              <td>201</td>
+              <td>Data Lake getMetricasCoordinadores()</td>
+              <td><span class="badge badge-blue">🆕 v2.3</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">SincronizacionIntern.gs</span></td>
+              <td>~250</td>
+              <td>Distribución a hojas LMS Virtual / Presencial</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">ImportacionExterna.gs</span></td>
+              <td>~90</td>
+              <td>Pipeline de importación desde hoja externa</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">Menu.gs</span></td>
+              <td>~30</td>
+              <td>Menú contextual en Google Sheets</td>
+              <td><span class="badge badge-green">✅ Estable</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Frontend -->
+      <div class="card">
+        <div class="card-header">
+          🖥️ Frontend (HTML + JavaScript) — 17 archivos
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Archivo</th>
+              <th>Tamaño</th>
+              <th>Módulo / Función</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">Index.html</span></td>
+              <td>4.6 KB</td>
+              <td>Punto de entrada + Auth Loader</td>
+            </tr>
+            <tr>
+              <td><span class="mono">CSS.html</span></td>
+              <td>3.3 KB</td>
+              <td>Tailwind CSS + Font Awesome + Chart.js + DataTables + Google Fonts</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Home.html</span></td>
+              <td>7.9 KB</td>
+              <td>Pantalla principal: 3 áreas (Operativa, Gestión, Estratégica)</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_Client.html</span></td>
+              <td><strong>82.5 KB</strong></td>
+              <td>Controlador principal SPA — Routing, renderizado, evaluación</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_Acompanamiento.html</span></td>
+              <td>44.9 KB</td>
+              <td>Módulo autónomo de Acompañamiento Pedagógico</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_BI.html</span></td>
+              <td>46.5 KB</td>
+              <td>Dashboard BI: Doughnut + Radar + KPIs interactivos</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_Coordinadores.html</span></td>
+              <td>35.8 KB</td>
+              <td>Data Lake + Map-Reduce cliente + Nav Tabs</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_Resultados.html</span></td>
+              <td>25.0 KB</td>
+              <td>Consolidación y envío masivo de resultados</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_Templates.html</span></td>
+              <td>7.8 KB</td>
+              <td>Plantillas HTML para correos institucionales</td>
+            </tr>
+            <tr>
+              <td><span class="mono">JS_Tracking.html</span></td>
+              <td>1.6 KB</td>
+              <td>Analytics: hits AP/USMP + interacciones</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Dashboard.html</span></td>
+              <td>13.2 KB</td>
+              <td>Dashboard LMS con sidebar y semáforos semanales</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Dashboard_Acomp.html</span></td>
+              <td>12.6 KB</td>
+              <td>Dashboard Acompañamiento (reloj de 31 días)</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Dashboard_BI.html</span></td>
+              <td>17.2 KB</td>
+              <td>Dashboard BI Docentes (inline styles para GAS)</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Dashboard_Coordinadores.html</span></td>
+              <td>16.7 KB</td>
+              <td>Dashboard Coordinadores Full-Width</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Assignment.html</span></td>
+              <td>6.3 KB</td>
+              <td>Asignación de carga (exclusivo Jefatura)</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Resultados.html</span></td>
+              <td>8.1 KB</td>
+              <td>Tabla DataTables + envío masivo</td>
+            </tr>
+            <tr>
+              <td><span class="mono">View_Modal.html</span></td>
+              <td>2.0 KB</td>
+              <td>Modal de correos electrónicos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 2: ARQUITECTURA ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div class="section-title">Arquitectura del Sistema</div>
+      </div>
+
+      <div class="arch-diagram">
+        <!-- Capa Frontend -->
+        <div class="arch-label" style="background: var(--blue-bg); color: var(--blue-text); border: 1px solid var(--blue-border);">
+          🖥️ FRONTEND — SPA (Single Page Application)
+        </div>
+        <div class="arch-layer">
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            Index.html<small>Entry Point</small>
+          </div>
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            View_Home<small>3 Áreas</small>
+          </div>
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            Dashboard LMS<small>Virtual / Presencial</small>
+          </div>
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            Dashboard Acomp<small>31 Días</small>
+          </div>
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            Dashboard BI<small>Docentes</small>
+          </div>
+          <div class="arch-box" style="background: var(--purple-bg); color: var(--purple-text); border-color: var(--purple-border);">
+            Dashboard BI<small>Coordinadores (v2.3)</small>
+          </div>
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            Asignación<small>Jefatura</small>
+          </div>
+          <div class="arch-box" style="background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border);">
+            Resultados<small>Envío Masivo</small>
+          </div>
+        </div>
+
+        <div class="arrow-down">▼ google.script.run (RPC Asíncrono) ▼</div>
+
+        <!-- Capa Backend -->
+        <div class="arch-label" style="background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border);">
+          ⚙️ BACKEND — Google Apps Script (V8 Engine)
+        </div>
+        <div class="arch-layer">
+          <div class="arch-box" style="background: var(--green-bg); color: var(--green-text); border-color: var(--green-border);">
+            Code.gs<small>926 líneas</small>
+          </div>
+          <div class="arch-box" style="background: var(--green-bg); color: var(--green-text); border-color: var(--green-border);">
+            GeneradorResultados<small>858 líneas</small>
+          </div>
+          <div class="arch-box" style="background: var(--green-bg); color: var(--green-text); border-color: var(--green-border);">
+            GeneradorBI<small>525 líneas</small>
+          </div>
+          <div class="arch-box" style="background: var(--green-bg); color: var(--green-text); border-color: var(--green-border);">
+            GeneradorDoc<small>Fichas Docs</small>
+          </div>
+          <div class="arch-box" style="background: var(--green-bg); color: var(--green-text); border-color: var(--green-border);">
+            Backend_BI<small>Endpoint BI</small>
+          </div>
+          <div class="arch-box" style="background: var(--purple-bg); color: var(--purple-text); border-color: var(--purple-border);">
+            Backend_Coord<small>Data Lake (v2.3)</small>
+          </div>
+          <div class="arch-box" style="background: var(--green-bg); color: var(--green-text); border-color: var(--green-border);">
+            Sincronización<small>Intern + Externa</small>
+          </div>
+        </div>
+
+        <div class="arrow-down">▼ SpreadsheetApp API ▼</div>
+
+        <!-- Capa DB -->
+        <div class="arch-label" style="background: var(--orange-bg); color: var(--orange-text); border: 1px solid var(--orange-border);">
+          🗄️ BASE DE DATOS — Google Sheets (7 Pestañas)
+        </div>
+        <div class="arch-layer">
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            LMS Virtual<small>Criterios c_*</small>
+          </div>
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            LMS Presencial<small>Criterios cp_*</small>
+          </div>
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            Acompañamiento<small>11 Criterios</small>
+          </div>
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            Asignación<small>Matriz Maestra</small>
+          </div>
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            Coordinadores<small>Roles / Permisos</small>
+          </div>
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            Sábana General<small>Data Mart BI</small>
+          </div>
+          <div class="arch-box" style="background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border);">
+            Resultados<small>34 Columnas</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 3: MÓDULOS ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div class="section-title">Estado de Módulos</div>
+      </div>
+
+      <div class="callout callout-success">
+        <div class="callout-title">✅ 11 de 11 módulos completados y funcionales</div>
+        <div class="callout-text">Todos los subsistemas planificados están implementados, probados y documentados. El sistema se encuentra en estado de producción estable.</div>
+      </div>
+
+      <div class="card">
+        <div class="module-row">
+          <div class="module-num">1</div>
+          <div class="module-info">
+            <div class="module-name">Asignaturas Virtuales</div>
+            <div class="module-desc">Evaluación 4 puntos, semáforos semanales S1-S4, timestamps de auditoría</div>
+          </div>
+          <span class="badge badge-green">Fase 1-2</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">2</div>
+          <div class="module-info">
+            <div class="module-name">Asignaturas Presenciales</div>
+            <div class="module-desc">Evaluación con criterios cp_*, timestamps c_*_ts (cross-prefix)</div>
+          </div>
+          <span class="badge badge-green">Fase 1-2</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">3</div>
+          <div class="module-info">
+            <div class="module-name">Acompañamiento Pedagógico</div>
+            <div class="module-desc">11 criterios, reloj de 31 días, Base 20 asimétrica, UI Lock System</div>
+          </div>
+          <span class="badge badge-green">Fase 4</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">4</div>
+          <div class="module-info">
+            <div class="module-name">Asignación de Carga</div>
+            <div class="module-desc">Exclusivo Jefatura, gráfico Chart.js de distribución, asignación masiva</div>
+          </div>
+          <span class="badge badge-green">Fase 3</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">5</div>
+          <div class="module-info">
+            <div class="module-name">Envío de Resultados</div>
+            <div class="module-desc">34 columnas consolidadas, DataTables, correo masivo con PDF adjunto</div>
+          </div>
+          <span class="badge badge-green">Fase 5</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">6</div>
+          <div class="module-info">
+            <div class="module-name">Fichas Google Docs</div>
+            <div class="module-desc">Clonado con RegEx {{}}, regla estricta 4 semanas, anti-duplicados</div>
+          </div>
+          <span class="badge badge-green">Fase 6</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">7</div>
+          <div class="module-info">
+            <div class="module-name">Dashboard BI Docentes</div>
+            <div class="module-desc">Gráficos Doughnut + Radar, filtro de modalidad, 4 KPIs, exportación PDF</div>
+          </div>
+          <span class="badge badge-blue">Fase 7</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">8</div>
+          <div class="module-info">
+            <div class="module-name">Dashboard BI Coordinadores</div>
+            <div class="module-desc">Arquitectura Data Lake, pestañas dinámicas, Map-Reduce, formato horario</div>
+          </div>
+          <span class="badge badge-purple">Fase 8 — v2.3</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">9</div>
+          <div class="module-info">
+            <div class="module-name">Seguridad y Roles</div>
+            <div class="module-desc">Session.getActiveUser(), filtrado por email (Col S), LockService anti-colisión</div>
+          </div>
+          <span class="badge badge-green">Fase 3</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">10</div>
+          <div class="module-info">
+            <div class="module-name">Comunicaciones</div>
+            <div class="module-desc">Email HTML + WhatsApp, CC automático según sede (Pregrado/Posgrado)</div>
+          </div>
+          <span class="badge badge-green">Fase 3.4</span>
+        </div>
+        <div class="module-row">
+          <div class="module-num">11</div>
+          <div class="module-info">
+            <div class="module-name">Tracking / Analítica</div>
+            <div class="module-desc">Hits AP/USMP por semana, auditoría burst (5/4 items en &lt;30s)</div>
+          </div>
+          <span class="badge badge-green">Fase 3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 4: EVOLUCIÓN ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <div class="section-title">Evolución Histórica</div>
+      </div>
+
+      <div class="card" style="padding: 28px 32px;">
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-date">13 Marzo 2026</div>
+            <div class="timeline-text">Módulo BI creado. Bugs críticos corregidos: <code>include()</code>, <code>doGet()</code>, visibilidad del BI en Home.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">19 Marzo</div>
+            <div class="timeline-text">Filtros BI por Programa y Coordinador implementados.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">20 Marzo</div>
+            <div class="timeline-text">Filtros cascada (smart filters) para tabla de resultados.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">24 Marzo</div>
+            <div class="timeline-text">Plataforma Búhotech Labs (gamificación para investigación metodológica).</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">25 Marzo</div>
+            <div class="timeline-text">Fix de responsividad móvil (DVH). Deploy a Railway.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">26 Marzo</div>
+            <div class="timeline-text">Fix data mapping BI (Col 21). Exportación CSV para investigación educativa.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">27 Marzo</div>
+            <div class="timeline-text"><strong>Módulo Coordinadores v2.3</strong> — Data Lake, Nav Tabs LMS/Acomp, formato horario. Fix filtro Virtual/Híbrida. Radar 11 puntos de Acompañamiento.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">30 Marzo</div>
+            <div class="timeline-text"><strong>Revisión integral completa.</strong> Auditoría de 57 archivos, documentación actualizada, Knowledge Base persistente generada.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 5: FORTALEZAS ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <div class="section-title">Fortalezas del Sistema</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+        <div class="kpi-card" style="border-left: 3px solid #22c55e;">
+          <div class="kpi-label" style="color: #22c55e;">🏗️ Arquitectura Sólida</div>
+          <div class="kpi-sub" style="font-size: 13px; margin-top: 8px;">SPA serverless sobre Google Workspace. Sin servidores que mantener —  escalabilidad nativa.</div>
+        </div>
+        <div class="kpi-card" style="border-left: 3px solid #3b82f6;">
+          <div class="kpi-label" style="color: #3b82f6;">🔒 Seguridad Multicapa</div>
+          <div class="kpi-sub" style="font-size: 13px; margin-top: 8px;">Autenticación por Google Account, filtrado por roles en backend, LockService anti-colisión.</div>
+        </div>
+        <div class="kpi-card" style="border-left: 3px solid #8b5cf6;">
+          <div class="kpi-label" style="color: #8b5cf6;">📊 Inteligencia de Negocios</div>
+          <div class="kpi-sub" style="font-size: 13px; margin-top: 8px;">Data Mart con ~100 columnas. Dashboards interactivos para docentes y coordinadores.</div>
+        </div>
+        <div class="kpi-card" style="border-left: 3px solid #f59e0b;">
+          <div class="kpi-label" style="color: #f59e0b;">🛡️ Resiliencia</div>
+          <div class="kpi-sub" style="font-size: 13px; margin-top: 8px;">Fallbacks automáticos para enlaces, auto-rescate de fórmulas rotas, detección dinámica de headers.</div>
+        </div>
+        <div class="kpi-card" style="border-left: 3px solid var(--usmp-red);">
+          <div class="kpi-label" style="color: var(--usmp-red);">📧 Comunicación Automatizada</div>
+          <div class="kpi-sub" style="font-size: 13px; margin-top: 8px;">Correos HTML institucionales con PDF adjunto. CC automático a jefatura según sede.</div>
+        </div>
+        <div class="kpi-card" style="border-left: 3px solid #06b6d4;">
+          <div class="kpi-label" style="color: #06b6d4;">📖 Documentación Excepcional</div>
+          <div class="kpi-sub" style="font-size: 13px; margin-top: 8px;">3 documentos técnicos actualizados: Estado del proyecto, Arquitectura y Lógica, Manual de Referencia.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 6: OBSERVACIONES ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <div class="section-title">Puntos de Atención</div>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Área</th>
+              <th>Descripción</th>
+              <th>Severidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><span class="mono">JS_Client.html</span> = 82.5 KB</td>
+              <td>Archivo monolítico grande (~2,200+ líneas). Candidato a refactorización futura.</td>
+              <td><span class="badge badge-yellow">🟡 Media</span></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Chart.js duplicado</td>
+              <td>Se carga 2 veces: en CSS.html y en Index.html. Se recomienda eliminar una.</td>
+              <td><span class="badge badge-yellow">🟡 Media</span></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Validación en producción</td>
+              <td>Tiempos LMS y ráfagas de Acompañamiento pendientes de validar con datos reales.</td>
+              <td><span class="badge badge-yellow">🟡 Media</span></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Exportación CSV Coordinadores</td>
+              <td>Pendiente como item del roadmap (aún no implementada).</td>
+              <td><span class="badge badge-green">🟢 Baja</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== SECCIÓN 7: ROADMAP ===================== -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">7</div>
+        <div class="section-title">Roadmap — Próximos Pasos</div>
+      </div>
+
+      <div class="card" style="padding: 24px;">
+        <div class="checklist-item">
+          <div class="check-icon check-done">✓</div>
+          <div><strong style="text-decoration: line-through; color: var(--text-muted);">Módulo Coordinadores</strong> — <span class="badge badge-green">Completado v2.3</span></div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-icon check-pending">○</div>
+          <div><strong>Validar tiempos LMS en producción</strong> — Confirmar formato <code>Xh Ym</code> con audit_time_s1..s4</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-icon check-pending">○</div>
+          <div><strong>Validar ráfagas Acomp en producción</strong> — Confirmar a_audit_burst4, a_audit_burst9</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-icon check-pending">○</div>
+          <div><strong>Testing general</strong> — Verificar Virtual, Presencial, Acomp, Resultados, Asignación, BI</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-icon check-pending">○</div>
+          <div><strong>Exportación CSV/Excel</strong> — Implementar descarga del Data Lake de Coordinadores</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== RESUMEN EJECUTIVO ===================== -->
+    <div class="callout callout-success" style="margin-top: 40px;">
+      <div class="callout-title">📌 Resumen Ejecutivo</div>
+      <div class="callout-text">
+        El sistema se encuentra en <strong>estado estable y maduro (v2.3)</strong>. Los 8 subsistemas principales más los 3 de soporte están implementados, probados y documentados. El repositorio Git está limpio y sincronizado con el origen remoto sin cambios pendientes.
+        <br><br>
+        <strong>Próximos pasos recomendados:</strong><br>
+        1. 🧪 Validar en producción los tiempos y ráfagas del módulo Coordinadores<br>
+        2. 🔧 Eliminar la carga duplicada de Chart.js<br>
+        3. 📦 Evaluar refactorización de JS_Client.html si se experimentan timeouts<br>
+        4. 📊 Implementar exportación CSV del Data Lake de Coordinadores
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>Sistema de Monitoreo del Cumplimiento de los Estándares de Calidad — Universidad de San Martín de Porres</p>
+    <p style="margin-top: 4px;">Reporte generado el 30 de Marzo de 2026 • Versión 2.3</p>
+  </div>
+
+</body>
+</html>

@@ -871,7 +871,7 @@ function runSyncAllWebApp() {
       ss,
       mockUi,
       'Asignación de coordinador',
-      'Acompañamiento al desempeño docente Pedagógico',
+      'Acompañamiento del desempeño Pedagógico',
       'TODO'
     );
 
@@ -907,7 +907,7 @@ function runImportAndSyncWebApp() {
       ss,
       mockUi,
       'Asignación de coordinador',
-      'Acompañamiento al desempeño docente Pedagógico',
+      'Acompañamiento del desempeño Pedagógico',
       'TODO'
     );
 

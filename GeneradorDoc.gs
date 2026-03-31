@@ -3,13 +3,13 @@
 // ==========================================
 
 const TEMPLATE_ID_ACOMP = '1SHN8DqCzahmtfE9xEgcUj9UZAoZ_4GqtX6AfpVVeOpE';
-const DESTINATION_FOLDER_ID = '1ROCjH7dIIPct0YDLiOt3x4xKA84-_1nX';
+const DESTINATION_FOLDER_ID = '1lsW7oxzJFdm6K5883_JnCVoj1HVb2T0m';
 
 const TEMPLATE_ID_VIRTUAL = '15mTMCq1FZHwZwBKOnBAPReZfjpl-L4Kq84vFz4vXiPU';
-const DESTINATION_FOLDER_ID_VIRTUAL = '1w4JhB3uklqB4E-rhkpGntCj5blQvJY4y';
+const DESTINATION_FOLDER_ID_VIRTUAL = '1gWE1NEjp8fDeCpB6SzRTSH6Z5XQe6FHu';
 
 const TEMPLATE_ID_PRESENCIAL = '1y56u-BrA811KJWQOeMfydoCKTc_OvquZLvOV5QNudmo';
-const DESTINATION_FOLDER_ID_PRESENCIAL = '1w4JhB3uklqB4E-rhkpGntCj5blQvJY4y';
+const DESTINATION_FOLDER_ID_PRESENCIAL = '1gWE1NEjp8fDeCpB6SzRTSH6Z5XQe6FHu';
 
 /**
  * Genera la Ficha de Acompañamiento en formato Google Docs partiendo de una plantilla

@@ -57,7 +57,7 @@ function procesarSincronizacionCompleta(ss, ui, hojaOrigenNombre, hojaDestinoNom
     // Columna G (Indce 6) <> Vacio
     // Columna Z (Indce 25) <> Vacio (ID)
     // Columna J (Indce 9) <> "Cerrada"
-    // Columna B (Indce 1) REGEXMATCH "PREGRADO|PAT|SEGUNDA CARRERA"
+    // Columna B (Indce 1) REGEXMATCH "POSGRADO"
     
     var colG = fila[6];
     var idOrigen = String(fila[25]);
@@ -68,7 +68,7 @@ function procesarSincronizacionCompleta(ss, ui, hojaOrigenNombre, hojaDestinoNom
     if (idOrigen === "" || idOrigen === null || idOrigen === "undefined") continue;
     if (String(colJ).toUpperCase() === "CERRADA") continue; 
 
-    var regex = /PREGRADO|PAT|SEGUNDA CARRERA/;
+    var regex = /POSGRADO/;
     if (!colB.match(regex)) continue;
 
     // Guardamos en el mapa. Si hay duplicados en origen, el último gana (o podrías validar duplicados)
@@ -255,7 +255,9 @@ function procesarSincronizacionCompleta(ss, ui, hojaOrigenNombre, hojaDestinoNom
   // 1. Escribir actualizaciones (Sobrescribir rango existente)
   if (datosDestinoFinal.length > 0) {
      hojaDestino.getRange(2, 1, datosDestinoFinal.length, 17).setValues(datosDestinoFinal);
-     hojaDestino.getRange(2, 12, richTextDestinoFinal.length, 2).setRichTextValues(richTextDestinoFinal);
+     try {
+       hojaDestino.getRange(2, 12, richTextDestinoFinal.length, 2).setRichTextValues(richTextDestinoFinal);
+     } catch(e) { console.warn("Aviso RichText Updates: " + e.message); }
   }
   
   // 2. Escribir nuevos (Append al final)
@@ -265,7 +267,9 @@ function procesarSincronizacionCompleta(ss, ui, hojaOrigenNombre, hojaDestinoNom
     if (ultFilaDestinoPostDelete < 1) filaInicioNuevos = 2; // Seguridad
 
     hojaDestino.getRange(filaInicioNuevos, 1, nuevosValores.length, 17).setValues(nuevosValores);
-    hojaDestino.getRange(filaInicioNuevos, 12, nuevosRichText.length, 2).setRichTextValues(nuevosRichText);
+    try {
+      hojaDestino.getRange(filaInicioNuevos, 12, nuevosRichText.length, 2).setRichTextValues(nuevosRichText);
+    } catch(e) { console.warn("Aviso RichText Nuevos: " + e.message); }
   }
 
   ui.alert("✅ Sincronización COMPLETA terminada.\n" +

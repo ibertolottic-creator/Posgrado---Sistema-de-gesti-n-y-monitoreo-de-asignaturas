@@ -1,7 +1,7 @@
 # Estado del Proyecto: Sistema de Monitoreo USMP
 
-**Fecha de Última Actualización:** 27 de Marzo de 2026
-**Versión:** 2.3 (Data Lake Coordinadores, Nav Tabs, Formato Horario)
+**Fecha de Última Actualización:** 30 de Marzo de 2026
+**Versión:** 2.3.1 (Corrección Sincronización Acompañamiento)
 
 ---
 
@@ -145,6 +145,14 @@ Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad** construi
 2. **Pestañas Dinámicas (Nav Tabs):** Se construyó un sistema en `JS_Coordinadores.html` de filtrado visual ultra-rápido mediante `CURRENT_TAB`. Permite aislar la interfaz entre **"LMS"** y **"Acompañamiento"**, adaptando `DataTables` y `Chart.js` instantáneamente.
 3. **Precisión de Tiempos:** Se independizó la sumatoria de minutos de evaluación, leyendo directamente los cálculos semanales pre-procesados de la base de datos (`audit_time_s...` y `a_audit_time...`), y se formateó el texto a formato horario natural (ej. `2h 15m`).
 4. **Separación de Tráfico (Burst Audits):** Las auditorías relacionales (`a_audit_burst`) de modo presencial/síncrono ahora existen como variables independientes, garantizando la política de "Tolerancia Cero de Ruido" al saltar entre pestañas.
+
+---
+
+## 5.3 Cambios de la Sesión Actual (30 Mar 2026)
+
+### Correcciones Críticas de Sincronización
+1. **Fallo en Extracción de Hoja (Bug):** Se resolvió un error bloqueante en la sincronización del módulo de Acompañamiento Pedagógico generado por el llamado a una hoja inexistente (`Acompañamiento al desempeño docente Pedagógico`). 
+2. **Corrección de Referencias:** Se actualizó la referencia en texto duro al nombre correcto de la pestaña (`Acompañamiento del desempeño Pedagógico`) en `SincronizacionIntern.gs` (función `sincronizarAcompanamiento`) y `Code.gs` (funciones `runSyncAllWebApp` y `runImportAndSyncWebApp`). Esto restablece la función remota "Sincronizar TODO".
 
 ---
 

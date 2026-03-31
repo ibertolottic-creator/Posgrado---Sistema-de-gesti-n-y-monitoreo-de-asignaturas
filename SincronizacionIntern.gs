@@ -12,7 +12,7 @@
 function sincronizarAcompanamiento() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var ui = SpreadsheetApp.getUi();
-  ejecutarSincronizacion(ss, ui, "Asignación de coordinador", "Acompañamiento al desempeño docente Pedagógico", "TODO");
+  ejecutarSincronizacion(ss, ui, "Asignación de coordinador", "Acompañamiento del desempeño Pedagógico", "TODO");
 }
 
 function sincronizarLMSVirtual() {
@@ -197,7 +197,9 @@ function ejecutarSincronizacion(ss, ui, nombreOrigen, nombreDestino, tipoFiltro)
   // A. Guardar Updates
   if (datosDestinoMemoria.length > 0) {
     hojaDestino.getRange(3, 1, datosDestinoMemoria.length, 19).setValues(datosDestinoMemoria);
-    hojaDestino.getRange(3, 12, richTextDestinoMemoria.length, 2).setRichTextValues(richTextDestinoMemoria);
+    try {
+      hojaDestino.getRange(3, 12, richTextDestinoMemoria.length, 2).setRichTextValues(richTextDestinoMemoria);
+    } catch(e) { console.warn("Aviso RichText Updates Sincro: " + e.message); }
   }
   
   // B. Guardar Nuevos
@@ -206,7 +208,9 @@ function ejecutarSincronizacion(ss, ui, nombreOrigen, nombreDestino, tipoFiltro)
     if (filaInicio < 3) filaInicio = 3;
 
     hojaDestino.getRange(filaInicio, 1, nuevosValores.length, 19).setValues(nuevosValores);
-    hojaDestino.getRange(filaInicio, 12, nuevosRichText.length, 2).setRichTextValues(nuevosRichText);
+    try {
+      hojaDestino.getRange(filaInicio, 12, nuevosRichText.length, 2).setRichTextValues(nuevosRichText);
+    } catch(e) { console.warn("Aviso RichText Nuevos Sincro: " + e.message); }
   }
 
   ui.alert("✅ Sincronización '" + tipoFiltro + "' completada (OPTIMIZADA).\n\n" +
