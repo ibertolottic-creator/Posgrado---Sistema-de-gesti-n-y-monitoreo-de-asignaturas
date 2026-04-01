@@ -184,11 +184,13 @@ function generarCabecerasSabanaGeneral() {
   }
 }
 
-function sincronizarSabanaBI() {
+function sincronizarSabanaBI(silentMode) {
   var ui = null;
-  try {
-     ui = SpreadsheetApp.getUi();
-  } catch(e) {}
+  if (!silentMode) {
+    try {
+       ui = SpreadsheetApp.getUi();
+    } catch(e) {}
+  }
 
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
@@ -402,6 +404,9 @@ function sincronizarSabanaBI() {
        }
        hojaSabana.getRange(3, 1, sabanaDatos.length, sabanaDatos[0].length).setValues(sabanaDatos);
     }
+
+    // Registrar tiempo en caché para auto-actualización rápida de dashboards
+    PropertiesService.getScriptProperties().setProperty('LAST_BI_SYNC', new Date().getTime().toString());
 
     if(ui) ui.alert("✅ Sábana BI Sincronizada exitosamente. Total registros: " + sabanaDatos.length);
   } catch(e) {

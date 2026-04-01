@@ -2,10 +2,13 @@
 <script>
     // Variables Globales
     var CURRENT_TAB = 'ALL';
+    var CURRENT_WEEK_TAB = 'ALL';
     var RAW_COORD_DATA = [];
     var chartCoordLmsInst = null;
     var chartCoordAcompInst = null;
     var chartCoordTiemposInst = null;
+    var chartCoordTiemposTotalInst = null;
+    var chartCoordTiemposDedicInst = null;
     var chartCoordTraficoInst = null;
     var dtCoordAsignaturasInst = null;
     
@@ -54,6 +57,28 @@
                 </ul>
             `
         },
+        'tiempos_total': {
+            title: 'Tiempo Total Invertido (Suma Bruta)',
+            icon: 'fa-layer-group',
+            color: 'text-indigo-500',
+            content: `
+                <p><strong>¿Qué mide?</strong> Registra cuántos minutos totales ha invertido el coordinador en toda su carga de trabajo en la semana seleccionada o en total.</p>
+                <div class="bg-indigo-50 border-l-4 border-indigo-400 p-4 mt-2 text-sm">
+                    <p class="text-indigo-700">Muestra fielmente quién ha pasado más horas métricas auditando y sirviendo aulas independientemente de la velocidad individual de cada una.</p>
+                </div>
+            `
+        },
+        'tiempos_dedic': {
+            title: 'Índice de Dedicación (Tiempo / Aulas Asignadas)',
+            icon: 'fa-scale-balanced',
+            color: 'text-sky-500',
+            content: `
+                <p><strong>¿Qué mide?</strong> Mide cuántos minutos teóricos dedica a <strong>cada una de sus aulas asignadas</strong> (inclusive a las que aún no evaluó o ignoró).</p>
+                <div class="bg-sky-50 border-l-4 border-sky-400 p-4 mt-2 text-sm">
+                    <p class="text-sky-700">A diferencia del "Promedio Efectivo" que solo promedia las aulas tocadas... este indicador evalúa el nivel de atención cruzado contra su carga laboral real. Resulta útil para observar cómo se diluye el tiempo y esfuerzo si ignoran gran parte de sus aulas.</p>
+                </div>
+            `
+        },
         'trafico': {
             title: 'Tráfico Operativo: Accesos vs Comunicaciones',
             icon: 'fa-network-wired',
@@ -72,14 +97,16 @@
         }
     };
   
-    function initCoordinadores() {
+    function initCoordinadores(forceSync = false) {
         document.getElementById('coord-content').style.display = 'none';
         const loader = document.getElementById('coord-loader');
         loader.style.display = 'flex';
         
         const btn = document.getElementById('btnRecargarCoord');
         if(btn) {
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Trabajando...';
+            btn.innerHTML = forceSync 
+                 ? '<i class="fa-solid fa-cloud-arrow-down fa-beat"></i> Sincronizando BI...'
+                 : '<i class="fa-solid fa-spinner fa-spin"></i> Trabajando...';
             btn.disabled = true;
         }
   
@@ -93,7 +120,7 @@
                 }
                 showToast("Error de Servidor", err.toString(), "error");
             })
-            .getMetricasCoordinadores();
+            .getMetricasCoordinadores(forceSync);
     }
   
     function onCoordinadoresSuccess(response) {
@@ -155,7 +182,36 @@
         document.getElementById('tabCoordLMS').className = `flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ${bgLms}`;
         document.getElementById('tabCoordACOMP').className = `flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ${bgAcp}`;
         
+        // Controlador de Menú Semanal (Solo para LMS)
+        const weekMenu = document.getElementById('coord-weekly-nav');
+        if (weekMenu) {
+             weekMenu.style.display = (tab === 'LMS') ? 'flex' : 'none';
+        }
+        
+        // Reset a GENERAL si salimos de LMS
+        if (tab !== 'LMS') CURRENT_WEEK_TAB = 'ALL';
+        
         // Repintar Todo
+        renderCoordinadoresDashboard();
+    }
+
+    /** Módulo Controlador Semanal (Solo LMS) **/
+    function switchCoordWeek(wk) {
+        CURRENT_WEEK_TAB = wk;
+        
+        // Clases CSS base
+        const arrWks = ['ALL', 'S1', 'S2', 'S3', 'S4'];
+        arrWks.forEach(w => {
+            const el = document.getElementById('tabWeek_' + w);
+            if (el) {
+                if (w === wk) {
+                    el.className = 'px-3 py-1 bg-blue-100 text-blue-700 font-bold rounded-full text-xs cursor-pointer shadow-sm transition';
+                } else {
+                    el.className = 'px-3 py-1 text-slate-500 font-semibold rounded-full text-xs cursor-pointer hover:bg-slate-100 transition';
+                }
+            }
+        });
+        
         renderCoordinadoresDashboard();
     }
 
@@ -209,7 +265,16 @@
                 coordMap[r.coord] = {
                     coord: r.coord,
                     total: 0,
-                    lmsAprobados: 0, lmsProceso: 0, lmsTsTotal: 0, lmsTsCount: 0,
+                    lmsAprobados: 0, lmsProceso: 0,
+                    // Promedio Min LMS (audit_time clásico)
+                    auditLmsTotal: 0, auditLmsCount: 0,
+                    auditLmsTotalW: [0,0,0,0], auditLmsCountW: [0,0,0,0],
+                    // Tiempo Absoluto LMS (bookend merge)
+                    lmsTsTotal: 0, lmsTsCount: 0,
+                    lmsTsTotalW: [0,0,0,0], lmsTsCountW: [0,0,0,0],
+                    intervalsW: [[], [], [], []],
+                    // Dedicación LMS (conteo asignaturas completadas en ≤6h)
+                    dedicCountW: [0,0,0,0],
                     acompAprobados: 0, acompProceso: 0, acpTsTotal: 0, acpTsCount: 0,
                     hits: 0, mails: 0, wa: 0, audits: 0, auditsLms: 0, auditsAcp: 0
                 };
@@ -223,8 +288,39 @@
             } else if (r.startedLms) {
                 c.lmsProceso++; globals.lmsProceso++;
             }
-            if(r.ts_lms > 0) {
-                c.lmsTsTotal += r.ts_lms; c.lmsTsCount++;
+            // ---- PROMEDIO MIN LMS (audit_time clásico) ----
+            if (r.audit_lms > 0) {
+                c.auditLmsTotal += r.audit_lms;
+                c.auditLmsCount++;
+            }
+            if (r.audit_lms_w) {
+                for (let w=0; w<4; w++) {
+                    if (r.audit_lms_w[w] > 0) {
+                        c.auditLmsTotalW[w] += r.audit_lms_w[w];
+                        c.auditLmsCountW[w]++;
+                    }
+                }
+            }
+            
+            // ---- TIEMPO ABSOLUTO LMS (bookend intervals para merge) ----
+            if (r.ts_start_w && r.ts_end_w) {
+                for (let w=0; w<4; w++) {
+                    let start = r.ts_start_w[w];
+                    let end = r.ts_end_w[w];
+                    
+                    if (start && end) {
+                        c.intervalsW[w].push([start, end]);
+                    }
+                    
+                    c.lmsTsCountW[w] += (r.lms_audited_w[w] || 0);
+                }
+            }
+            
+            // ---- DEDICACIÓN LMS (conteo de asignaturas completadas en ≤6h) ----
+            if (r.lms_audited_w) {
+                for (let w=0; w<4; w++) {
+                    c.dedicCountW[w] += (r.lms_audited_w[w] || 0);
+                }
             }
 
             // Acomp Logic
@@ -255,8 +351,56 @@
         coordinadores.forEach(c => {
             c.pctLms = c.total > 0 ? (c.lmsAprobados / c.total) * 100 : 0;
             c.pctAcomp = c.total > 0 ? (c.acompAprobados / c.total) * 100 : 0;
-            c.avgLms = c.lmsTsCount > 0 ? c.lmsTsTotal / c.lmsTsCount : 0;
+            
+            // ===== PROMEDIO MIN LMS (audit_time clásico) =====
+            c.avgLmsW = [0,0,0,0];
+            for (let w=0; w<4; w++) {
+                c.avgLmsW[w] = c.auditLmsCountW[w] > 0 ? c.auditLmsTotalW[w] / c.auditLmsCountW[w] : 0;
+            }
+            c.avgLms = c.auditLmsCount > 0 ? c.auditLmsTotal / c.auditLmsCount : 0;
+            
+            // ===== TIEMPO ABSOLUTO LMS (bookend merge) =====
+            c.lmsTsTotal = 0;
+            c.lmsTsCount = 0;
+            
+            for (let w=0; w<4; w++) {
+                let intervals = c.intervalsW[w];
+                if (intervals && intervals.length > 0) {
+                    intervals.sort((a,b) => a[0] - b[0]);
+                    let merged = [];
+                    let current = [intervals[0][0], intervals[0][1]]; // Clonar para no mutar
+                    merged.push(current);
+                    
+                    for (let i = 1; i < intervals.length; i++) {
+                        let next = intervals[i];
+                        if (current[1] >= next[0]) {
+                            current[1] = Math.max(current[1], next[1]);
+                        } else {
+                            current = [next[0], next[1]];
+                            merged.push(current);
+                        }
+                    }
+                    
+                    let totalMs = 0;
+                    merged.forEach(blk => { totalMs += (blk[1] - blk[0]); });
+                    
+                    c.lmsTsTotalW[w] = totalMs / 60000;
+                    c.lmsTsTotal += c.lmsTsTotalW[w];
+                    c.lmsTsCount += c.lmsTsCountW[w];
+                } else {
+                    c.lmsTsTotalW[w] = -1;
+                }
+            }
+            
+            // ===== DEDICACIÓN LMS (asignaturas completadas en ≤6h) =====
+            c.dedicLmsW = [0,0,0,0];
+            for (let w=0; w<4; w++) {
+                c.dedicLmsW[w] = c.dedicCountW[w]; // Conteo directo
+            }
+            c.dedicLms = c.dedicCountW[0] + c.dedicCountW[1] + c.dedicCountW[2] + c.dedicCountW[3];
+            
             c.avgAcomp = c.acpTsCount > 0 ? c.acpTsTotal / c.acpTsCount : 0;
+            c.dedicAcomp = c.total > 0 ? c.acpTsTotal / c.total : 0;
         });
 
         // Ranking Sorting General (Usando Promedio de ambos LMS/ACOMP)
@@ -374,7 +518,9 @@
 
         const thO = (id, show) => { let el = document.getElementById(id); if(el) el.style.display = show ? '' : 'none'; };
         thO('thR_lmsAv', showLms); thO('thR_acpAv', showAcp);
+        thO('thR_lmsAv', showLms); thO('thR_acpAv', showAcp);
         thO('thR_lmsTm', showLms); thO('thR_acpTm', showAcp);
+        thO('thR_lmsTotal', showLms); thO('thR_lmsDedic', showLms);
         thO('thR_hits', showTrf); thO('thR_mails', showTrf); thO('thR_wa', showTrf); thO('thR_audits', true);
 
         const tbody = document.getElementById('coord-resumen-body');
@@ -404,7 +550,14 @@
 
             let tdLmsAv = showLms ? `<td style="padding:14px 16px; text-align:center;">${badgeLms}</td>` : '';
             let tdAcpAv = showAcp ? `<td style="padding:14px 16px; text-align:center;">${badgeAcp}</td>` : '';
-            let tdLmsT = showLms ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">${formatMinutes(c.avgLms)}</td>` : '';
+            let valLmsTm = CURRENT_WEEK_TAB === 'ALL' ? c.avgLms : c.avgLmsW[['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB)];
+            let valLmsTot = CURRENT_WEEK_TAB === 'ALL' ? c.lmsTsTotal : c.lmsTsTotalW[['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB)];
+            let valLmsDed = CURRENT_WEEK_TAB === 'ALL' ? c.dedicLms : c.dedicLmsW[['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB)];
+
+            let tdLmsT = showLms ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">${formatMinutes(Math.max(0, valLmsTm))}</td>` : '';
+            let tdLmsTotHtml = showLms ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#4338ca;">${valLmsTot === -1 ? '<span style="color:#dc2626;font-size:11px;">Incompleto</span>' : formatMinutes(valLmsTot)}</td>` : '';
+            let dedicDisplay = valLmsDed > 0 ? `<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">${valLmsDed} asig.</span>` : '<span style="color:#94a3b8; font-size:11px;">-</span>';
+            let tdLmsDedHtml = showLms ? `<td style="padding:14px 16px; text-align:center;">${dedicDisplay}</td>` : '';
             let tdAcpT = showAcp ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">${formatMinutes(c.avgAcomp)}</td>` : '';
             
             // "Tráfico" is specific to LMS mostly (Hits, Mails, WA). But Audits apply to both.
@@ -435,6 +588,8 @@
                 ${tdLmsAv}
                 ${tdAcpAv}
                 ${tdLmsT}
+                ${tdLmsTotHtml}
+                ${tdLmsDedHtml}
                 ${tdAcpT}
                 ${tdTrafico}
             `;
@@ -458,7 +613,26 @@
             let tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-slate-50 transition-colors';
             
-            let btnLms = r.s_lms !== null ? `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold whitespace-nowrap">${formatMinutes(r.ts_lms)}</span>` : `-`;
+            let rawLmsTime = r.audit_lms || 0;
+            let isIncomplete = false;
+            
+            if (CURRENT_WEEK_TAB !== 'ALL') {
+                let wIdx = ['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB);
+                if (r.audit_lms_w && r.audit_lms_w[wIdx] > 0) {
+                    rawLmsTime = r.audit_lms_w[wIdx];
+                } else if (r.ts_lms_w && r.ts_lms_w[wIdx] === -1) {
+                    isIncomplete = true;
+                } else {
+                    rawLmsTime = 0;
+                }
+            } else {
+                 if (rawLmsTime === 0 && r.startedLms) isIncomplete = true;
+            }
+
+            let formatLms = isIncomplete ? "Incompleto" : formatMinutes(rawLmsTime);
+            let cssLms = isIncomplete ? "bg-red-100 text-red-800 border border-red-200" : "bg-blue-100 text-blue-800";
+            
+            let btnLms = r.s_lms !== null || r.startedLms ? `<span class="${cssLms} text-[10px] px-2 py-1 rounded font-bold whitespace-nowrap shadow-sm">${formatLms}</span>` : `<span class="text-xs text-gray-300">-</span>`;
             let btnAcp = r.s_acp !== null ? `<span class="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold whitespace-nowrap">${formatMinutes(r.ts_acp)}</span>` : `-`;
             
             let vAud = CURRENT_TAB === 'ACOMP' ? r.a_acp : r.a_lms;
@@ -558,53 +732,82 @@
         if (!arr || arr.length === 0) return;
         
         let labels = arr.map(c => c.coord);
-        let dataLms = arr.map(c => c.avgLms.toFixed(1));
-        let dataAcp = arr.map(c => c.avgAcomp.toFixed(1));
+        
+        let wIdx = -1;
+        if (CURRENT_WEEK_TAB === 'S1') wIdx = 0;
+        else if (CURRENT_WEEK_TAB === 'S2') wIdx = 1;
+        else if (CURRENT_WEEK_TAB === 'S3') wIdx = 2;
+        else if (CURRENT_WEEK_TAB === 'S4') wIdx = 3;
 
-        const ctx = document.getElementById('chartCoordTiempos');
-        if(!ctx) return;
-        if(chartCoordTiemposInst) {
-            chartCoordTiemposInst.destroy();
-            chartCoordTiemposInst = null;
-        }
+        let dataLms = arr.map(c => wIdx === -1 ? c.avgLms.toFixed(1) : Math.max(0, c.avgLmsW[wIdx]).toFixed(1));
+        let dataAcp = arr.map(c => CURRENT_WEEK_TAB === 'ALL' ? c.avgAcomp.toFixed(1) : 0);
+        let dataLmsTotal = arr.map(c => wIdx === -1 ? c.lmsTsTotal.toFixed(1) : Math.max(0, c.lmsTsTotalW[wIdx]).toFixed(1));
+        let dataLmsDedic = arr.map(c => wIdx === -1 ? c.dedicLms : c.dedicLmsW[wIdx]);
 
-        let datasetsArr = [];
-        if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS') {
-            datasetsArr.push({
-                label: 'LMS (Min)',
-                data: dataLms,
-                backgroundColor: '#60a5fa', // Blue
-                borderRadius: 4
-            });
-        }
-        if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP') {
-            datasetsArr.push({
-                label: 'Acompañamiento (Min)',
-                data: dataAcp,
-                backgroundColor: '#fbbf24', // Yellow
-                borderRadius: 4
-            });
-        }
+        let strSufix = wIdx === -1 ? "" : (" - " + CURRENT_WEEK_TAB);
+        let titleNodeProm = document.getElementById('tituloTiemposProm');
+        if (titleNodeProm) titleNodeProm.innerText = "Tiempo Promedio por Asignatura Evaluada (Minutos)" + strSufix;
+        let titleNodeTotal = document.getElementById('tituloTiemposTotal');
+        if (titleNodeTotal) titleNodeTotal.innerText = "Tiempo Total Invertido (Suma Bruta)" + strSufix;
+        let titleNodeDedic = document.getElementById('tituloTiemposDedic');
+        if (titleNodeDedic) titleNodeDedic.innerText = "Índice Pedagógico: Dedicación por Carga Laboral " + strSufix;
 
-        chartCoordTiemposInst = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: datasetsArr
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}' min` } }
-                },
-                scales: {
-                    y: { beginAtZero: true, grace: '10%' },
-                    x: { grid: { display: false } }
+        document.getElementById('cardGraphTiemposTotal').style.display = (CURRENT_TAB === 'LMS') ? 'block' : 'none';
+        document.getElementById('cardGraphTiemposDedic').style.display = (CURRENT_TAB === 'LMS') ? 'block' : 'none';
+
+        // 1. Chart Promedios
+        const ctx1 = document.getElementById('chartCoordTiempos');
+        if(ctx1) {
+            if(chartCoordTiemposInst) chartCoordTiemposInst.destroy();
+            let ds1 = [];
+            if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS') {
+                ds1.push({ label: 'LMS Promedio (Min)', data: dataLms, backgroundColor: '#60a5fa', borderRadius: 4 });
+            }
+            if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP') {
+                if(CURRENT_WEEK_TAB === 'ALL') {
+                   ds1.push({ label: 'Acompañamiento Promedio (Min)', data: dataAcp, backgroundColor: '#fbbf24', borderRadius: 4 });
                 }
             }
-        });
+            chartCoordTiemposInst = new Chart(ctx1, {
+                type: 'bar',
+                data: { labels: labels, datasets: ds1 },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} min` } } },
+                    scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // 2. Chart Absoluto (LMS)
+        const ctx2 = document.getElementById('chartCoordTiemposTotal');
+        if(ctx2 && CURRENT_TAB === 'LMS') {
+            if(chartCoordTiemposTotalInst) chartCoordTiemposTotalInst.destroy();
+            chartCoordTiemposTotalInst = new Chart(ctx2, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Tiempo Absoluto LMS (Min)', data: dataLmsTotal, backgroundColor: '#818cf8', borderRadius: 4 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} min` } } },
+                    scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // 3. Chart Dedicacion (LMS)
+        const ctx3 = document.getElementById('chartCoordTiemposDedic');
+        if(ctx3 && CURRENT_TAB === 'LMS') {
+            if(chartCoordTiemposDedicInst) chartCoordTiemposDedicInst.destroy();
+            chartCoordTiemposDedicInst = new Chart(ctx3, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Asignaturas Completadas (≤6h)', data: dataLmsDedic, backgroundColor: '#38bdf8', borderRadius: 4 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} asig.` } } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }
+                }
+            });
+        }
     }
 
     function renderChartTrafico(arr) {
@@ -628,7 +831,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Hits/Accesos (Moodle)',
+                        label: 'Hits/Accesos (Aula Virtual)',
                         data: dataHits,
                         backgroundColor: '#cbd5e1', // Gris sutil
                     },

@@ -32,6 +32,9 @@ El sistema **detecta dinámicamente** las columnas, pero espera cierta estructur
 - **Columnas de Tracking (Hits):**
   - Encabezados: `hits_s1_ap`, `hits_s1_usmp`, `hits_s2_ap`, etc.
   - Contenido: Contadores numéricos.
+- **Columnas de Trazabilidad y Modificación (Nuevas):**
+  - Encabezados: `criterios_notificados`, `cambios_realizados`. Situados al extremo derecho (EF/EG para LMS y BF/BG para Acomp).
+  - Contenido: Contadores acumulativos de llenados puros versus actualizaciones y correcciones.
 - **Columnas de Auditoría:**
   - Encabezados: `audit_time_s1`, `audit_burst5_s1`, etc.
 
@@ -92,8 +95,11 @@ Este archivo contiene la lógica del servidor. A continuación, cada función ex
   3.  **Corrección de Prefijos (Presencial):**
       - El sistema Presencial usa criterios `cp_...` pero columnas de timestamp `c_..._ts`.
       - El código detecta `cp_` y busca automáticamente la columna `c_` equivalente para guardar el timestamp.
-  4.  **Escritura:** Guarda la nota (`value`) y la fecha actual (`new Date()`) en sus respectivas columnas.
-  5.  **Auditoría:** Llama a `analyzeRapidFill` para verificar la velocidad de llenado.
+  4.  **Escritura (First-Write-Only Inmutable):**
+      - Guarda la nota (`value`).
+      - Busca el Timestamp. Solo graba la fecha actual (`new Date()`) **si la celda de Timestamp origen está en blanco**. Esto imposibilita la corrupción de la auditoría y asegura el cálculo fidedigno inter-asignaturas.
+      - **Contadores Operacionales:** Si el Timestamp estba vacío (ingreso inicial) sube en 1 el contador `criterios_notificados`. Si la celda de la Nota ya tenía un valor preexistente (Update), sube en 1 el tabulador de `cambios_realizados`.
+  5.  **Auditoría:** Llama a `analyzeRapidFill` para verificar la velocidad de llenado (Se basa en las fechas inmutables subyacentes).
 
 ### `trackAccess(rowIndex, type, moduleKey)`
 
@@ -252,9 +258,10 @@ Script Backend estructurado para no interferir con `Code.gs` e independizar el r
 
 Script Backend dedicado exclusivamente a la generación del Data Mart "Sábana General Docente", diseñado para ser consumido por integradores externos como Power BI o Looker Studio.
 
-- **`generarCabecerasSabanaGeneral()`:** Automatiza la creación de la estructura de la base de datos BI. Extrae la Fila 1 y Fila 2 de las hojas origen (Asignación, Virtual, Acompaño) y ensambla 68 columnas perfectamente alineadas en RAM antes de pegarlas sobre la hoja destino.
+- **`generarCabecerasSabanaGeneral()`:** Automatiza la creación de la estructura de la base de datos BI. Extrae la Fila 1 y Fila 2 de las hojas origen (Asignación, Virtual, Acompaño) y ensambla **78 columnas** perfectamente alineadas en RAM antes de pegarlas sobre la hoja destino. Incluye al final 6 cabeceras de Trazabilidad (Virtual, Presencial, Acomp).
 - **`sincronizarSabanaBI()`:** Motor de sincronización asíncrona y estructuración de Business Intelligence.
-  - **Mapeo Dimensional Exclusivo:** Une `Asignación (19) + LMS Expandido (38) + TotalesLMS (1) + Acompañamiento (11) + TotalesAcomp (1) + PuntajesFinales (2)` para un total consolidado unificado.
+  - **Mapeo Dimensional Exclusivo:** Une `Asignación (19) + LMS Expandido (38) + TotalesLMS (1) + Acompañamiento (11) + TotalesAcomp (1) + PuntajesFinales (2) + Metadatos KPI Expandidos`.
+  - **Inyección Transversal Dinámica (Trazabilidad Extrema FP-FU):** El script usa una alteración matemática intencional aumentando los bucles y bloques KPI leídos (Ej. De 44 a 48) para forzar al hashmap `mapVirtual` a escalar e incluir los campos distantes de `criterios_notificados` y `cambios_realizados` (Ubicados en la Columna EF y EG, lejos del núcleo), mapeando directamente e inyectándolo hacia columnas estáticas al fondo de la "Sábana General" (Perímetro desde FP a FU). Garantizando que las modalidades nunca colisionen y sin alterar ningún índice a la izquierda.
   - **Columnas LMS Expandidas:** Detecta si la fila proviene de la matriz Virtual o Presencial. Extrae los 30 criterios en común, y segrega los 4 exclusivos a columnas independientes (Virtuales hacia Tutorías, Presenciales hacia Evaluaciones). Inyecta un dato nulo (`null`) en las celdas contrarias para aislar variables y garantizar limpieza estadística en PowerBI.
   - **Conversión Base 20 Parcial:** Transforma dinámicamente el puntaje escalado nativo (`LMS_TOTAL` max 136 y `ACOMP_TOTAL` max 44) proyectándolos hacia métricas vigesimales.
   - **Cálculo de Fórmula Final:** Ejecuta la distribución algorítmica matemática depositándola como métrica flotante inmutable en la sábana física.

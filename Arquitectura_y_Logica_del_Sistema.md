@@ -38,7 +38,7 @@ Módulo restringido (`View_Assignment.html`) diseñado para gestionar la matriz 
 Representan los módulos transaccionales de uso diario, desplegados principalmente desde `JS_Client.html`.
 
 - **Indexación Inteligente de Data:** Emplea algoritmos detectores de configuración (Ej. `getHeaders`) que escanean las filas buscando llaves únicas como `c_1_1` o `cp_1_1`. Esto inmuniza al código de quiebres si los usuarios insertan filas estéticas superiores en la hoja de cálculo matriz.
-- **Flujo de Evaluación y Auditoría:** La nota introducida por el coordinador (escala temporal de 4) se inyecta en la celda del ID Criterio. Inmediatamente el código inyecta el **Timestamp (Sufijo `_ts`)**, permitiendo generar la auditoría visual y controlar reglas temporales.
+- **Flujo de Evaluación y Auditoría Inmutable:** La nota introducida se inyecta centralmente. El código aplica el estándar **First-Write-Only** sobre los Timestamps (`_ts`). Solo registra la hora sí (y solo sí) la celda está vacía. Esto sella matemáticamente el tiempo puro de trabajo inter-asignatura del Coordinador, incrementando en paralelo variables estáticas operacionales (`criterios_notificados` y `cambios_realizados`).
 - **Tolerancia a Fallos en Enlaces:** Si la hoja pierde el formato dinámico nativo "RichText" de un Aula Virtual (falla común entre copias de Excel a Sheets), el backend lo detecta y obliga al algoritmo a parsear URLs planas armando hipervínculos consistentes.
 
 ### 2.4. Subsistema de Acompañamiento Pedagógico
@@ -78,7 +78,7 @@ Diseñado con plantillas inteligentes integradas (`JS_Templates.html`).
 
 Módulo analítico (`View_Dashboard_BI.html` / `JS_BI.html` / `Backend_BI.gs`) diseñado para visualizar métricas consolidadas de desempeño docente.
 
-- **Data Mart "Sábana General Docente":** Generada por `GeneradorBI.gs`, consolida 72 columnas de datos: 19 de Asignación + 38 de LMS (criterios expandidos) + 1 LMS_TOTAL + 11 de Acompañamiento + 1 ACOMP_TOTAL + 1 SCORE_GRAL + 1 SCORE_VIG. Fila 1 contiene códigos técnicos, Fila 2 títulos descriptivos, datos desde Fila 3.
+- **Data Mart "Sábana General Docente" Expandido:** Generada por `GeneradorBI.gs`, consolida **78+ columnas** de datos: 19 de Asignación + 38 de LMS (criterios expandidos) + Totales + 11 de Acompañamiento + Totales + KPIs y Metadatos... El algoritmo tiene una función envoltorio que alarga el rango de lectura forzando la inyección final del mapeo de notificados y editados hacia el final perimetral (Zonas FP, FQ, FR, FS, FT, FU) salvaguardando los índices de DataTables. Fila 1 contiene códigos técnicos, Fila 2 títulos descriptivos, datos desde Fila 3.
 - **Motor de Clasificación de Modalidad:** Utiliza un algoritmo de doble columna:
   - **Col D** (índice 3) = "Modalidad" → indica "Virtual" o "Presencial".
   - **Col N** (índice 13) = "Tipo de metodología" → indica "Híbrida" o vacío.

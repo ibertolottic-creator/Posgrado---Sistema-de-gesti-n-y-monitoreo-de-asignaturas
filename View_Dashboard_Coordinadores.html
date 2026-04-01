@@ -34,7 +34,7 @@
         <i class="fa-solid fa-file-pdf"></i> Exportar PDF
       </button>
       
-      <button onclick="initCoordinadores()" id="btnRecargarCoord" style="padding:8px 16px; font-size:13px; font-weight:700; color:#fff; background:#8b5cf6; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
+      <button onclick="initCoordinadores(true)" id="btnRecargarCoord" style="padding:8px 16px; font-size:13px; font-weight:700; color:#fff; background:#8b5cf6; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
         <i class="fa-solid fa-sync-alt"></i> Actualizar
       </button>
     </div>
@@ -100,16 +100,61 @@
                   </div>
               </div>
               
-              <!-- GRAFICA TIEMPOS -->
-              <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                  <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                      <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
-                          <i class="fa-solid fa-stopwatch" style="color:#ec4899; margin-right:6px;"></i>Tiempos Promedio por Asignatura (Minutos)
-                      </h6>
-                      <button onclick="openCoordInfoModal('tiempos')" class="text-gray-400 hover:text-pink-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+              <!-- ZONA METRICAS TIEMPO (AHORA MÚLTIPLE EN LMS) -->
+              <div id="coordZonaTiempos" style="grid-column: span 2; display:flex; flex-direction:column; gap:20px;">
+                  
+                  <!-- Controlador de Menú Semanal (Solo LMS) -->
+                  <div id="coord-weekly-nav" style="display:none; align-items:center; justify-content:center; gap:8px; padding:12px; background:#fff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                      <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2"><i class="fa-solid fa-calendar-week mr-1"></i> Desglose:</span>
+                      <button id="tabWeek_ALL" onclick="switchCoordWeek('ALL')" class="px-3 py-1 bg-blue-100 text-blue-700 font-bold rounded-full text-xs cursor-pointer shadow-sm transition">Toda la Ejecución</button>
+                      <button id="tabWeek_S1" onclick="switchCoordWeek('S1')" class="px-3 py-1 text-slate-500 font-semibold rounded-full text-xs cursor-pointer hover:bg-slate-100 transition">Semana 1</button>
+                      <button id="tabWeek_S2" onclick="switchCoordWeek('S2')" class="px-3 py-1 text-slate-500 font-semibold rounded-full text-xs cursor-pointer hover:bg-slate-100 transition">Semana 2</button>
+                      <button id="tabWeek_S3" onclick="switchCoordWeek('S3')" class="px-3 py-1 text-slate-500 font-semibold rounded-full text-xs cursor-pointer hover:bg-slate-100 transition">Semana 3</button>
+                      <button id="tabWeek_S4" onclick="switchCoordWeek('S4')" class="px-3 py-1 text-slate-500 font-semibold rounded-full text-xs cursor-pointer hover:bg-slate-100 transition">Semana 4</button>
                   </div>
-                  <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
-                      <canvas id="chartCoordTiempos"></canvas>
+
+                  <!-- Gráficas de Tiempos distribuidas -->
+                  <div id="coordTiemposGrid" style="display:grid; grid-template-columns:1fr; gap:20px;">
+                      
+                      <!-- GRAFICA TIEMPOS (PROMEDIO X ASIGNATURA EVALUADA) -->
+                      <div id="cardGraphTiemposPromedio" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                          <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                              <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                                  <i class="fa-solid fa-stopwatch" style="color:#ec4899; margin-right:6px;"></i><span id="tituloTiemposProm">Tiempo Promedio por Asignatura Evaluada (Minutos)</span>
+                              </h6>
+                              <button onclick="openCoordInfoModal('tiempos')" class="text-gray-400 hover:text-pink-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                          </div>
+                          <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                              <canvas id="chartCoordTiempos"></canvas>
+                          </div>
+                      </div>
+
+                      <!-- GRAFICA TIEMPOS (TOTAL ABSOLUTO) -->
+                      <div id="cardGraphTiemposTotal" style="display:none; background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                          <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                              <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                                  <i class="fa-solid fa-layer-group" style="color:#6366f1; margin-right:6px;"></i><span id="tituloTiemposTotal">Tiempo Total Invertido (Suma Bruta)</span>
+                              </h6>
+                              <button onclick="openCoordInfoModal('tiempos_total')" class="text-gray-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                          </div>
+                          <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                              <canvas id="chartCoordTiemposTotal"></canvas>
+                          </div>
+                      </div>
+
+                      <!-- GRAFICA TIEMPOS (DEDICACION) -->
+                      <div id="cardGraphTiemposDedic" style="display:none; background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                          <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                              <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                                  <i class="fa-solid fa-scale-balanced" style="color:#0ea5e9; margin-right:6px;"></i><span id="tituloTiemposDedic">Índice Dedicación: Tiempo Absoluto / Todas sus Aulas Asignadas</span>
+                              </h6>
+                              <button onclick="openCoordInfoModal('tiempos_dedic')" class="text-gray-400 hover:text-sky-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                          </div>
+                          <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                              <canvas id="chartCoordTiemposDedic"></canvas>
+                          </div>
+                      </div>
+
                   </div>
               </div>
 
@@ -143,6 +188,8 @@
                           <th id="thR_lmsAv" style="padding:12px 16px; text-align:center;" title="Avance LMS">Avance LMS</th>
                           <th id="thR_acpAv" style="padding:12px 16px; text-align:center;" title="Avance Acompañamiento">Avance Acomp</th>
                           <th id="thR_lmsTm" style="padding:12px 16px; text-align:center;">Promedio Min LMS</th>
+                          <th id="thR_lmsTotal" style="padding:12px 16px; text-align:center;">Tiempo Absoluto LMS</th>
+                          <th id="thR_lmsDedic" style="padding:12px 16px; text-align:center;">Dedicación LMS</th>
                           <th id="thR_acpTm" style="padding:12px 16px; text-align:center;">Promedio Min Acomp</th>
                           <th id="thR_hits" style="padding:12px 16px; text-align:center;">Hits Aula</th>
                           <th id="thR_mails" style="padding:12px 16px; text-align:center;">Emails</th>
