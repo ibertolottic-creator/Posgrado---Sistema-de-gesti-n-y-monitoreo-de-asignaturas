@@ -464,9 +464,39 @@ function saveGrade(rowIndex, criteriaId, value, weekKey, moduleKey) {
     const timestamp = new Date();
     currentCell.setValue(value);
 
-    // Save Timestamp if column exists
+    // Save Timestamp if column exists (FIRST-WRITE-ONLY)
     if (colIndexTs !== -1) {
-      sheet.getRange(rowIndex, colIndexTs + 1).setValue(timestamp);
+      const tsCell = sheet.getRange(rowIndex, colIndexTs + 1);
+      const existingTs = tsCell.getValue();
+      if (existingTs === '' || existingTs === null) {
+        tsCell.setValue(timestamp);
+      }
+    }
+
+    // --- CONTADORES Y CHIVATO DE EDICIONES ---
+    const idxNotificados = idsRow.findIndex((h) => String(h).trim() === 'criterios_notificados');
+    const idxCambios = idsRow.findIndex((h) => String(h).trim() === 'cambios_realizados');
+    const idxEdiciones = idsRow.findIndex((h) => String(h).trim() === 'detalle_ediciones');
+
+    // 1. Si es primera nota, sube 'criterios_notificados'
+    if (idxNotificados !== -1 && !isUpdate) {
+      const cell = sheet.getRange(rowIndex, idxNotificados + 1);
+      cell.setValue((parseInt(cell.getValue()) || 0) + 1);
+    }
+    // 2. Si es actualización, sube 'cambios_realizados' y anota el idCriterio
+    if (isUpdate) {
+      if (idxCambios !== -1) {
+        const cell = sheet.getRange(rowIndex, idxCambios + 1);
+        cell.setValue((parseInt(cell.getValue()) || 0) + 1);
+      }
+      if (idxEdiciones !== -1) {
+        const cell = sheet.getRange(rowIndex, idxEdiciones + 1);
+        const currentStr = String(cell.getValue() || '');
+        if (currentStr.indexOf(criteriaId) === -1) {
+           const newStr = currentStr === '' ? `[${criteriaId}]` : `${currentStr}, [${criteriaId}]`;
+           cell.setValue(newStr);
+        }
+      }
     }
 
     // Auditoría de tiempos

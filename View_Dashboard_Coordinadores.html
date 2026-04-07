@@ -30,8 +30,12 @@
         </select>
       </div>
       
-      <button onclick="generarReportePdfCoordinadores()" style="padding:8px 16px; font-size:13px; font-weight:600; color:#4f46e5; background:#e0e7ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#c7d2fe'">
+      <button onclick="generarReportePdfCoordinadores()" style="padding:8px 16px; font-size:13px; font-weight:600; color:#4f46e5; background:#e0e7ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#c7d2fe'" onmouseout="this.style.background='#e0e7ff'">
         <i class="fa-solid fa-file-pdf"></i> Exportar PDF
+      </button>
+      
+      <button id="btnGuardarSnapshot" onclick="guardarSnapshotCoordinadores()" style="padding:8px 16px; font-size:13px; font-weight:600; color:#059669; background:#d1fae5; border:1px solid #a7f3d0; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#a7f3d0'" onmouseout="this.style.background='#d1fae5'">
+        <i class="fa-solid fa-database"></i> Guardar Snapshot
       </button>
       
       <button onclick="initCoordinadores(true)" id="btnRecargarCoord" style="padding:8px 16px; font-size:13px; font-weight:700; color:#fff; background:#8b5cf6; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">

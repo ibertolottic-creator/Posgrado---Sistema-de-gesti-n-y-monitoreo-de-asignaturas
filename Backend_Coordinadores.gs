@@ -58,64 +58,28 @@ function getMetricasCoordinadores(forceSync) {
         return -1;
     };
     
-    // Mapa de criterios: posición expandida en la Sábana (0-based dentro del bloque de 38 TS)
-    // Estructura expandida: [0-11]=Comunes, [12-15]=Virtual excl, [16-19]=Presencial excl, [20-37]=Comunes(16-33)
-    // En la hoja origen Virtual: c_1_2_s1 está en idx 1  → pos expandida 1
-    //                           c_2_1_s2 está en idx 4  → pos expandida 4
-    //                           c_2_1_s3 está en idx 5  → pos expandida 5
-    //                           c_2_1_s4 está en idx 6  → pos expandida 6
-    //                           c_5_1_s1 está en idx 24 → pos expandida: 24=idx_origen16+4=28
-    //                           c_5_1_s2 está en idx 25 → pos expandida 29
-    //                           c_5_1_s3 está en idx 26 → pos expandida 30
-    //                           c_5_1_s4 está en idx 27 → pos expandida 31
-    // NOTA: Origen Virtual indices 0-11 → Sábana 0-11; 12-15 → Sábana 12-15; 16-33 → Sábana 20-37
+    // Extracción dinámica del mapeo S1-S4 de las hojas principales
+    var hojaV = ss.getSheetByName('Sistema de gestión del aprendizaje (LMS)- virtual');
+    var hojaP = ss.getSheetByName('Sistema de gestión del aprendizaje (LMS)- presencial');
+    var tsCodes_V = hojaV ? hojaV.getRange(1, 56, 1, 34).getValues()[0] : [];
+    var tsCodes_P = hojaP ? hojaP.getRange(1, 56, 1, 34).getValues()[0] : [];
     
-    // Primero encontramos el inicio del bloque de timestamps en la Sábana
-    // El bloque de TS empieza justo después de SCORE_VIG (que es la última col antes de metadata)
-    var idxScoreVig = getColIdx('SCORE_VIG');
-    var tsBlockStart = idxScoreVig !== -1 ? idxScoreVig + 1 : -1;
-    
-    // Mapeo: criterio → posición dentro del bloque expandido de 38 timestamps
-    // c_1_2_s1_ts = índice expandido 1 (origen idx 1, bloque 0-11)
-    // c_5_1_s1_ts = origen idx 24 (>= 16), expandido = 24 - 16 + 20 = 28
-    // c_2_1_s2_ts = origen idx 4, expandido 4
-    // c_5_1_s2_ts = origen idx 25, expandido = 25 - 16 + 20 = 29
-    // c_2_1_s3_ts = origen idx 5, expandido 5
-    // c_5_1_s3_ts = origen idx 26, expandido 30
-    // c_2_1_s4_ts = origen idx 6, expandido 6
-    // c_5_1_s4_ts = origen idx 27, expandido 31
-    
-    var pivotIdx;
-    
-    // Intento 1: Búsqueda por nombre exacto
-    var p_s1_start = getColIdx('c_1_2_s1_ts');
-    var p_s1_end   = getColIdx('c_5_1_s1_ts');
-    
-    if (p_s1_start !== -1 && p_s1_end !== -1) {
-        // Los códigos de timestamp existen tal cual en la Sábana
-        pivotIdx = [
-            [p_s1_start, p_s1_end],
-            [getColIdx('c_2_1_s2_ts'), getColIdx('c_5_1_s2_ts')],
-            [getColIdx('c_2_1_s3_ts'), getColIdx('c_5_1_s3_ts')],
-            [getColIdx('c_2_1_s4_ts'), getColIdx('c_5_1_s4_ts')]
-        ];
-        Logger.log('PIVOT_MODE: exact_match');
-    } else if (tsBlockStart !== -1) {
-        // Fallback: calcular por posición conocida en la estructura expandida
-        pivotIdx = [
-            [tsBlockStart + 1,  tsBlockStart + 28], // S1: c_1_2_s1_ts, c_5_1_s1_ts
-            [tsBlockStart + 4,  tsBlockStart + 29], // S2: c_2_1_s2_ts, c_5_1_s2_ts
-            [tsBlockStart + 5,  tsBlockStart + 30], // S3: c_2_1_s3_ts, c_5_1_s3_ts
-            [tsBlockStart + 6,  tsBlockStart + 31]  // S4: c_2_1_s4_ts, c_5_1_s4_ts
-        ];
-        Logger.log('PIVOT_MODE: positional (tsBlockStart=' + tsBlockStart + ')');
-    } else {
-        // Sin timestamps disponibles
-        pivotIdx = [[-1,-1],[-1,-1],[-1,-1],[-1,-1]];
-        Logger.log('PIVOT_MODE: NONE - No timestamp columns found');
-    }
-    
-    Logger.log('PIVOT_DEBUG: S1=[' + pivotIdx[0] + '] S2=[' + pivotIdx[1] + '] S3=[' + pivotIdx[2] + '] S4=[' + pivotIdx[3] + ']');
+    var masterTsMapping = [];
+    var buildMap = function(arr, start, limit) {
+        for(var i=0; i<limit; i++) {
+            var val = (arr && arr[start+i]) ? String(arr[start+i]).toLowerCase() : "";
+            var week = 0;
+            if(val.indexOf('_s2') !== -1) week = 1;
+            else if(val.indexOf('_s3') !== -1) week = 2;
+            else if(val.indexOf('_s4') !== -1) week = 3;
+            else week = 0; // _pre, _b, _s1
+            masterTsMapping.push(week);
+        }
+    };
+    buildMap(tsCodes_V, 0, 12);  // 0-11
+    buildMap(tsCodes_V, 12, 4);  // 12-15 Virtual excl
+    buildMap(tsCodes_P, 12, 4);  // 16-19 Presencial excl
+    buildMap(tsCodes_V, 16, 18); // 20-37 Resto comunes
 
     // Arrays para clasificar los índices de los metadatos
     var idxTsLms = [];
@@ -132,9 +96,14 @@ function getMetricasCoordinadores(forceSync) {
       var code = String(headerCodes[c]).trim().toLowerCase();
       if (!code) continue;
 
-      if (code.indexOf('lms_ts_') !== -1 || code.indexOf('lms_p_ts_') !== -1) {
+      // Timestamps LMS: columnas tipo c_1_1_pre_ts, c_2_1_s2_ts (terminan en _ts)
+      // Timestamps Acomp: columnas tipo A_C01_OBJ_T, C_C10_EVA_T (terminan en _t, contienen _c0 o _c1)
+      var endsTs = (code.length >= 3 && code.substring(code.length - 3) === '_ts');
+      var endsT = (code.length >= 2 && code.substring(code.length - 2) === '_t' && !endsTs);
+      
+      if (endsTs) {
           idxTsLms.push(c);
-      } else if (code.indexOf('acomp_ts_') !== -1) {
+      } else if (endsT && (code.indexOf('_c0') !== -1 || code.indexOf('_c1') !== -1)) {
           idxTsAcomp.push(c);
       } else if (code === 'audit_time' || code === 'audit_time_alll' || code.indexOf('a_audit_time') !== -1) {
           // Acomp time columns: 'audit_time' (promedio 9 primeros), 'audit_time_alll' (total 11)
@@ -177,52 +146,21 @@ function getMetricasCoordinadores(forceSync) {
         var scoreLMS = idxScoreLMS !== -1 ? row[idxScoreLMS] : '';
         var scoreAcomp = idxScoreAcomp !== -1 ? row[idxScoreAcomp] : '';
 
-        // Tiempos LMS y variables semanales
+        // Tiempos LMS: Extracción Raw para Clustering en Frontend
         var tieneTsLms = false;
-        var diffMinLms = 0; // Legacy fallback count
-        var ts_lms_w_start = [null, null, null, null];
-        var ts_lms_w_end = [null, null, null, null];
+        var raw_lms_w = [[], [], [], []];
         var lms_audited_w = [0, 0, 0, 0];
         
-        // Primero verificamos si tenemos actividad en Moodle via Ts crudos
         for (var t = 0; t < idxTsLms.length; t++) {
-            if (row[idxTsLms[t]]) tieneTsLms = true;
-        }
-
-        // NUEVO MÉTODO DE TIEMPOS LMS: Por Pivotes Bookend Absolutos (Start/End de la semana)
-        var ts_lms_w = [0, 0, 0, 0];
-        for (var w = 0; w < 4; w++) {
-            var iA = pivotIdx[w][0];
-            var iB = pivotIdx[w][1];
-            if (iA !== -1 && iB !== -1) {
-                var vA = row[iA];
-                var vB = row[iB];
-                if (vA && vB && String(vA).trim() !== '' && String(vB).trim() !== '') {
-                    var dA = new Date(vA);
-                    var dB = new Date(vB);
-                    if (!isNaN(dA.getTime()) && !isNaN(dB.getTime())) {
-                        var tempStart = Math.min(dA.getTime(), dB.getTime());
-                        var tempEnd = Math.max(dA.getTime(), dB.getTime());
-                        var diffClass = (tempEnd - tempStart) / 60000;
-                        
-                        if (diffClass <= 360) {
-                            ts_lms_w_start[w] = tempStart;
-                            ts_lms_w_end[w] = tempEnd;
-                            lms_audited_w[w] = 1;
-                            tieneTsLms = true;
-                            ts_lms_w[w] = parseFloat(diffClass.toFixed(2));
-                            diffMinLms += ts_lms_w[w];
-                        } else {
-                            ts_lms_w[w] = -1; // Abandono: Sobrepasó límite de 6 horas
-                        }
-                    } else {
-                        ts_lms_w[w] = -1;
-                    }
-                } else {
-                    ts_lms_w[w] = -1;
+            var val = row[idxTsLms[t]];
+            if (val && String(val).trim() !== '') {
+                var d = new Date(val);
+                if (!isNaN(d.getTime())) {
+                    var wk = masterTsMapping[t] !== undefined ? masterTsMapping[t] : 0;
+                    raw_lms_w[wk].push(d.getTime());
+                    lms_audited_w[wk] = 1;
+                    tieneTsLms = true;
                 }
-            } else {
-                ts_lms_w[w] = -1;
             }
         }
 
@@ -250,13 +188,20 @@ function getMetricasCoordinadores(forceSync) {
             }
         }
 
-        // Tiempos Acomp
+        // Tiempos Acomp: Extracción Raw para Clustering
         var diffMinAcomp = 0;
         var tieneTsAcomp = false;
+        var raw_acp = [];
         
-        // Mismo fallback de Ts Crudos por si acaso
         for (var t = 0; t < idxTsAcomp.length; t++) {
-            if (row[idxTsAcomp[t]]) tieneTsAcomp = true;
+            var val = row[idxTsAcomp[t]];
+            if (val && String(val).trim() !== '') {
+                var d = new Date(val);
+                if (!isNaN(d.getTime())) {
+                    raw_acp.push(d.getTime());
+                    tieneTsAcomp = true;
+                }
+            }
         }
 
         // Sumar minutos de columnas Acomp (Ej. a_audit_time_...)
@@ -316,11 +261,9 @@ function getMetricasCoordinadores(forceSync) {
             // Promedio Min LMS (método clásico audit_time)
             audit_lms: parseFloat(audit_lms_total.toFixed(1)),
             audit_lms_w: audit_lms_w,
-            // Tiempo Absoluto LMS (método bookend con merge)
-            ts_lms: parseFloat(diffMinLms.toFixed(1)),
-            ts_lms_w: ts_lms_w,
-            ts_start_w: ts_lms_w_start,
-            ts_end_w: ts_lms_w_end,
+            // Tiempo Absoluto LMS (raw arrays para clustering frontend)
+            raw_lms_w: raw_lms_w,
+            raw_acp: raw_acp,
             lms_audited_w: lms_audited_w,
             ts_acp: parseFloat(diffMinAcomp.toFixed(1)),
             h: h,
@@ -342,5 +285,47 @@ function getMetricasCoordinadores(forceSync) {
 
   } catch(e) {
     return { role: 'ERROR', message: "Error Extract Coordinadores: " + e.toString() };
+  }
+}
+
+function saveCoordinatorSnapshot(payload) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Histórico_Tiempos_Coord');
+    if (!sheet) return { success: false, message: 'No se encontró la pestaña Histórico_Tiempos_Coord.' };
+
+    var data = JSON.parse(payload);
+    var timestamp = new Date();
+    
+    var rowsToInsert = [];
+    for (var i = 0; i < data.length; i++) {
+        var c = data[i];
+        rowsToInsert.push([
+            timestamp,
+            c.periodo || 'Mensual',
+            c.coord,
+            c.total,
+            c.lmsAprobados,
+            c.lmsProceso,
+            c.acompAprobados,
+            c.acompProceso,
+            c.lmsTsTotal,
+            c.acpTsTotal,
+            c.avgLms,
+            c.avgAcomp,
+            c.hits,
+            c.mails,
+            c.wa,
+            c.audits
+        ]);
+    }
+
+    if (rowsToInsert.length > 0) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, rowsToInsert.length, rowsToInsert[0].length).setValues(rowsToInsert);
+    }
+    
+    return { success: true, message: 'Snapshot guardado exitosamente (' + rowsToInsert.length + ' registros).' };
+  } catch(e) {
+    return { success: false, message: e.toString() };
   }
 }

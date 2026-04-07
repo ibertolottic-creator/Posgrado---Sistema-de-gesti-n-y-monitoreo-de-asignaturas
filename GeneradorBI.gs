@@ -48,9 +48,9 @@ function generarCabecerasSabanaGeneral() {
     var tsCodesPre = hojaPresencial.getRange(1, 56, 1, 34).getValues()[0];
     var tsTitlesPre = hojaPresencial.getRange(2, 56, 1, 34).getValues()[0];
 
-    // 2.2 LMS Metadata: KPIs (Col 91 a 134) = 44 columnas (se omitirán las vacías dinámicamente)
-    var kpiCodesLMS = hojaVirtual.getRange(1, 91, 1, 44).getValues()[0];
-    var kpiTitlesLMS = hojaVirtual.getRange(2, 91, 1, 44).getValues()[0];
+    // 2.2 LMS Metadata: KPIs (Col 91 a 138) = 48 columnas (se omitirán las vacías dinámicamente)
+    var kpiCodesLMS = hojaVirtual.getRange(1, 91, 1, 48).getValues()[0];
+    var kpiTitlesLMS = hojaVirtual.getRange(2, 91, 1, 48).getValues()[0];
 
     // 3. Acompañamiento (Criterios Col 21 a 31) - 11 columnas (Fila 1 y 2)
     var codesAcomp = hojaAcomp.getRange(1, 21, 1, 11).getValues()[0];
@@ -60,9 +60,9 @@ function generarCabecerasSabanaGeneral() {
     var tsCodesAcomp = hojaAcomp.getRange(1, 35, 1, 11).getValues()[0];
     var tsTitlesAcomp = hojaAcomp.getRange(2, 35, 1, 11).getValues()[0];
 
-    // 3.2 Acomp Metadata: KPIs (Col 47 a 54) - 8 columnas
-    var kpiCodesAcomp = hojaAcomp.getRange(1, 47, 1, 8).getValues()[0];
-    var kpiTitlesAcomp = hojaAcomp.getRange(2, 47, 1, 8).getValues()[0];
+    // 3.2 Acomp Metadata: KPIs (Col 47 a 58) - 12 columnas
+    var kpiCodesAcomp = hojaAcomp.getRange(1, 47, 1, 12).getValues()[0];
+    var kpiTitlesAcomp = hojaAcomp.getRange(2, 47, 1, 12).getValues()[0];
 
     // Ensamblar Fila 1 (Códigos) y Fila 2 (Títulos u omitido si es base)
     var fila1 = [];
@@ -156,7 +156,7 @@ function generarCabecerasSabanaGeneral() {
 
     // 4. KPIs ACOMPAÑAMIENTO
     var validIndexAcomp = [];
-    for (var i = 0; i < 8; i++) {
+    for (var i = 0; i < 12; i++) {
         var code = kpiCodesAcomp[i];
         if (code && String(code).trim() !== '') {
             fila1.push(code);
@@ -222,19 +222,19 @@ function sincronizarSabanaBI(silentMode) {
     // En Hojas LMS Criterios inician en Columna 21 (U), Notas=34.
     // Score LMS está en Columna 55 (BC).
     // Timestamps LMS inician en BD (56) = 34 cols.
-    // KPIs LMS inician en Col 91 = 44 cols.
-    var mapVirtual = construirMapaResultadosParaBI(hojaVirtual, 3, 55, 21, 34, 56, 34, 91, 44);
-    var mapPresencial = construirMapaResultadosParaBI(hojaPresencial, 3, 55, 21, 34, 56, 34, 91, 44);
+    // KPIs LMS inician en Col 91 = 48 cols.
+    var mapVirtual = construirMapaResultadosParaBI(hojaVirtual, 3, 55, 21, 34, 56, 34, 91, 48);
+    var mapPresencial = construirMapaResultadosParaBI(hojaPresencial, 3, 55, 21, 34, 56, 34, 91, 48);
     
     // En Hoja Acompañamiento Criterios inician en Col 21 (U) = 11 coles.
     // Score Acomp en Columna 32 (AF).
     // Timestamps Acomp en AI (35) = 11 cols.
-    // KPIs Acomp en AK (47) = 8 cols.
-    var mapAcomp = construirMapaResultadosParaBI(hojaAcomp, 3, 32, 21, 11, 35, 11, 47, 8);
+    // KPIs Acomp en AK (47) = 12 cols.
+    var mapAcomp = construirMapaResultadosParaBI(hojaAcomp, 3, 32, 21, 11, 35, 11, 47, 12);
 
     // Cargar las cabeceras KPI una sola vez en la RAM antes del loop (Para evitar Exceeded maximum execution time)
-    var kpiCodesVirtual = hojaVirtual.getRange(1, 91, 1, 44).getValues()[0];
-    var kpiCodesAc = hojaAcomp.getRange(1, 47, 1, 8).getValues()[0];
+    var kpiCodesVirtual = hojaVirtual.getRange(1, 91, 1, 48).getValues()[0];
+    var kpiCodesAc = hojaAcomp.getRange(1, 47, 1, 12).getValues()[0];
 
     var sabanaDatos = [];
 

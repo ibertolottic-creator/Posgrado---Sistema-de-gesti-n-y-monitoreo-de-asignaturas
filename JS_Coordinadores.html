@@ -123,6 +123,121 @@
             .getMetricasCoordinadores(forceSync);
     }
   
+    // Módulo de Snapshot de Tiempos
+    function guardarSnapshotCoordinadores() {
+        if (!RAW_COORD_DATA || RAW_COORD_DATA.length === 0) {
+            showToast("Atención", "No hay datos para guardar. Actualice el dashboard primero.", "warning");
+            return;
+        }
+
+        const btn = document.getElementById('btnGuardarSnapshot');
+        if(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+            btn.disabled = true;
+        }
+
+        // Usamos la misma estructura de coordinadores reducida del Map-Reduce
+        let coordMap = {};
+        RAW_COORD_DATA.forEach(r => {
+            if(!coordMap[r.coord]) {
+                coordMap[r.coord] = {
+                    coord: r.coord, total: 0,
+                    lmsAprobados: 0, lmsProceso: 0, acompAprobados: 0, acompProceso: 0,
+                    hits: 0, mails: 0, wa: 0, audits: 0, auditsLms: 0, auditsAcp: 0,
+                    // Promedios Antiguos
+                    auditLmsTotal: 0, auditLmsCount: 0,
+                    // Tiempos Raw Clustering
+                    rawLmsW: [[], [], [], []], rawAcp: []
+                };
+            }
+            let c = coordMap[r.coord];
+            c.total++;
+            c.hits += r.h; c.mails += r.m; c.wa += r.w;
+            c.auditsLms += r.a_lms; c.auditsAcp += r.a_acp;
+            c.audits = c.auditsLms + c.auditsAcp;
+
+            if(r.s_lms > 0) c.lmsAprobados++; else if(r.startedLms) c.lmsProceso++;
+            if(r.s_acp > 0) c.acompAprobados++; else if(r.startedAcp) c.acompProceso++;
+            
+            if (r.audit_lms > 0) { c.auditLmsTotal += r.audit_lms; c.auditLmsCount++; }
+            
+            if (r.raw_lms_w) {
+                for (let w=0; w<4; w++) {
+                    if (r.raw_lms_w[w] && r.raw_lms_w[w].length > 0) c.rawLmsW[w].push(...r.raw_lms_w[w]);
+                }
+            }
+            if (r.raw_acp && r.raw_acp.length > 0) c.rawAcp.push(...r.raw_acp);
+        });
+
+        const GAP_TOLERANCE_MS = 15 * 60 * 1000;
+        const BASE_CRITERIA_MS = 2 * 60 * 1000;
+        
+        let dumpData = Object.values(coordMap).map(c => {
+            // Calcular Clusters Finales antes de enviar
+            c.lmsTsTotal = 0;
+            for (let w=0; w<4; w++) {
+                let bag = c.rawLmsW[w];
+                if (bag && bag.length > 0) {
+                    bag.sort((a,b) => a - b);
+                    let totalMs = BASE_CRITERIA_MS;
+                    for (let i = 1; i < bag.length; i++) {
+                        let diff = bag[i] - bag[i-1];
+                        if (diff <= GAP_TOLERANCE_MS) totalMs += diff;
+                        else totalMs += BASE_CRITERIA_MS;
+                    }
+                    c.lmsTsTotal += (totalMs / 60000);
+                }
+            }
+            
+            c.acpTsTotal = 0;
+            if (c.rawAcp && c.rawAcp.length > 0) {
+                c.rawAcp.sort((a,b) => a - b);
+                let totalMsAcp = BASE_CRITERIA_MS;
+                for (let i = 1; i < c.rawAcp.length; i++) {
+                     let diff = c.rawAcp[i] - c.rawAcp[i-1];
+                     if (diff <= GAP_TOLERANCE_MS) totalMsAcp += diff;
+                     else totalMsAcp += BASE_CRITERIA_MS;
+                }
+                c.acpTsTotal = totalMsAcp / 60000;
+            }
+            
+            c.avgLms = c.auditLmsCount > 0 ? c.auditLmsTotal / c.auditLmsCount : 0;
+            c.avgAcomp = c.total > 0 ? c.acpTsTotal / c.total : 0;
+            
+            // Delete raw properties to save bandwidth
+            delete c.rawLmsW;
+            delete c.rawAcp;
+            delete c.auditLmsTotal;
+            delete c.auditLmsCount;
+            
+            return c;
+        });
+
+        google.script.run
+            .withSuccessHandler(res => {
+                if(btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Listo';
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fa-solid fa-database"></i> Guardar Snapshot';
+                        btn.disabled = false;
+                    }, 3000);
+                }
+                if(res.success) {
+                    showToast("Snapshot Guardado", res.message, "success");
+                } else {
+                    showToast("Error BD", res.message, "error");
+                }
+            })
+            .withFailureHandler(err => {
+                if(btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-database"></i> Guardar Snapshot';
+                    btn.disabled = false;
+                }
+                showToast("Error de Conexión", err.toString(), "error");
+            })
+            .saveCoordinatorSnapshot(JSON.stringify(dumpData));
+    }
+  
     function onCoordinadoresSuccess(response) {
         if (!response.success) {
             document.getElementById('coord-loader').style.display = 'none';
@@ -269,10 +384,11 @@
                     // Promedio Min LMS (audit_time clásico)
                     auditLmsTotal: 0, auditLmsCount: 0,
                     auditLmsTotalW: [0,0,0,0], auditLmsCountW: [0,0,0,0],
-                    // Tiempo Absoluto LMS (bookend merge)
+                    // Tiempo Absoluto LMS (Clustering Session-Based)
                     lmsTsTotal: 0, lmsTsCount: 0,
                     lmsTsTotalW: [0,0,0,0], lmsTsCountW: [0,0,0,0],
-                    intervalsW: [[], [], [], []],
+                    rawLmsW: [[], [], [], []],
+                    rawAcp: [],
                     // Dedicación LMS (conteo asignaturas completadas en ≤6h)
                     dedicCountW: [0,0,0,0],
                     acompAprobados: 0, acompProceso: 0, acpTsTotal: 0, acpTsCount: 0,
@@ -302,16 +418,12 @@
                 }
             }
             
-            // ---- TIEMPO ABSOLUTO LMS (bookend intervals para merge) ----
-            if (r.ts_start_w && r.ts_end_w) {
+            // ---- TIEMPO ABSOLUTO LMS (Extracción Raw para Clustering) ----
+            if (r.raw_lms_w) {
                 for (let w=0; w<4; w++) {
-                    let start = r.ts_start_w[w];
-                    let end = r.ts_end_w[w];
-                    
-                    if (start && end) {
-                        c.intervalsW[w].push([start, end]);
+                    if (r.raw_lms_w[w] && r.raw_lms_w[w].length > 0) {
+                        c.rawLmsW[w].push(...r.raw_lms_w[w]);
                     }
-                    
                     c.lmsTsCountW[w] += (r.lms_audited_w[w] || 0);
                 }
             }
@@ -329,8 +441,9 @@
             } else if (r.startedAcp) {
                 c.acompProceso++; globals.acompProceso++;
             }
-            if(r.ts_acp > 0) {
-                c.acpTsTotal += r.ts_acp; c.acpTsCount++;
+            if (r.raw_acp && r.raw_acp.length > 0) {
+                c.rawAcp.push(...r.raw_acp); 
+                c.acpTsCount++;
             }
 
             c.hits += r.h;
@@ -359,37 +472,52 @@
             }
             c.avgLms = c.auditLmsCount > 0 ? c.auditLmsTotal / c.auditLmsCount : 0;
             
-            // ===== TIEMPO ABSOLUTO LMS (bookend merge) =====
+            // ===== TIEMPO ABSOLUTO LMS Y ACOMP (Clustering Algorithm) =====
             c.lmsTsTotal = 0;
             c.lmsTsCount = 0;
+            const GAP_TOLERANCE_MS = 15 * 60 * 1000; // 15 min de abandono o salto
+            const BASE_CRITERIA_MS = 2 * 60 * 1000;  // 2 min por evento aislado
             
             for (let w=0; w<4; w++) {
-                let intervals = c.intervalsW[w];
-                if (intervals && intervals.length > 0) {
-                    intervals.sort((a,b) => a[0] - b[0]);
-                    let merged = [];
-                    let current = [intervals[0][0], intervals[0][1]]; // Clonar para no mutar
-                    merged.push(current);
+                let bag = c.rawLmsW[w];
+                if (bag && bag.length > 0) {
+                    bag.sort((a,b) => a - b);
+                    let totalMs = 0;
                     
-                    for (let i = 1; i < intervals.length; i++) {
-                        let next = intervals[i];
-                        if (current[1] >= next[0]) {
-                            current[1] = Math.max(current[1], next[1]);
+                    for (let i = 0; i < bag.length; i++) {
+                        if (i === 0) {
+                            totalMs += BASE_CRITERIA_MS;
                         } else {
-                            current = [next[0], next[1]];
-                            merged.push(current);
+                            let diff = bag[i] - bag[i-1];
+                            if (diff <= GAP_TOLERANCE_MS) {
+                                totalMs += diff;
+                            } else {
+                                totalMs += BASE_CRITERIA_MS;
+                            }
                         }
                     }
-                    
-                    let totalMs = 0;
-                    merged.forEach(blk => { totalMs += (blk[1] - blk[0]); });
                     
                     c.lmsTsTotalW[w] = totalMs / 60000;
                     c.lmsTsTotal += c.lmsTsTotalW[w];
                     c.lmsTsCount += c.lmsTsCountW[w];
                 } else {
-                    c.lmsTsTotalW[w] = -1;
+                    c.lmsTsTotalW[w] = 0;
                 }
+            }
+            // === Clustering ACOMP ===
+            c.acpTsTotal = 0;
+            if (c.rawAcp && c.rawAcp.length > 0) {
+                c.rawAcp.sort((a,b) => a - b);
+                let tMs = 0;
+                for (let i = 0; i < c.rawAcp.length; i++) {
+                    if (i === 0) tMs += BASE_CRITERIA_MS;
+                    else {
+                        let diff = c.rawAcp[i] - c.rawAcp[i-1];
+                        if (diff <= GAP_TOLERANCE_MS) tMs += diff;
+                        else tMs += BASE_CRITERIA_MS;
+                    }
+                }
+                c.acpTsTotal = tMs / 60000;
             }
             
             // ===== DEDICACIÓN LMS (asignaturas completadas en ≤6h) =====
@@ -399,8 +527,8 @@
             }
             c.dedicLms = c.dedicCountW[0] + c.dedicCountW[1] + c.dedicCountW[2] + c.dedicCountW[3];
             
-            c.avgAcomp = c.acpTsCount > 0 ? c.acpTsTotal / c.acpTsCount : 0;
-            c.dedicAcomp = c.total > 0 ? c.acpTsTotal / c.total : 0;
+            c.avgAcomp = c.total > 0 ? c.acpTsTotal / c.total : 0;
+            c.dedicAcomp = c.acpTsTotal;
         });
 
         // Ranking Sorting General (Usando Promedio de ambos LMS/ACOMP)
