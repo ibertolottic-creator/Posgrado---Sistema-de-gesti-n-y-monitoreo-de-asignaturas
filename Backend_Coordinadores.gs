@@ -58,28 +58,9 @@ function getMetricasCoordinadores(forceSync) {
         return -1;
     };
     
-    // Extracción dinámica del mapeo S1-S4 de las hojas principales
-    var hojaV = ss.getSheetByName('Sistema de gestión del aprendizaje (LMS)- virtual');
-    var hojaP = ss.getSheetByName('Sistema de gestión del aprendizaje (LMS)- presencial');
-    var tsCodes_V = hojaV ? hojaV.getRange(1, 56, 1, 34).getValues()[0] : [];
-    var tsCodes_P = hojaP ? hojaP.getRange(1, 56, 1, 34).getValues()[0] : [];
-    
-    var masterTsMapping = [];
-    var buildMap = function(arr, start, limit) {
-        for(var i=0; i<limit; i++) {
-            var val = (arr && arr[start+i]) ? String(arr[start+i]).toLowerCase() : "";
-            var week = 0;
-            if(val.indexOf('_s2') !== -1) week = 1;
-            else if(val.indexOf('_s3') !== -1) week = 2;
-            else if(val.indexOf('_s4') !== -1) week = 3;
-            else week = 0; // _pre, _b, _s1
-            masterTsMapping.push(week);
-        }
-    };
-    buildMap(tsCodes_V, 0, 12);  // 0-11
-    buildMap(tsCodes_V, 12, 4);  // 12-15 Virtual excl
-    buildMap(tsCodes_P, 12, 4);  // 16-19 Presencial excl
-    buildMap(tsCodes_V, 16, 18); // 20-37 Resto comunes
+    // Se eliminó la extracción de tsCodes_V y tsCodes_P (masterTsMapping)
+    // porque generaba desalineaciones con las posiciones reales de Sábana General Docente.
+    // Ahora leemos el código de semana ('_s2', '_s3', etc.) directamente desde 'headerCodes'.
 
     // Arrays para clasificar los índices de los metadatos
     var idxTsLms = [];
@@ -146,35 +127,50 @@ function getMetricasCoordinadores(forceSync) {
         var scoreLMS = idxScoreLMS !== -1 ? row[idxScoreLMS] : '';
         var scoreAcomp = idxScoreAcomp !== -1 ? row[idxScoreAcomp] : '';
 
-        // Tiempos LMS: Extracción Raw para Clustering en Frontend
+        // Tiempos LMS: Extracción Raw para Clustering en Frontend (6 Bins: Bienvenida, S1-S4, Cierre)
         var tieneTsLms = false;
-        var raw_lms_w = [[], [], [], []];
-        var lms_audited_w = [0, 0, 0, 0];
+        var raw_lms_w = [[], [], [], [], [], []];
         
         for (var t = 0; t < idxTsLms.length; t++) {
-            var val = row[idxTsLms[t]];
+            var colIndex = idxTsLms[t];
+            var codeName = String(headerCodes[colIndex]).trim().toLowerCase();
+
+            var val = row[colIndex];
             if (val && String(val).trim() !== '') {
                 var d = new Date(val);
                 if (!isNaN(d.getTime())) {
-                    var wk = masterTsMapping[t] !== undefined ? masterTsMapping[t] : 0;
-                    raw_lms_w[wk].push(d.getTime());
-                    lms_audited_w[wk] = 1;
+                    var wk = -1;
+                    if (codeName.indexOf('_b') !== -1 || codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1) wk = 0;
+                    else if (codeName.indexOf('_s1') !== -1) wk = 1;
+                    else if (codeName.indexOf('_s2') !== -1) wk = 2;
+                    else if (codeName.indexOf('_s3') !== -1) wk = 3;
+                    else if (codeName.indexOf('_s4') !== -1) wk = 4;
+                    else if (codeName.indexOf('_cier') !== -1 || codeName.indexOf('_s5') !== -1) wk = 5;
+
+                    if (wk !== -1) {
+                        raw_lms_w[wk].push(d.getTime());
+                    }
                     tieneTsLms = true;
                 }
             }
         }
 
         // MÉTODO CLÁSICO: audit_time_sX para Promedio Min LMS (por asignatura individual)
+        // También requerimos expansión a 6 bins para el Clásico si aplicara, pero
+        // los audit_time precalculados solo son s1, s2, s3, s4 (4 columnas generadas de la matriz).
+        // Se preserva la matriz antigua [0,1,2,3] para compatibilidad del Classic Promedio.
         var audit_lms_total = 0;
-        var audit_lms_w = [0, 0, 0, 0];
+        var audit_lms_w = [0, 0, 0, 0, 0, 0];
         for (var t = 0; t < idxAuditTimeLms.length; t++) {
             var colIndex = idxAuditTimeLms[t];
             var codeName = String(headerCodes[colIndex]).trim().toLowerCase();
             var wkIdx = -1;
-            if (codeName.indexOf('_s1') !== -1) wkIdx = 0;
-            else if (codeName.indexOf('_s2') !== -1) wkIdx = 1;
-            else if (codeName.indexOf('_s3') !== -1) wkIdx = 2;
-            else if (codeName.indexOf('_s4') !== -1) wkIdx = 3;
+            if (codeName.indexOf('_b') !== -1 || codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1) wkIdx = 0;
+            else if (codeName.indexOf('_s1') !== -1) wkIdx = 1;
+            else if (codeName.indexOf('_s2') !== -1) wkIdx = 2;
+            else if (codeName.indexOf('_s3') !== -1) wkIdx = 3;
+            else if (codeName.indexOf('_s4') !== -1) wkIdx = 4;
+            else if (codeName.indexOf('_cier') !== -1 || codeName.indexOf('_s5') !== -1) wkIdx = 5;
 
             var valAuditStr = String(row[colIndex] || '').trim();
             if (valAuditStr !== '') {
@@ -215,39 +211,76 @@ function getMetricasCoordinadores(forceSync) {
             }
         }
 
-        // Sumatorias Hits Moodle
+        // Función auxiliar para extraer semana de la columna
+        function extractWk(cIdx) {
+            var colName = String(headerCodes[cIdx]).trim().toLowerCase();
+            if (colName.indexOf('_b') !== -1 || colName.indexOf('_bien') !== -1 || colName.indexOf('_pre') !== -1) return 0;
+            if (colName.indexOf('_s1') !== -1) return 1;
+            if (colName.indexOf('_s2') !== -1) return 2;
+            if (colName.indexOf('_s3') !== -1) return 3;
+            if (colName.indexOf('_s4') !== -1) return 4;
+            if (colName.indexOf('_cier') !== -1 || colName.indexOf('_s5') !== -1) return 5;
+            return -1;
+        }
+
+        // Sumatorias Hits Moodle por semana
         var h = 0;
+        var h_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxHits.length; idx++) {
             var valH = row[idxHits[idx]];
-            if (valH && !isNaN(valH)) h += Number(valH);
+            if (valH && !isNaN(valH)) {
+                h += Number(valH);
+                var w = extractWk(idxHits[idx]);
+                if (w !== -1) h_w[w] += Number(valH);
+            }
         }
 
-        // Sumatorias Mails
+        // Sumatorias Mails por semana
         var m = 0;
+        var m_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxEmails.length; idx++) {
             var valM = row[idxEmails[idx]];
-            if (valM && !isNaN(valM)) m += Number(valM);
+            if (valM && !isNaN(valM)) {
+                m += Number(valM);
+                var w = extractWk(idxEmails[idx]);
+                if (w !== -1) m_w[w] += Number(valM);
+            }
         }
 
-        // Sumatorias WA
-        var w = 0;
+        // Sumatorias WA por semana
+        var w_tot = 0;
+        var w_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxWa.length; idx++) {
             var valW = row[idxWa[idx]];
-            if (valW && !isNaN(valW)) w += Number(valW);
+            if (valW && !isNaN(valW)) {
+                w_tot += Number(valW);
+                var wk = extractWk(idxWa[idx]);
+                if (wk !== -1) w_w[wk] += Number(valW);
+            }
         }
 
-        // Auditorías LMS (DETECTADO o 1)
+        // Auditorías LMS por semana
         var a_lms = 0;
+        var a_lms_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxAuditLms.length; idx++) {
             var valA = String(row[idxAuditLms[idx]] || '').trim().toUpperCase();
-            if (valA.indexOf('DETECTADO') !== -1 || valA === '1') a_lms++;
+            if (valA.indexOf('DETECTADO') !== -1 || valA === '1') {
+                a_lms++;
+                var wk = extractWk(idxAuditLms[idx]);
+                if (wk !== -1) a_lms_w[wk]++;
+            }
         }
 
-        // Auditorías ACOMP (DETECTADO o 1)
+        // Auditorías ACOMP por semana
         var a_acp = 0;
+        var a_acp_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxAuditAcomp.length; idx++) {
             var valA = String(row[idxAuditAcomp[idx]] || '').trim().toUpperCase();
-            if (valA.indexOf('DETECTADO') !== -1 || valA === '1') a_acp++;
+            if (valA.indexOf('DETECTADO') !== -1 || valA === '1') {
+                a_acp++;
+                var wk = extractWk(idxAuditAcomp[idx]);
+                if (wk !== -1) a_acp_w[wk]++;
+            }
         }
 
         asignaturasRaw.push({
@@ -264,14 +297,18 @@ function getMetricasCoordinadores(forceSync) {
             // Tiempo Absoluto LMS (raw arrays para clustering frontend)
             raw_lms_w: raw_lms_w,
             raw_acp: raw_acp,
-            lms_audited_w: lms_audited_w,
             ts_acp: parseFloat(diffMinAcomp.toFixed(1)),
             h: h,
             m: m,
-            w: w,
+            w: w_tot,
+            h_w: h_w,
+            m_w: m_w,
+            w_w: w_w,
             a: a_lms + a_acp, // Backward compatibility for chart if needed
             a_lms: a_lms,
             a_acp: a_acp,
+            a_lms_w: a_lms_w,
+            a_acp_w: a_acp_w,
             // Bandera para saber si se empezó el llenado (aunque sea con score 0 pero tiene timestamp)
             startedLms: tieneTsLms,
             startedAcp: tieneTsAcomp
@@ -306,13 +343,12 @@ function saveCoordinatorSnapshot(payload) {
             c.coord,
             c.total,
             c.lmsAprobados,
-            c.lmsProceso,
             c.acompAprobados,
-            c.acompProceso,
-            c.lmsTsTotal,
-            c.acpTsTotal,
             c.avgLms,
-            c.avgAcomp,
+            c.lmsTsTotalW && c.lmsTsTotalW[1] ? c.lmsTsTotalW[1] : 0, // Mins S1
+            c.lmsTsTotalW && c.lmsTsTotalW[2] ? c.lmsTsTotalW[2] : 0, // Mins S2
+            c.lmsTsTotalW && c.lmsTsTotalW[3] ? c.lmsTsTotalW[3] : 0, // Mins S3
+            c.lmsTsTotalW && c.lmsTsTotalW[4] ? c.lmsTsTotalW[4] : 0, // Mins S4
             c.hits,
             c.mails,
             c.wa,

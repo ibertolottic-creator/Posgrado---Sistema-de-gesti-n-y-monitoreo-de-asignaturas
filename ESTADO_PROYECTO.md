@@ -69,8 +69,17 @@ Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad** construi
 
 ---
 
-## 5. Pasos para la Próxima Sesión
+## 5. Cambios Recientes (08 de Abril de 2026 - Sesión Actual)
+
+### 5.1 Corrección de Mapeo de Timestamps para Clustering
+- **Solución del Bug de Timestamps:** Se eliminó la dependencia inflexible de `tsCodes_V` y `tsCodes_P` (`masterTsMapping`) en `Backend_Coordinadores.gs`. Ahora, el motor de extracción lee orgánicamente las semanas (`_s2`, `_s3`, `_s4`) inspeccionando directamente el string nominal desde `headerCodes` en la "Sábana General Docente". Esto asegura un empaquetado milimétrico de los arreglos (`raw_lms_w` y `lms_audited_w`) resolviendo las asincronías previas.
+- **Validación de Métricas:** Con este rediseño estructural, el frontend (`JS_Coordinadores.html`) vuelve a recibir matrices puras para sus operaciones de Map-Reduce (Tiempo Absoluto LMS y Dedicación LMS).
+- **Snapshot Listo:** Las dependencias del `Histórico_Tiempos_Coord` también obtienen resultados transparentes para inyecciones correctas.
+
+---
+
+## 6. Pasos para la Próxima Sesión
 
 1. **Monitorear Ejecución en Drive:** Confirmar que los nuevos enlaces generados por el botón "Generar Ficha" se almacenen físicamente en las nuevas carpetas proporcionadas y que los archivos hereden permisos aptos para que el módulo de "Enviar Resultados Automáticos" pueda mandarlos sin restricciones de acceso.
 2. **Validar Importación de Posgrado:** Realizar una corrida en frío de la herramienta "Importar Matriz" (para verificar que el volumen de datos alojados corresponda únicamente a Posgrado, descartando anomalías por celdas vacías).
-3. **Auditar Tiempos LMS y Acomp:** Confirmar que la suma de rangos horarios (`audit_time_s...` y `a_audit_time...`) continúan devolviéndose correctamente en el entorno pre-productivo bajo el formato (`Xh Ym`).
+3. **Auditar Tiempos LMS y Acomp (Frontend):** Desplegar a entorno productivo y realizar una prueba simulada o revisar los últimos snapshots para verificar contadores en pantalla.

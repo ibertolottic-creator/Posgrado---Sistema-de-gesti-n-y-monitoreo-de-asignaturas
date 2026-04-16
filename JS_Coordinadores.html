@@ -162,7 +162,7 @@
             if (r.audit_lms > 0) { c.auditLmsTotal += r.audit_lms; c.auditLmsCount++; }
             
             if (r.raw_lms_w) {
-                for (let w=0; w<4; w++) {
+                for (let w=0; w<6; w++) {
                     if (r.raw_lms_w[w] && r.raw_lms_w[w].length > 0) c.rawLmsW[w].push(...r.raw_lms_w[w]);
                 }
             }
@@ -175,7 +175,7 @@
         let dumpData = Object.values(coordMap).map(c => {
             // Calcular Clusters Finales antes de enviar
             c.lmsTsTotal = 0;
-            for (let w=0; w<4; w++) {
+            for (let w=0; w<6; w++) {
                 let bag = c.rawLmsW[w];
                 if (bag && bag.length > 0) {
                     bag.sort((a,b) => a - b);
@@ -292,41 +292,16 @@
         const bgAll = tab === 'ALL' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500';
         const bgLms = tab === 'LMS' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500';
         const bgAcp = tab === 'ACOMP' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500';
+        const bgAnl = tab === 'ANALISIS' ? 'border-purple-500 text-purple-600' : 'border-transparent text-slate-500';
         
-        document.getElementById('tabCoordALL').className = `flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ${bgAll}`;
-        document.getElementById('tabCoordLMS').className = `flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ${bgLms}`;
-        document.getElementById('tabCoordACOMP').className = `flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ${bgAcp}`;
+        document.getElementById('tabCoordALL').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAll;
+        document.getElementById('tabCoordLMS').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgLms;
+        document.getElementById('tabCoordACOMP').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAcp;
         
-        // Controlador de Menú Semanal (Solo para LMS)
-        const weekMenu = document.getElementById('coord-weekly-nav');
-        if (weekMenu) {
-             weekMenu.style.display = (tab === 'LMS') ? 'flex' : 'none';
-        }
-        
-        // Reset a GENERAL si salimos de LMS
-        if (tab !== 'LMS') CURRENT_WEEK_TAB = 'ALL';
+        let tabAnl = document.getElementById('tabCoordANALISIS');
+        if (tabAnl) tabAnl.className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAnl;
         
         // Repintar Todo
-        renderCoordinadoresDashboard();
-    }
-
-    /** Módulo Controlador Semanal (Solo LMS) **/
-    function switchCoordWeek(wk) {
-        CURRENT_WEEK_TAB = wk;
-        
-        // Clases CSS base
-        const arrWks = ['ALL', 'S1', 'S2', 'S3', 'S4'];
-        arrWks.forEach(w => {
-            const el = document.getElementById('tabWeek_' + w);
-            if (el) {
-                if (w === wk) {
-                    el.className = 'px-3 py-1 bg-blue-100 text-blue-700 font-bold rounded-full text-xs cursor-pointer shadow-sm transition';
-                } else {
-                    el.className = 'px-3 py-1 text-slate-500 font-semibold rounded-full text-xs cursor-pointer hover:bg-slate-100 transition';
-                }
-            }
-        });
-        
         renderCoordinadoresDashboard();
     }
 
@@ -347,233 +322,250 @@
      * Map-Reduce en Frontend
      */
     function renderCoordinadoresDashboard() {
-        if(!RAW_COORD_DATA || RAW_COORD_DATA.length === 0) return;
+        if (!RAW_COORD_DATA || RAW_COORD_DATA.length === 0) return;
 
-        const valProg = document.getElementById('filtroCoordPrograma').value;
-        const valCoord = document.getElementById('filtroCoordAlias').value;
+        // 1. Filtrar Data según Tabs
+            let filteredData = RAW_COORD_DATA.filter(r => {
+                if (document.getElementById('filtroCoordPrograma').value !== 'TODOS' && r.prog !== document.getElementById('filtroCoordPrograma').value) return false;
+                if (document.getElementById('filtroCoordAlias').value !== 'TODOS' && r.coord !== document.getElementById('filtroCoordAlias').value) return false;
+                return true;
+            });
 
-        // 1. Filtrar Data Cruda
-        const filteredData = RAW_COORD_DATA.filter(r => {
-            let pass = true;
-            if (valProg !== 'TODOS' && r.prog !== valProg) pass = false;
-            if (valCoord !== 'TODOS' && r.coord !== valCoord) pass = false;
-            return pass;
-        });
+            // 2. Map-Reduce (Agrupación por Coordinador)
+            let coordMap = {};
+            let globals = {
+                lmsAprobados: 0, lmsProceso: 0, 
+                acompAprobados: 0, acompProceso: 0,
+                totalAsigs: filteredData.length,
+                evidencias: 0, bursts: 0
+            };
 
-        document.getElementById('coordBadgeListado').innerText = `${filteredData.length} registros`;
-
-        // 2. Map-Reduce (Agrupar por Coordinador)
-        let coordMap = {};
-        
-        let globals = {
-            totalAsigs: filteredData.length,
-            lmsAprobados: 0,
-            lmsProceso: 0,
-            acompAprobados: 0,
-            acompProceso: 0,
-            evidencias: 0,
-            bursts: 0
-        };
-
-        filteredData.forEach(r => {
-            if(!coordMap[r.coord]) {
-                coordMap[r.coord] = {
-                    coord: r.coord,
-                    total: 0,
-                    lmsAprobados: 0, lmsProceso: 0,
-                    // Promedio Min LMS (audit_time clásico)
-                    auditLmsTotal: 0, auditLmsCount: 0,
-                    auditLmsTotalW: [0,0,0,0], auditLmsCountW: [0,0,0,0],
-                    // Tiempo Absoluto LMS (Clustering Session-Based)
-                    lmsTsTotal: 0, lmsTsCount: 0,
-                    lmsTsTotalW: [0,0,0,0], lmsTsCountW: [0,0,0,0],
-                    rawLmsW: [[], [], [], []],
-                    rawAcp: [],
-                    // Dedicación LMS (conteo asignaturas completadas en ≤6h)
-                    dedicCountW: [0,0,0,0],
-                    acompAprobados: 0, acompProceso: 0, acpTsTotal: 0, acpTsCount: 0,
-                    hits: 0, mails: 0, wa: 0, audits: 0, auditsLms: 0, auditsAcp: 0
-                };
-            }
-            let c = coordMap[r.coord];
-            c.total++;
-
-            // LMS Logic
-            if(r.s_lms !== null && r.s_lms > 0) { 
-                c.lmsAprobados++; globals.lmsAprobados++;
-            } else if (r.startedLms) {
-                c.lmsProceso++; globals.lmsProceso++;
-            }
-            // ---- PROMEDIO MIN LMS (audit_time clásico) ----
-            if (r.audit_lms > 0) {
-                c.auditLmsTotal += r.audit_lms;
-                c.auditLmsCount++;
-            }
-            if (r.audit_lms_w) {
-                for (let w=0; w<4; w++) {
-                    if (r.audit_lms_w[w] > 0) {
-                        c.auditLmsTotalW[w] += r.audit_lms_w[w];
-                        c.auditLmsCountW[w]++;
-                    }
+            filteredData.forEach(r => {
+                if (!coordMap[r.coord]) {
+                    coordMap[r.coord] = {
+                        coord: r.coord,
+                        total: 0,
+                        lmsAprobados: 0, lmsProceso: 0,
+                        // Promedio Min LMS (audit_time clásico)
+                        auditLmsTotal: 0, auditLmsCount: 0,
+                        auditLmsTotalW: [0,0,0,0,0,0], auditLmsCountW: [0,0,0,0,0,0],
+                        // Tiempo Absoluto LMS (Clustering Session-Based)
+                        lmsTsTotal: 0, lmsTsTotalW: [0,0,0,0,0,0], lmsTsCountW: [0,0,0,0,0,0], dedicLmsW: [0,0,0,0,0,0],
+                        rawLmsW: [[], [], [], [], [], []],
+                        rawAcp: [],
+                        acompAprobados: 0, acompProceso: 0, acpTsTotal: 0, acpTsCount: 0,
+                        hits: 0, mails: 0, wa: 0, audits: 0, auditsLms: 0, auditsAcp: 0,
+                        hitsW: [0,0,0,0,0,0], mailsW: [0,0,0,0,0,0], waW: [0,0,0,0,0,0], 
+                        auditsW: [0,0,0,0,0,0], auditsLmsW: [0,0,0,0,0,0], auditsAcpW: [0,0,0,0,0,0]
+                    };
                 }
-            }
-            
-            // ---- TIEMPO ABSOLUTO LMS (Extracción Raw para Clustering) ----
-            if (r.raw_lms_w) {
-                for (let w=0; w<4; w++) {
-                    if (r.raw_lms_w[w] && r.raw_lms_w[w].length > 0) {
-                        c.rawLmsW[w].push(...r.raw_lms_w[w]);
-                    }
-                    c.lmsTsCountW[w] += (r.lms_audited_w[w] || 0);
+                let c = coordMap[r.coord];
+                c.total++;
+
+                // LMS Logic
+                if(r.s_lms !== null && r.s_lms > 0) { 
+                    c.lmsAprobados++; globals.lmsAprobados++;
+                } else if (r.startedLms) {
+                    c.lmsProceso++; globals.lmsProceso++;
                 }
-            }
-            
-            // ---- DEDICACIÓN LMS (conteo de asignaturas completadas en ≤6h) ----
-            if (r.lms_audited_w) {
-                for (let w=0; w<4; w++) {
-                    c.dedicCountW[w] += (r.lms_audited_w[w] || 0);
+                // ---- PROMEDIO MIN LMS (audit_time clásico) ----
+                if (r.audit_lms > 0) {
+                    c.auditLmsTotal += r.audit_lms;
+                    c.auditLmsCount++;
                 }
-            }
-
-            // Acomp Logic
-            if(r.s_acp !== null && r.s_acp > 0) { 
-                c.acompAprobados++; globals.acompAprobados++;
-            } else if (r.startedAcp) {
-                c.acompProceso++; globals.acompProceso++;
-            }
-            if (r.raw_acp && r.raw_acp.length > 0) {
-                c.rawAcp.push(...r.raw_acp); 
-                c.acpTsCount++;
-            }
-
-            c.hits += r.h;
-            c.mails += r.m;
-            c.wa += r.w;
-            c.auditsLms += r.a_lms;
-            c.auditsAcp += r.a_acp;
-            c.audits = c.auditsLms + c.auditsAcp;
-
-            globals.evidencias += (r.h + r.m + r.w);
-            globals.bursts += c.audits;
-        });
-
-        // 3. Generar Arrays de Resumen
-        let coordinadores = Object.values(coordMap);
-        
-        // Calcular Avances para ordenar
-        coordinadores.forEach(c => {
-            c.pctLms = c.total > 0 ? (c.lmsAprobados / c.total) * 100 : 0;
-            c.pctAcomp = c.total > 0 ? (c.acompAprobados / c.total) * 100 : 0;
-            
-            // ===== PROMEDIO MIN LMS (audit_time clásico) =====
-            c.avgLmsW = [0,0,0,0];
-            for (let w=0; w<4; w++) {
-                c.avgLmsW[w] = c.auditLmsCountW[w] > 0 ? c.auditLmsTotalW[w] / c.auditLmsCountW[w] : 0;
-            }
-            c.avgLms = c.auditLmsCount > 0 ? c.auditLmsTotal / c.auditLmsCount : 0;
-            
-            // ===== TIEMPO ABSOLUTO LMS Y ACOMP (Clustering Algorithm) =====
-            c.lmsTsTotal = 0;
-            c.lmsTsCount = 0;
-            const GAP_TOLERANCE_MS = 15 * 60 * 1000; // 15 min de abandono o salto
-            const BASE_CRITERIA_MS = 2 * 60 * 1000;  // 2 min por evento aislado
-            
-            for (let w=0; w<4; w++) {
-                let bag = c.rawLmsW[w];
-                if (bag && bag.length > 0) {
-                    bag.sort((a,b) => a - b);
-                    let totalMs = 0;
-                    
-                    for (let i = 0; i < bag.length; i++) {
-                        if (i === 0) {
-                            totalMs += BASE_CRITERIA_MS;
-                        } else {
-                            let diff = bag[i] - bag[i-1];
-                            if (diff <= GAP_TOLERANCE_MS) {
-                                totalMs += diff;
-                            } else {
-                                totalMs += BASE_CRITERIA_MS;
-                            }
+                if (r.audit_lms_w) {
+                    for (let w=0; w<6; w++) {
+                        if (r.audit_lms_w[w] > 0) {
+                            c.auditLmsTotalW[w] += r.audit_lms_w[w];
+                            c.auditLmsCountW[w]++;
                         }
                     }
-                    
-                    c.lmsTsTotalW[w] = totalMs / 60000;
-                    c.lmsTsTotal += c.lmsTsTotalW[w];
-                    c.lmsTsCount += c.lmsTsCountW[w];
-                } else {
-                    c.lmsTsTotalW[w] = 0;
                 }
-            }
-            // === Clustering ACOMP ===
-            c.acpTsTotal = 0;
-            if (c.rawAcp && c.rawAcp.length > 0) {
-                c.rawAcp.sort((a,b) => a - b);
-                let tMs = 0;
-                for (let i = 0; i < c.rawAcp.length; i++) {
-                    if (i === 0) tMs += BASE_CRITERIA_MS;
-                    else {
-                        let diff = c.rawAcp[i] - c.rawAcp[i-1];
-                        if (diff <= GAP_TOLERANCE_MS) tMs += diff;
-                        else tMs += BASE_CRITERIA_MS;
+                
+                // ---- TIEMPO ABSOLUTO LMS (Extracción Raw para Clustering) ----
+                if (r.raw_lms_w) {
+                    for (let w=0; w<6; w++) {
+                        if (r.raw_lms_w[w] && r.raw_lms_w[w].length > 0) {
+                            c.rawLmsW[w].push(...r.raw_lms_w[w]);
+                        }
                     }
                 }
-                c.acpTsTotal = tMs / 60000;
-            }
+
+                // Acomp Logic
+                if(r.s_acp !== null && r.s_acp > 0) { 
+                    c.acompAprobados++; globals.acompAprobados++;
+                } else if (r.startedAcp) {
+                    c.acompProceso++; globals.acompProceso++;
+                }
+                if (r.raw_acp && r.raw_acp.length > 0) {
+                    c.rawAcp.push(...r.raw_acp); 
+                    c.acpTsCount++;
+                }
+
+                c.hits += (r.h || 0);
+                c.mails += (r.m || 0);
+                c.wa += (r.w || 0);
+                c.auditsLms += (r.a_lms || 0);
+                c.auditsAcp += (r.a_acp || 0);
+                c.audits = c.auditsLms + c.auditsAcp;
+
+                if (r.h_w) for(let w=0; w<6; w++) c.hitsW[w] += r.h_w[w];
+                if (r.m_w) for(let w=0; w<6; w++) c.mailsW[w] += r.m_w[w];
+                if (r.w_w) for(let w=0; w<6; w++) c.waW[w] += r.w_w[w];
+                if (r.a_lms_w || r.a_acp_w) {
+                    for(let w=0; w<6; w++) {
+                         if (r.a_lms_w) c.auditsLmsW[w] += r.a_lms_w[w];
+                         if (r.a_acp_w) c.auditsAcpW[w] += r.a_acp_w[w];
+                         let auds = (r.a_lms_w ? r.a_lms_w[w] : 0) + (r.a_acp_w ? r.a_acp_w[w] : 0);
+                         c.auditsW[w] += auds;
+                    }
+                }
+
+                globals.evidencias += ((r.h || 0) + (r.m || 0) + (r.w || 0));
+                globals.bursts += c.audits;
+            });
+
+            // 3. Generar Arrays de Resumen
+            let coordinadores = Object.values(coordMap);
             
-            // ===== DEDICACIÓN LMS (asignaturas completadas en ≤6h) =====
-            c.dedicLmsW = [0,0,0,0];
-            for (let w=0; w<4; w++) {
-                c.dedicLmsW[w] = c.dedicCountW[w]; // Conteo directo
-            }
-            c.dedicLms = c.dedicCountW[0] + c.dedicCountW[1] + c.dedicCountW[2] + c.dedicCountW[3];
+            // Calcular Avances para ordenar
+            coordinadores.forEach(c => {
+                c.pctLms = c.total > 0 ? (c.lmsAprobados / c.total) * 100 : 0;
+                c.pctAcomp = c.total > 0 ? (c.acompAprobados / c.total) * 100 : 0;
+                
+                // ===== PROMEDIO MIN LMS (audit_time clásico) =====
+                c.avgLmsW = [0,0,0,0,0,0];
+                for (let w=0; w<6; w++) {
+                    c.avgLmsW[w] = c.auditLmsCountW[w] > 0 ? c.auditLmsTotalW[w] / c.auditLmsCountW[w] : 0;
+                }
+                c.avgLms = c.auditLmsCount > 0 ? c.auditLmsTotal / c.auditLmsCount : 0;
+                
+                // ===== TIEMPO ABSOLUTO LMS Y ACOMP (Clustering Algorithm) =====
+                c.lmsTsTotal = 0;
+                const GAP_TOLERANCE_MS = 15 * 60 * 1000;
+                const BASE_CRITERIA_MS = 2 * 60 * 1000;
+                
+                for (let w=0; w<6; w++) {
+                    let bag = c.rawLmsW[w];
+                    if (bag && bag.length > 0) {
+                        bag.sort((a,b) => a - b);
+                        let totalMs = 0;
+                        let lastValidI = 0;
+                        for (let i = 0; i < bag.length; i++) {
+                            if (i === 0) {
+                                totalMs += BASE_CRITERIA_MS;
+                                c.dedicLmsW[w]++;
+                            } else {
+                                let diff = bag[i] - bag[lastValidI];
+                                if (diff <= GAP_TOLERANCE_MS) { totalMs += diff; lastValidI = i; }
+                                else if (diff > GAP_TOLERANCE_MS && diff <= 28800000) { totalMs += BASE_CRITERIA_MS; c.dedicLmsW[w]++; lastValidI = i; }
+                            }
+                        }
+                        c.lmsTsTotalW[w] = (totalMs / 60000);
+                        c.lmsTsTotal += c.lmsTsTotalW[w];
+                    }
+                }
+                // === Clustering ACOMP ===
+                c.acpTsTotal = 0;
+                if (c.rawAcp && c.rawAcp.length > 0) {
+                    c.rawAcp.sort((a,b) => a - b);
+                    let tMs = 0;
+                    for (let i = 0; i < c.rawAcp.length; i++) {
+                        if (i === 0) tMs += BASE_CRITERIA_MS;
+                        else {
+                            let diff = c.rawAcp[i] - c.rawAcp[i-1];
+                            if (diff <= GAP_TOLERANCE_MS) tMs += diff;
+                            else tMs += BASE_CRITERIA_MS;
+                        }
+                    }
+                    c.acpTsTotal = tMs / 60000;
+                }
+                
+                // ===== DEDICACIÓN LMS =====
+                c.dedicLms = c.total > 0 ? (c.lmsTsTotal / c.total) : 0;
+                c.avgAcomp = c.total > 0 ? c.acpTsTotal / c.total : 0;
+                c.dedicAcomp = c.acpTsTotal;
+            });
+
+            // Ranking Sorting General (Usando Promedio de ambos LMS/ACOMP)
+            coordinadores.sort((a,b) => ((b.pctLms + b.pctAcomp)/2) - ((a.pctLms + a.pctAcomp)/2));
+
+            const gPctLms = globals.totalAsigs > 0 ? (globals.lmsAprobados / globals.totalAsigs) * 100 : 0;
+            const gPctAcp = globals.totalAsigs > 0 ? (globals.acompAprobados / globals.totalAsigs) * 100 : 0;
+            const gAvance = ((gPctLms + gPctAcp) / 2).toFixed(1);
+
+            // Renderizar 4 Cartas Superiores
+            renderCoordKPIs(coordinadores.length, globals);
+
+            // Ocultar o Mostrar secciones según CURRENT_TAB
+            const cardLms = document.getElementById('cardGraphLms');
+            const cardAcp = document.getElementById('cardGraphAcomp');
+            const cardTrf = document.getElementById('cardGraphTrafico');
             
-            c.avgAcomp = c.total > 0 ? c.acpTsTotal / c.total : 0;
-            c.dedicAcomp = c.acpTsTotal;
-        });
+            const cardTot = document.getElementById('cardGraphTiemposTotal');
+            const cardDed = document.getElementById('cardGraphTiemposDedic');
+            const cardPro = document.getElementById('cardGraphTiemposPromedio');
+            
+            const contResumen = document.getElementById('containerTablaResumen');
+            const contKpis = document.getElementById('coord-kpis');
+            const contGraficas = document.getElementById('coordGridGraficas');
+            const contDetalle = document.getElementById('containerTablaDetalle');
+            
+            // Lógica de Visibilidad Global
+            if (CURRENT_TAB === 'ANALISIS') {
+                // ANALISIS: Solo mostrar las Tablas Consolidadas Semanales
+                if(contKpis) contKpis.style.display = 'none';
+                if(contGraficas) contGraficas.style.display = 'none';
+                if(contDetalle) contDetalle.style.display = 'none';
+                if(contResumen) contResumen.style.display = 'block';
+            } else {
+                // Otras pestañas: Mostrar KPIs, gráficas, detalle; ocultar resumen
+                if(contKpis) contKpis.style.display = 'grid';
+                if(contGraficas) contGraficas.style.display = 'grid';
+                if(contDetalle) contDetalle.style.display = 'block';
+                if(contResumen) contResumen.style.display = 'none';
+                if(cardPro) cardPro.style.display = 'block';
+                
+                if(CURRENT_TAB === 'LMS') {
+                    if(cardLms) cardLms.style.display = 'block';
+                    if(cardAcp) cardAcp.style.display = 'none';
+                    if(cardTrf) cardTrf.style.display = 'block';
+                    if(cardTot) cardTot.style.display = 'block';
+                    if(cardDed) cardDed.style.display = 'block';
+                } else if(CURRENT_TAB === 'ACOMP') {
+                    if(cardLms) cardLms.style.display = 'none';
+                    if(cardAcp) cardAcp.style.display = 'block';
+                    if(cardTrf) cardTrf.style.display = 'none';
+                    if(cardTot) cardTot.style.display = 'none';
+                    if(cardDed) cardDed.style.display = 'none';
+                } else {
+                    // ALL
+                    if(cardLms) cardLms.style.display = 'block';
+                    if(cardAcp) cardAcp.style.display = 'block';
+                    if(cardTrf) cardTrf.style.display = 'block';
+                    if(cardTot) cardTot.style.display = 'none';
+                    if(cardDed) cardDed.style.display = 'none';
+                }
+            }
 
-        // Ranking Sorting General (Usando Promedio de ambos LMS/ACOMP)
-        coordinadores.sort((a,b) => ((b.pctLms + b.pctAcomp)/2) - ((a.pctLms + a.pctAcomp)/2));
+            // Renderizar Gráficos (Aislados con try-catch para jamás bloquear al sistema)
+            try {
+                if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS') {
+                    renderChartLmsAcomp(coordinadores, 'chartCoordLms', 'pctLms', 'LMS', '#0ea5e9');
+                    renderChartTrafico(coordinadores);
+                }
+                if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP') {
+                    renderChartLmsAcomp(coordinadores, 'chartCoordAcomp', 'pctAcomp', 'ACOMP', '#f59e0b');
+                }
+            } catch(e) { console.error('Error in Lms/Acomp/Trf Charts', e); }
 
-        const gPctLms = globals.totalAsigs > 0 ? (globals.lmsAprobados / globals.totalAsigs) * 100 : 0;
-        const gPctAcp = globals.totalAsigs > 0 ? (globals.acompAprobados / globals.totalAsigs) * 100 : 0;
-        const gAvance = ((gPctLms + gPctAcp) / 2).toFixed(1);
+            try {
+                renderChartTiempos(coordinadores);
+            } catch(e) { console.error('Error in Tiempos Chart', e); }
 
-        // Renderizar 4 Cartas Superiores
-        renderCoordKPIs(coordinadores.length, globals);
-
-        // Ocultar o Mostrar Gráficos según CURRENT_TAB
-        const cardLms = document.getElementById('cardGraphLms');
-        const cardAcp = document.getElementById('cardGraphAcomp');
-        const cardTrf = document.getElementById('cardGraphTrafico');
-        
-        if(CURRENT_TAB === 'LMS') {
-            if(cardLms) cardLms.style.display = 'block';
-            if(cardAcp) cardAcp.style.display = 'none';
-            if(cardTrf) cardTrf.style.display = 'block';
-        } else if(CURRENT_TAB === 'ACOMP') {
-            if(cardLms) cardLms.style.display = 'none';
-            if(cardAcp) cardAcp.style.display = 'block';
-            if(cardTrf) cardTrf.style.display = 'none';
-        } else {
-            // ALL
-            if(cardLms) cardLms.style.display = 'block';
-            if(cardAcp) cardAcp.style.display = 'block';
-            if(cardTrf) cardTrf.style.display = 'block';
-        }
-
-        // Renderizar Gráficos
-        if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS') {
-            renderChartLmsAcomp(coordinadores, 'chartCoordLms', 'pctLms', 'LMS', '#0ea5e9');
-            renderChartTrafico(coordinadores);
-        }
-        if (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP') {
-            renderChartLmsAcomp(coordinadores, 'chartCoordAcomp', 'pctAcomp', 'ACOMP', '#f59e0b');
-        }
-        renderChartTiempos(coordinadores);
-
-        // Renderizar Tablas
-        renderCoordResumen(coordinadores);
-        renderCoordDetalleAsignaturas(filteredData);
+            // Renderizar Tablas
+        try { renderCoordResumen(coordinadores); } catch(e) { console.error('Error en Tabla Resumen', e); }
+        try { renderCoordDetalleAsignaturas(filteredData); } catch(e) { console.error('Error en Tabla Asignaturas', e); }
     }
   
     /** RENDER 1: KPIs SUPERIORES */
@@ -637,92 +629,128 @@
         `;
     }
 
-    /** RENDER 2: TABLA RESUMEN */
+    /** RENDER 2: TABLAS RESUMEN CONSOLIDADO (TODAS LAS SEMANAS) */
     function renderCoordResumen(arr) {
-        // Logica Ocultar Cabeceras Tabla 1
-        let showLms = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS');
-        let showAcp = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP');
-        let showTrf = (CURRENT_TAB !== 'ACOMP');
+        let container = document.getElementById('coordTablaResumen');
+        if (!container) return;
+        
+        try {
+            container.innerHTML = '';
+            if(!arr || arr.length === 0) return;
 
-        const thO = (id, show) => { let el = document.getElementById(id); if(el) el.style.display = show ? '' : 'none'; };
-        thO('thR_lmsAv', showLms); thO('thR_acpAv', showAcp);
-        thO('thR_lmsAv', showLms); thO('thR_acpAv', showAcp);
-        thO('thR_lmsTm', showLms); thO('thR_acpTm', showAcp);
-        thO('thR_lmsTotal', showLms); thO('thR_lmsDedic', showLms);
-        thO('thR_hits', showTrf); thO('thR_mails', showTrf); thO('thR_wa', showTrf); thO('thR_audits', true);
+            let showLms = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS' || CURRENT_TAB === 'ANALISIS');
+            let showAcp = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP' || CURRENT_TAB === 'ANALISIS');
+            let showTrf = (CURRENT_TAB !== 'ACOMP');
 
-        const tbody = document.getElementById('coord-resumen-body');
-        tbody.innerHTML = '';
-        if(arr.length === 0) return;
+            const weeksInfo = [
+                { id: -1, title: 'Resumen Consolidado: Toda la Ejecución' },
+                { id: 0, title: 'Resumen Consolidado: Semana: Bienvenida' },
+                { id: 1, title: 'Resumen Consolidado: Semana 1' },
+                { id: 2, title: 'Resumen Consolidado: Semana 2' },
+                { id: 3, title: 'Resumen Consolidado: Semana 3' },
+                { id: 4, title: 'Resumen Consolidado: Semana 4' },
+                { id: 5, title: 'Resumen Consolidado: Semana: Cierre' }
+            ];
 
-        arr.forEach((c, idx) => {
-            let tr = document.createElement('tr');
-            tr.style.borderBottom = "1px solid #f1f5f9";
-            
-            // Format Avances
-            let badgeLms = `<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:#e0f2fe; color:#0369a1;">${c.pctLms.toFixed(1)}%</span>`;
-            if(c.pctLms < 100) badgeLms = `<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:#fef3c7; color:#b45309;">${c.pctLms.toFixed(1)}%</span>`;
-            if(c.pctLms < 50) badgeLms = `<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:#fee2e2; color:#b91c1c;">${c.pctLms.toFixed(1)}%</span>`;
+            let htmlOut = '';
 
-            let badgeAcp = `<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:#dcfce7; color:#15803d;">${c.pctAcomp.toFixed(1)}%</span>`;
-            if(c.pctAcomp < 100) badgeAcp = `<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:#fef3c7; color:#b45309;">${c.pctAcomp.toFixed(1)}%</span>`;
-            if(c.pctAcomp < 50) badgeAcp = `<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:#fee2e2; color:#b91c1c;">${c.pctAcomp.toFixed(1)}%</span>`;
+            weeksInfo.forEach(wk => {
+                htmlOut += '<div style="margin-bottom: 2rem;">' +
+                           '<div style="background:#1e293b; color:#fff; border-radius:8px 8px 0 0; padding:12px 20px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">' +
+                           '<i class="fa-solid fa-users-gear" style="color:#94a3b8;"></i> ' + wk.title + '</div>' +
+                           '<div style="overflow-x:auto; border-radius:0 0 8px 8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid #e2e8f0; border-top:none;">' +
+                           '<table style="width:100%; border-collapse:collapse; min-width:900px; background:#fff;">' +
+                           '<thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:11px; text-transform:uppercase; color:#64748b;">' +
+                           '<th style="padding:12px 16px; text-align:left;">N°</th>' +
+                           '<th style="padding:12px 16px; text-align:left;">Coordinador</th>';
+                
+                if (wk.id === -1 && showLms) htmlOut += '<th style="padding:12px 16px; text-align:center;">Avance LMS</th>';
+                if (wk.id === -1 && showAcp) htmlOut += '<th style="padding:12px 16px; text-align:center;">Avance Acomp</th>';
+                if (showLms) {
+                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Promedio Min LMS</th>';
+                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Tiempo Absoluto LMS</th>';
+                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Dedicación LMS</th>';
+                }
+                if (wk.id === -1 && showAcp) htmlOut += '<th style="padding:12px 16px; text-align:center;">Promedio Min Acomp</th>';
+                if (showTrf) {
+                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Hits Aula</th>';
+                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Emails</th>';
+                    htmlOut += '<th style="padding:12px 16px; text-align:center;">WhatsApp</th>';
+                }
+                htmlOut += '<th style="padding:12px 16px; text-align:center;">Burst Audits</th></tr></thead><tbody>';
 
-            // Format Burst
-            let visibleAudits = c.audits;
-            if (CURRENT_TAB === 'LMS') visibleAudits = c.auditsLms;
-            if (CURRENT_TAB === 'ACOMP') visibleAudits = c.auditsAcp;
+                arr.forEach(function(c, idx) {
+                    // Variables Seguras
+                    let valAvgLms = wk.id === -1 ? (c.avgLms||0) : (c.avgLmsW ? c.avgLmsW[wk.id]||0 : 0);
+                    let valAbsLms = wk.id === -1 ? (c.lmsTsTotal||0) : (c.lmsTsTotalW ? c.lmsTsTotalW[wk.id]||0 : 0);
+                    let valDedLms = wk.id === -1 ? (c.dedicLms||0) : (c.dedicLmsW ? c.dedicLmsW[wk.id]||0 : 0);
+                    
+                    let valHits   = wk.id === -1 ? (c.hits||0) : (c.hitsW ? c.hitsW[wk.id]||0 : 0);
+                    let valMails  = wk.id === -1 ? (c.mails||0) : (c.mailsW ? c.mailsW[wk.id]||0 : 0);
+                    let valWa     = wk.id === -1 ? (c.wa||0) : (c.waW ? c.waW[wk.id]||0 : 0);
 
-            let auditBadge = `<span style="color:#94a3b8; font-size:11px;">0</span>`;
-            if(visibleAudits > 0) auditBadge = `<span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; background:#ffedd5; color:#c2410c; border:1px solid #fdba74;"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${visibleAudits}</span>`;
+                    let valAuds = 0;
+                    if (wk.id === -1) {
+                        valAuds = CURRENT_TAB === 'LMS' ? (c.auditsLms||0) : (CURRENT_TAB === 'ACOMP' ? (c.auditsAcp||0) : (c.audits||0));
+                    } else {
+                        let aW = null;
+                        if (CURRENT_TAB === 'LMS') aW = c.auditsLmsW;
+                        else if (CURRENT_TAB === 'ACOMP') aW = c.auditsAcpW;
+                        else aW = c.auditsW;
+                        valAuds = (aW && aW[wk.id]) ? aW[wk.id] : 0;
+                    }
 
-            let tdLmsAv = showLms ? `<td style="padding:14px 16px; text-align:center;">${badgeLms}</td>` : '';
-            let tdAcpAv = showAcp ? `<td style="padding:14px 16px; text-align:center;">${badgeAcp}</td>` : '';
-            let valLmsTm = CURRENT_WEEK_TAB === 'ALL' ? c.avgLms : c.avgLmsW[['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB)];
-            let valLmsTot = CURRENT_WEEK_TAB === 'ALL' ? c.lmsTsTotal : c.lmsTsTotalW[['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB)];
-            let valLmsDed = CURRENT_WEEK_TAB === 'ALL' ? c.dedicLms : c.dedicLmsW[['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB)];
+                    // Badges (Solo para Total de Ejecución)
+                    let badgeLms = '<span style="color:#94a3b8; font-size:11px;">-</span>';
+                    let badgeAcp = '<span style="color:#94a3b8; font-size:11px;">-</span>';
+                    if (wk.id === -1) {
+                        let numPctLms = Number(c.pctLms) || 0;
+                        let bgLms = '#e0f2fe'; let clLms = '#0369a1';
+                        if (numPctLms < 100) { bgLms = '#fef3c7'; clLms = '#b45309'; }
+                        if (numPctLms < 50)  { bgLms = '#fee2e2'; clLms = '#b91c1c'; }
+                        badgeLms = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgLms + '; color:' + clLms + ';">' + numPctLms.toFixed(1) + '%</span>';
 
-            let tdLmsT = showLms ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">${formatMinutes(Math.max(0, valLmsTm))}</td>` : '';
-            let tdLmsTotHtml = showLms ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#4338ca;">${valLmsTot === -1 ? '<span style="color:#dc2626;font-size:11px;">Incompleto</span>' : formatMinutes(valLmsTot)}</td>` : '';
-            let dedicDisplay = valLmsDed > 0 ? `<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">${valLmsDed} asig.</span>` : '<span style="color:#94a3b8; font-size:11px;">-</span>';
-            let tdLmsDedHtml = showLms ? `<td style="padding:14px 16px; text-align:center;">${dedicDisplay}</td>` : '';
-            let tdAcpT = showAcp ? `<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">${formatMinutes(c.avgAcomp)}</td>` : '';
-            
-            // "Tráfico" is specific to LMS mostly (Hits, Mails, WA). But Audits apply to both.
-            // If we are in ACOMP, we don't show Tráfico (because showTrf = false).
-            // Wait, the user explicitly asked to see Audits in Acomp!
-            // I should override showTrf to show Audits even in Acomp IF they have Acomp bursts.
-            // Actually, in the UI there is an 'Audits' column inside the 'Trafico' group.
-            // Let's modify the showTrf logic natively so Audits appear separately!
-            // If Tráfico is hidden, we STILL want the audit column to show for Acomp! 
-            let tdTrafico = ``;
-            if (showTrf) {
-                tdTrafico += `<td style="padding:14px 16px; text-align:center; font-size:13px; color:#475569;">${c.hits}</td>
-                              <td style="padding:14px 16px; text-align:center;"><span style="color:#d97706; font-size:13px; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;"><i class="fa-solid fa-envelope mr-1 text-[10px]"></i> ${c.mails}</span></td>
-                              <td style="padding:14px 16px; text-align:center;"><span style="color:#15803d; font-size:13px; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:10px;"><i class="fa-brands fa-whatsapp mr-1 text-[10px]"></i> ${c.wa}</span></td>`;
-            }
-            // Audit always visible, it just adapts its value
-            tdTrafico += `<td style="padding:14px 16px; text-align:center;">${auditBadge}</td>`;
+                        let numPctAcp = Number(c.pctAcomp) || 0;
+                        let bgAcp = '#dcfce7'; let clAcp = '#15803d';
+                        if (numPctAcp < 100) { bgAcp = '#fef3c7'; clAcp = '#b45309'; }
+                        if (numPctAcp < 50)  { bgAcp = '#fee2e2'; clAcp = '#b91c1c'; }
+                        badgeAcp = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgAcp + '; color:' + clAcp + ';">' + numPctAcp.toFixed(1) + '%</span>';
+                    }
 
-            tr.innerHTML = `
-                <td style="padding:14px 16px; font-size:13px; color:#64748b;">${idx+1}</td>
-                <td style="padding:14px 16px;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></div>
-                        <span style="font-size:14px; font-weight:700; color:#1e293b;">${c.coord}</span>
-                        <span style="font-size:10px; color:#94a3b8; background:#f1f5f9; padding:2px 6px; border-radius:10px;">${c.total} Aulas</span>
-                    </div>
-                </td>
-                ${tdLmsAv}
-                ${tdAcpAv}
-                ${tdLmsT}
-                ${tdLmsTotHtml}
-                ${tdLmsDedHtml}
-                ${tdAcpT}
-                ${tdTrafico}
-            `;
-            tbody.appendChild(tr);
-        });
+                    let auditBadge = valAuds > 0 
+                        ? '<span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; background:#ffedd5; color:#c2410c; border:1px solid #fdba74;"><i class="fa-solid fa-triangle-exclamation mr-1"></i>' + valAuds + '</span>'
+                        : '<span style="color:#94a3b8; font-size:11px;">-</span>';
+
+                    htmlOut += '<tr style="border-bottom:1px solid #f1f5f9;">';
+                    htmlOut += '<td style="padding:14px 16px; font-size:13px; color:#64748b;">' + (idx+1) + '</td>';
+                    htmlOut += '<td style="padding:14px 16px;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></div><span style="font-size:14px; font-weight:700; color:#1e293b;">' + (c.coord||'N/A') + '</span><span style="font-size:10px; color:#94a3b8; background:#f1f5f9; padding:2px 6px; border-radius:10px;">' + (c.total||0) + ' Aulas</span></div></td>';
+                    
+                    if (wk.id === -1 && showLms) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeLms + '</td>';
+                    if (wk.id === -1 && showAcp) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeAcp + '</td>';
+                    
+                    if (showLms) {
+                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + (valAvgLms > 0 ? formatMinutes(valAvgLms) : '-') + '</td>';
+                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#4338ca;">' + (valAbsLms > 0 ? formatMinutes(valAbsLms) : '-') + '</td>';
+                        htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valDedLms > 0 ? '<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">' + (wk.id === -1 ? valDedLms.toFixed(2) : valDedLms) + (wk.id === -1 ? ' asig.' : '') + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
+                    }
+                    if (wk.id === -1 && showAcp) {
+                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + ((c.avgAcomp||0) > 0 ? formatMinutes(c.avgAcomp) : '-') + '</td>';
+                    }
+                    if (showTrf) {
+                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; color:#475569;">' + (valHits > 0 ? valHits : '-') + '</td>';
+                        htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valMails > 0 ? '<span style="color:#d97706; font-size:13px; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">' + valMails + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
+                        htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valWa > 0 ? '<span style="color:#15803d; font-size:13px; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:10px;">' + valWa + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
+                    }
+                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + auditBadge + '</td></tr>';
+                });
+
+                htmlOut += '</tbody></table></div></div>';
+            });
+            container.innerHTML = htmlOut;
+        } catch (err) {
+            container.innerHTML = '<div style="color:red; padding:20px; border:1px solid red; background:#fef2f2;"><b>ERROR RENDER TABLAS:</b> ' + err.message + '</div>';
+            console.error(err);
+        }
     }
 
     /** 
@@ -745,10 +773,11 @@
             let isIncomplete = false;
             
             if (CURRENT_WEEK_TAB !== 'ALL') {
-                let wIdx = ['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB);
-                if (r.audit_lms_w && r.audit_lms_w[wIdx] > 0) {
-                    rawLmsTime = r.audit_lms_w[wIdx];
-                } else if (r.ts_lms_w && r.ts_lms_w[wIdx] === -1) {
+                let wIdxOld = ['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB);
+                let wIdxNew = ['BIEN','S1','S2','S3','S4','CIER'].indexOf(CURRENT_WEEK_TAB);
+                if (r.audit_lms_w && wIdxOld !== -1 && r.audit_lms_w[wIdxOld] > 0) {
+                    rawLmsTime = r.audit_lms_w[wIdxOld];
+                } else if (r.ts_lms_w && wIdxNew !== -1 && r.ts_lms_w[wIdxNew] === -1) {
                     isIncomplete = true;
                 } else {
                     rawLmsTime = 0;
@@ -880,8 +909,7 @@
         let titleNodeDedic = document.getElementById('tituloTiemposDedic');
         if (titleNodeDedic) titleNodeDedic.innerText = "Índice Pedagógico: Dedicación por Carga Laboral " + strSufix;
 
-        document.getElementById('cardGraphTiemposTotal').style.display = (CURRENT_TAB === 'LMS') ? 'block' : 'none';
-        document.getElementById('cardGraphTiemposDedic').style.display = (CURRENT_TAB === 'LMS') ? 'block' : 'none';
+        // Display visibility is handled in renderDashboard, but we update chart contents anyway
 
         // 1. Chart Promedios
         const ctx1 = document.getElementById('chartCoordTiempos');
