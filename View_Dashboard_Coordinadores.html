@@ -63,7 +63,7 @@
         <i class="fa-solid fa-chalkboard-user mr-2"></i>Acompañamiento
       </button>
       <button id="tabCoordANALISIS" onclick="switchCoordTab('ANALISIS')" style="padding:16px 4px; border-bottom:2px solid transparent; cursor:pointer;" class="tab-btn hover:text-purple-600 transition-colors">
-        <i class="fa-solid fa-chart-pie mr-2"></i>Consolidada / análisis de criterios
+        <i class="fa-solid fa-users-viewfinder mr-2"></i>Resumen Consolidado del Equipo
       </button>
     </div>
   </div>
@@ -76,6 +76,10 @@
           <!-- 4 CARDS TOP -->
           <div id="coord-kpis" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;">
               <!-- Se inyectarán desde el JS -->
+          </div>
+          <!-- TABLA RESUMEN CONSOLIDADO (VISTA ANALISIS) -->
+          <div id="containerTablaResumen" style="display:none; margin-bottom:24px;">
+              <div id="coordTablaResumen"></div>
           </div>
           
           <!-- LAYOUT GRÁFICAS -->
@@ -104,6 +108,14 @@
                   </div>
                   <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;">
                       <canvas id="chartCoordAcomp"></canvas>
+                  </div>
+              </div>
+              
+              
+              <!-- NUEVA TABLA: RESUMEN CONSOLIDADO DEL EQUIPO (SIEMPRE VISIBLE) -->
+              <div id="containerTablaResumen" style="margin-bottom:24px; display:block;">
+                  <div id="coordTablaResumen">
+                      <!-- El JS llenará esta tabla aquí adentro -->
                   </div>
               </div>
               
@@ -172,10 +184,6 @@
 
           </div>
 
-          <!-- TABLA RESUMEN CONSOLIDADO (VISTA ANALISIS) -->
-          <div id="containerTablaResumen" style="display:none; margin-bottom:32px;">
-              <div id="coordTablaResumen"></div>
-          </div>
 
           <!-- TABLA DETALLADA DE ASIGNATURAS -->
           <div id="containerTablaDetalle" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">

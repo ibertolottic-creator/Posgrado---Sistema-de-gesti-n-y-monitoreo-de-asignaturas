@@ -270,6 +270,8 @@
         // Fill Tab logic
         document.getElementById('coord-tabs-container').style.display = 'block';
 
+        // Auto-inyección obsoleta removida, el contenedor ya es estático en el HTML.
+
         // Render Initial Dashboard
         renderCoordinadoresDashboard();
   
@@ -292,14 +294,10 @@
         const bgAll = tab === 'ALL' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500';
         const bgLms = tab === 'LMS' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500';
         const bgAcp = tab === 'ACOMP' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500';
-        const bgAnl = tab === 'ANALISIS' ? 'border-purple-500 text-purple-600' : 'border-transparent text-slate-500';
         
         document.getElementById('tabCoordALL').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAll;
         document.getElementById('tabCoordLMS').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgLms;
         document.getElementById('tabCoordACOMP').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAcp;
-        
-        let tabAnl = document.getElementById('tabCoordANALISIS');
-        if (tabAnl) tabAnl.className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAnl;
         
         // Repintar Todo
         renderCoordinadoresDashboard();
@@ -511,41 +509,34 @@
             const contGraficas = document.getElementById('coordGridGraficas');
             const contDetalle = document.getElementById('containerTablaDetalle');
             
+            
             // Lógica de Visibilidad Global
-            if (CURRENT_TAB === 'ANALISIS') {
-                // ANALISIS: Solo mostrar las Tablas Consolidadas Semanales
-                if(contKpis) contKpis.style.display = 'none';
-                if(contGraficas) contGraficas.style.display = 'none';
-                if(contDetalle) contDetalle.style.display = 'none';
-                if(contResumen) contResumen.style.display = 'block';
+            // Otras pestañas: Mostrar KPIs, gráficas, detalle y tabla resumen (Siempre Visible)
+            if(contKpis) contKpis.style.display = 'grid';
+            if(contGraficas) contGraficas.style.display = 'grid';
+            if(contDetalle) contDetalle.style.display = 'block';
+            if(contResumen) contResumen.style.display = 'block';
+            if(cardPro) cardPro.style.display = 'block';
+            
+            if(CURRENT_TAB === 'LMS') {
+                if(cardLms) cardLms.style.display = 'block';
+                if(cardAcp) cardAcp.style.display = 'none';
+                if(cardTrf) cardTrf.style.display = 'block';
+                if(cardTot) cardTot.style.display = 'block';
+                if(cardDed) cardDed.style.display = 'block';
+            } else if(CURRENT_TAB === 'ACOMP') {
+                if(cardLms) cardLms.style.display = 'none';
+                if(cardAcp) cardAcp.style.display = 'block';
+                if(cardTrf) cardTrf.style.display = 'none';
+                if(cardTot) cardTot.style.display = 'none';
+                if(cardDed) cardDed.style.display = 'none';
             } else {
-                // Otras pestañas: Mostrar KPIs, gráficas, detalle; ocultar resumen
-                if(contKpis) contKpis.style.display = 'grid';
-                if(contGraficas) contGraficas.style.display = 'grid';
-                if(contDetalle) contDetalle.style.display = 'block';
-                if(contResumen) contResumen.style.display = 'none';
-                if(cardPro) cardPro.style.display = 'block';
-                
-                if(CURRENT_TAB === 'LMS') {
-                    if(cardLms) cardLms.style.display = 'block';
-                    if(cardAcp) cardAcp.style.display = 'none';
-                    if(cardTrf) cardTrf.style.display = 'block';
-                    if(cardTot) cardTot.style.display = 'block';
-                    if(cardDed) cardDed.style.display = 'block';
-                } else if(CURRENT_TAB === 'ACOMP') {
-                    if(cardLms) cardLms.style.display = 'none';
-                    if(cardAcp) cardAcp.style.display = 'block';
-                    if(cardTrf) cardTrf.style.display = 'none';
-                    if(cardTot) cardTot.style.display = 'none';
-                    if(cardDed) cardDed.style.display = 'none';
-                } else {
-                    // ALL
-                    if(cardLms) cardLms.style.display = 'block';
-                    if(cardAcp) cardAcp.style.display = 'block';
-                    if(cardTrf) cardTrf.style.display = 'block';
-                    if(cardTot) cardTot.style.display = 'none';
-                    if(cardDed) cardDed.style.display = 'none';
-                }
+                // ALL
+                if(cardLms) cardLms.style.display = 'block';
+                if(cardAcp) cardAcp.style.display = 'block';
+                if(cardTrf) cardTrf.style.display = 'block';
+                if(cardTot) cardTot.style.display = 'none';
+                if(cardDed) cardDed.style.display = 'none';
             }
 
             // Renderizar Gráficos (Aislados con try-catch para jamás bloquear al sistema)
@@ -631,124 +622,99 @@
 
     /** RENDER 2: TABLAS RESUMEN CONSOLIDADO (TODAS LAS SEMANAS) */
     function renderCoordResumen(arr) {
-        let container = document.getElementById('coordTablaResumen');
-        if (!container) return;
+        let tbody = document.getElementById('coord-resumen-body');
+        if (!tbody) {
+            console.error('[COORD] No se encontró el tbody coord-resumen-body para la tabla de resumen.');
+            return;
+        }
         
         try {
-            container.innerHTML = '';
+            tbody.innerHTML = '';
             if(!arr || arr.length === 0) return;
 
-            let showLms = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS' || CURRENT_TAB === 'ANALISIS');
-            let showAcp = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP' || CURRENT_TAB === 'ANALISIS');
+            let showLms = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS');
+            let showAcp = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP');
             let showTrf = (CURRENT_TAB !== 'ACOMP');
 
-            const weeksInfo = [
-                { id: -1, title: 'Resumen Consolidado: Toda la Ejecución' },
-                { id: 0, title: 'Resumen Consolidado: Semana: Bienvenida' },
-                { id: 1, title: 'Resumen Consolidado: Semana 1' },
-                { id: 2, title: 'Resumen Consolidado: Semana 2' },
-                { id: 3, title: 'Resumen Consolidado: Semana 3' },
-                { id: 4, title: 'Resumen Consolidado: Semana 4' },
-                { id: 5, title: 'Resumen Consolidado: Semana: Cierre' }
-            ];
+            // Actualizar visibilidad de cabeceras estáticas si es necesario
+            let thLmsAv = document.getElementById('thR_lmsAv');
+            let thAcpAv = document.getElementById('thR_acpAv');
+            let thLmsTm = document.getElementById('thR_lmsTm');
+            let thLmsTotal = document.getElementById('thR_lmsTotal');
+            let thLmsDedic = document.getElementById('thR_lmsDedic');
+            let thAcpTm = document.getElementById('thR_acpTm');
+            let thHits = document.getElementById('thR_hits');
+            let thMails = document.getElementById('thR_mails');
+            let thWa = document.getElementById('thR_wa');
+            
+            if(thLmsAv) thLmsAv.style.display = showLms ? 'table-cell' : 'none';
+            if(thAcpAv) thAcpAv.style.display = showAcp ? 'table-cell' : 'none';
+            if(thLmsTm) thLmsTm.style.display = showLms ? 'table-cell' : 'none';
+            if(thLmsTotal) thLmsTotal.style.display = showLms ? 'table-cell' : 'none';
+            if(thLmsDedic) thLmsDedic.style.display = showLms ? 'table-cell' : 'none';
+            if(thAcpTm) thAcpTm.style.display = showAcp ? 'table-cell' : 'none';
+            if(thHits) thHits.style.display = showTrf ? 'table-cell' : 'none';
+            if(thMails) thMails.style.display = showTrf ? 'table-cell' : 'none';
+            if(thWa) thWa.style.display = showTrf ? 'table-cell' : 'none';
 
             let htmlOut = '';
 
-            weeksInfo.forEach(wk => {
-                htmlOut += '<div style="margin-bottom: 2rem;">' +
-                           '<div style="background:#1e293b; color:#fff; border-radius:8px 8px 0 0; padding:12px 20px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">' +
-                           '<i class="fa-solid fa-users-gear" style="color:#94a3b8;"></i> ' + wk.title + '</div>' +
-                           '<div style="overflow-x:auto; border-radius:0 0 8px 8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid #e2e8f0; border-top:none;">' +
-                           '<table style="width:100%; border-collapse:collapse; min-width:900px; background:#fff;">' +
-                           '<thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:11px; text-transform:uppercase; color:#64748b;">' +
-                           '<th style="padding:12px 16px; text-align:left;">N°</th>' +
-                           '<th style="padding:12px 16px; text-align:left;">Coordinador</th>';
+            arr.forEach(function(c, idx) {
+                // Obtenemos los valores asumiendo wk.id === -1 (Consolidado)
+                let valAvgLms = c.avgLms || 0;
+                let valAbsLms = c.lmsTsTotal || 0;
+                let valDedLms = c.dedicLms || 0;
                 
-                if (wk.id === -1 && showLms) htmlOut += '<th style="padding:12px 16px; text-align:center;">Avance LMS</th>';
-                if (wk.id === -1 && showAcp) htmlOut += '<th style="padding:12px 16px; text-align:center;">Avance Acomp</th>';
+                let valHits   = c.hits || 0;
+                let valMails  = c.mails || 0;
+                let valWa     = c.wa || 0;
+
+                let valAuds = CURRENT_TAB === 'LMS' ? (c.auditsLms||0) : (CURRENT_TAB === 'ACOMP' ? (c.auditsAcp||0) : (c.audits||0));
+
+                let numPctLms = Number(c.pctLms) || 0;
+                let bgLms = '#e0f2fe'; let clLms = '#0369a1';
+                if (numPctLms < 100) { bgLms = '#fef3c7'; clLms = '#b45309'; }
+                if (numPctLms < 50)  { bgLms = '#fee2e2'; clLms = '#b91c1c'; }
+                let badgeLms = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgLms + '; color:' + clLms + ';">' + numPctLms.toFixed(1) + '%</span>';
+
+                let numPctAcp = Number(c.pctAcomp) || 0;
+                let bgAcp = '#dcfce7'; let clAcp = '#15803d';
+                if (numPctAcp < 100) { bgAcp = '#fef3c7'; clAcp = '#b45309'; }
+                if (numPctAcp < 50)  { bgAcp = '#fee2e2'; clAcp = '#b91c1c'; }
+                let badgeAcp = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgAcp + '; color:' + clAcp + ';">' + numPctAcp.toFixed(1) + '%</span>';
+
+                let auditBadge = valAuds > 0 
+                    ? '<span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; background:#ffedd5; color:#c2410c; border:1px solid #fdba74;"><i class="fa-solid fa-triangle-exclamation mr-1"></i>' + valAuds + '</span>'
+                    : '<span style="color:#94a3b8; font-size:11px;">-</span>';
+
+                htmlOut += '<tr style="border-bottom:1px solid #f1f5f9; hover:bg-slate-50 transition-colors;">';
+                htmlOut += '<td style="padding:14px 16px; font-size:13px; color:#64748b;">' + (idx+1) + '</td>';
+                htmlOut += '<td style="padding:14px 16px;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></div><span style="font-size:14px; font-weight:700; color:#1e293b;">' + (c.coord||'N/A') + '</span><span style="font-size:10px; color:#94a3b8; background:#f1f5f9; padding:2px 6px; border-radius:10px;">' + (c.total||0) + ' Aulas</span></div></td>';
+                
+                if (showLms) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeLms + '</td>';
+                if (showAcp) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeAcp + '</td>';
+                
                 if (showLms) {
-                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Promedio Min LMS</th>';
-                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Tiempo Absoluto LMS</th>';
-                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Dedicación LMS</th>';
+                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + (valAvgLms > 0 ? formatMinutes(valAvgLms) : '-') + '</td>';
+                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#4338ca;">' + (valAbsLms > 0 ? formatMinutes(valAbsLms) : '-') + '</td>';
+                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valDedLms > 0 ? '<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">' + valDedLms.toFixed(2) + ' asig.</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
                 }
-                if (wk.id === -1 && showAcp) htmlOut += '<th style="padding:12px 16px; text-align:center;">Promedio Min Acomp</th>';
+                
+                if (showAcp) {
+                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + ((c.avgAcomp||0) > 0 ? formatMinutes(c.avgAcomp) : '-') + '</td>';
+                }
+                
                 if (showTrf) {
-                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Hits Aula</th>';
-                    htmlOut += '<th style="padding:12px 16px; text-align:center;">Emails</th>';
-                    htmlOut += '<th style="padding:12px 16px; text-align:center;">WhatsApp</th>';
+                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; color:#475569;">' + (valHits > 0 ? valHits : '-') + '</td>';
+                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valMails > 0 ? '<span style="color:#d97706; font-size:13px; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">' + valMails + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
+                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valWa > 0 ? '<span style="color:#15803d; font-size:13px; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:10px;">' + valWa + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
                 }
-                htmlOut += '<th style="padding:12px 16px; text-align:center;">Burst Audits</th></tr></thead><tbody>';
-
-                arr.forEach(function(c, idx) {
-                    // Variables Seguras
-                    let valAvgLms = wk.id === -1 ? (c.avgLms||0) : (c.avgLmsW ? c.avgLmsW[wk.id]||0 : 0);
-                    let valAbsLms = wk.id === -1 ? (c.lmsTsTotal||0) : (c.lmsTsTotalW ? c.lmsTsTotalW[wk.id]||0 : 0);
-                    let valDedLms = wk.id === -1 ? (c.dedicLms||0) : (c.dedicLmsW ? c.dedicLmsW[wk.id]||0 : 0);
-                    
-                    let valHits   = wk.id === -1 ? (c.hits||0) : (c.hitsW ? c.hitsW[wk.id]||0 : 0);
-                    let valMails  = wk.id === -1 ? (c.mails||0) : (c.mailsW ? c.mailsW[wk.id]||0 : 0);
-                    let valWa     = wk.id === -1 ? (c.wa||0) : (c.waW ? c.waW[wk.id]||0 : 0);
-
-                    let valAuds = 0;
-                    if (wk.id === -1) {
-                        valAuds = CURRENT_TAB === 'LMS' ? (c.auditsLms||0) : (CURRENT_TAB === 'ACOMP' ? (c.auditsAcp||0) : (c.audits||0));
-                    } else {
-                        let aW = null;
-                        if (CURRENT_TAB === 'LMS') aW = c.auditsLmsW;
-                        else if (CURRENT_TAB === 'ACOMP') aW = c.auditsAcpW;
-                        else aW = c.auditsW;
-                        valAuds = (aW && aW[wk.id]) ? aW[wk.id] : 0;
-                    }
-
-                    // Badges (Solo para Total de Ejecución)
-                    let badgeLms = '<span style="color:#94a3b8; font-size:11px;">-</span>';
-                    let badgeAcp = '<span style="color:#94a3b8; font-size:11px;">-</span>';
-                    if (wk.id === -1) {
-                        let numPctLms = Number(c.pctLms) || 0;
-                        let bgLms = '#e0f2fe'; let clLms = '#0369a1';
-                        if (numPctLms < 100) { bgLms = '#fef3c7'; clLms = '#b45309'; }
-                        if (numPctLms < 50)  { bgLms = '#fee2e2'; clLms = '#b91c1c'; }
-                        badgeLms = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgLms + '; color:' + clLms + ';">' + numPctLms.toFixed(1) + '%</span>';
-
-                        let numPctAcp = Number(c.pctAcomp) || 0;
-                        let bgAcp = '#dcfce7'; let clAcp = '#15803d';
-                        if (numPctAcp < 100) { bgAcp = '#fef3c7'; clAcp = '#b45309'; }
-                        if (numPctAcp < 50)  { bgAcp = '#fee2e2'; clAcp = '#b91c1c'; }
-                        badgeAcp = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgAcp + '; color:' + clAcp + ';">' + numPctAcp.toFixed(1) + '%</span>';
-                    }
-
-                    let auditBadge = valAuds > 0 
-                        ? '<span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; background:#ffedd5; color:#c2410c; border:1px solid #fdba74;"><i class="fa-solid fa-triangle-exclamation mr-1"></i>' + valAuds + '</span>'
-                        : '<span style="color:#94a3b8; font-size:11px;">-</span>';
-
-                    htmlOut += '<tr style="border-bottom:1px solid #f1f5f9;">';
-                    htmlOut += '<td style="padding:14px 16px; font-size:13px; color:#64748b;">' + (idx+1) + '</td>';
-                    htmlOut += '<td style="padding:14px 16px;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></div><span style="font-size:14px; font-weight:700; color:#1e293b;">' + (c.coord||'N/A') + '</span><span style="font-size:10px; color:#94a3b8; background:#f1f5f9; padding:2px 6px; border-radius:10px;">' + (c.total||0) + ' Aulas</span></div></td>';
-                    
-                    if (wk.id === -1 && showLms) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeLms + '</td>';
-                    if (wk.id === -1 && showAcp) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeAcp + '</td>';
-                    
-                    if (showLms) {
-                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + (valAvgLms > 0 ? formatMinutes(valAvgLms) : '-') + '</td>';
-                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#4338ca;">' + (valAbsLms > 0 ? formatMinutes(valAbsLms) : '-') + '</td>';
-                        htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valDedLms > 0 ? '<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">' + (wk.id === -1 ? valDedLms.toFixed(2) : valDedLms) + (wk.id === -1 ? ' asig.' : '') + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
-                    }
-                    if (wk.id === -1 && showAcp) {
-                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + ((c.avgAcomp||0) > 0 ? formatMinutes(c.avgAcomp) : '-') + '</td>';
-                    }
-                    if (showTrf) {
-                        htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; color:#475569;">' + (valHits > 0 ? valHits : '-') + '</td>';
-                        htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valMails > 0 ? '<span style="color:#d97706; font-size:13px; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">' + valMails + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
-                        htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valWa > 0 ? '<span style="color:#15803d; font-size:13px; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:10px;">' + valWa + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
-                    }
-                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + auditBadge + '</td></tr>';
-                });
-
-                htmlOut += '</tbody></table></div></div>';
+                htmlOut += '<td style="padding:14px 16px; text-align:center;">' + auditBadge + '</td></tr>';
             });
-            container.innerHTML = htmlOut;
+
+            tbody.innerHTML = htmlOut;
         } catch (err) {
-            container.innerHTML = '<div style="color:red; padding:20px; border:1px solid red; background:#fef2f2;"><b>ERROR RENDER TABLAS:</b> ' + err.message + '</div>';
+            tbody.innerHTML = '<tr><td colspan="12"><div style="color:red; padding:20px; border:1px solid red; background:#fef2f2;"><b>ERROR RENDER TABLA RESUMEN:</b> ' + err.message + '</div></td></tr>';
             console.error(err);
         }
     }
@@ -1085,5 +1051,10 @@
             showToast("¡Finalizado!", "Su archivo PDF se descargó.", "success");
         });
     }
+
+    // =============================================================
+    // El setup ya no inyecta HTML, usamos el HTML estático
+    // =============================================================
+
 </script>
 <!-- ==================== JS END ==================== -->
