@@ -35,6 +35,16 @@
           <option value="PRESENCIAL">Presencial (Evaluaciones)</option>
         </select>
       </div>
+      <div style="position:relative; display:flex; align-items:center;">
+        <i class="fa-solid fa-calendar-week" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
+        <select id="filtroBiUnidad" onchange="renderBiDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:210px; appearance:auto; text-overflow:ellipsis;">
+          <option value="TODAS" selected>Todas las Unidades (Total Consolidado)</option>
+          <option value="U1">Unidad I (Semana 1)</option>
+          <option value="U2">Unidad II (Semana 2)</option>
+          <option value="U3">Unidad III (Semana 3)</option>
+          <option value="U4">Unidad IV (Semana 4 & Cierre)</option>
+        </select>
+      </div>
       <button onclick="cargarDataSabanaBI()" id="btnRecargarBI" style="padding:8px 16px; font-size:13px; font-weight:700; color:#fff; background:#3b82f6; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
         <i class="fa-solid fa-sync-alt"></i> Actualizar Sábana
       </button>

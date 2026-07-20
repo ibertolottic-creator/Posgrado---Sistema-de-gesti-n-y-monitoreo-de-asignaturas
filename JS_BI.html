@@ -227,11 +227,15 @@ function renderBiDashboard() {
     return;
   }
 
-  var filtroMod = document.getElementById('filtroBiModalidad').value;
+  var elMod = document.getElementById('filtroBiModalidad');
   var elProg = document.getElementById('filtroBiPrograma');
   var elCoord = document.getElementById('filtroBiCoordinador');
+  var elUnidad = document.getElementById('filtroBiUnidad');
+
+  var filtroMod = elMod ? elMod.value : 'TODAS';
   var filtroProg = elProg ? elProg.value : 'TODOS';
   var filtroCoord = elCoord ? elCoord.value : 'TODOS';
+  var filtroUnidad = elUnidad ? elUnidad.value : 'TODAS';
 
   var dataFiltrada = biDataGlobal;
   
@@ -241,21 +245,51 @@ function renderBiDashboard() {
   if (filtroProg !== 'TODOS') dataFiltrada = dataFiltrada.filter(function(d) { return d.programa === filtroProg; });
   if (filtroCoord !== 'TODOS') dataFiltrada = dataFiltrada.filter(function(d) { return d.coordinador === filtroCoord; });
 
-  if (currentBiTab === 'GENERAL') renderBiViewGeneral(dataFiltrada, filtroMod);
-  else if (currentBiTab === 'LMS') renderBiViewLms(dataFiltrada, filtroMod);
-  else if (currentBiTab === 'ACOMP') renderBiViewAcomp(dataFiltrada, filtroMod);
+  if (currentBiTab === 'GENERAL') renderBiViewGeneral(dataFiltrada, filtroMod, filtroUnidad);
+  else if (currentBiTab === 'LMS') renderBiViewLms(dataFiltrada, filtroMod, filtroUnidad);
+  else if (currentBiTab === 'ACOMP') renderBiViewAcomp(dataFiltrada, filtroMod, filtroUnidad);
 }
 
 // ---------------------------------------------------------------
-// AUXILIARES
+// AUXILIARES DE UNIDAD / SEMANA
 // ---------------------------------------------------------------
-function calcularPromedioDimension(dataFiltrada, indices, campoArray) {
+function isIndexInUnidad(idx, filtroUnidad, isAcomp) {
+  if (!filtroUnidad || filtroUnidad === 'TODAS') return true;
+  
+  if (!isAcomp) {
+    // LMS Criterios (38 cols)
+    var code = (biHeadersLMS[idx] || '').toLowerCase();
+    if (filtroUnidad === 'U1') {
+      if (code.indexOf('_s1') !== -1 || code.indexOf('_pre') !== -1) return true;
+      return (idx <= 3 || idx === 12 || idx === 16 || idx === 20 || idx === 28 || idx === 32);
+    } else if (filtroUnidad === 'U2') {
+      if (code.indexOf('_s2') !== -1) return true;
+      return (idx === 4 || idx === 5 || idx === 13 || idx === 17 || idx === 21 || idx === 29 || idx === 33);
+    } else if (filtroUnidad === 'U3') {
+      if (code.indexOf('_s3') !== -1) return true;
+      return (idx === 6 || idx === 7 || idx === 14 || idx === 22 || idx === 30 || idx === 34);
+    } else if (filtroUnidad === 'U4') {
+      if (code.indexOf('_s4') !== -1 || code.indexOf('_cierre') !== -1) return true;
+      return ((idx >= 8 && idx <= 11) || idx === 15 || idx === 18 || idx === 19 || (idx >= 23 && idx <= 27) || idx === 31 || idx === 35 || idx >= 36);
+    }
+  } else {
+    // Acompañamiento Criterios (11 cols)
+    if (filtroUnidad === 'U1') return (idx >= 0 && idx <= 2);
+    if (filtroUnidad === 'U2') return (idx >= 3 && idx <= 5);
+    if (filtroUnidad === 'U3') return (idx >= 6 && idx <= 8);
+    if (filtroUnidad === 'U4') return (idx >= 9 && idx <= 10);
+  }
+  return true;
+}
+
+function calcularPromedioDimension(dataFiltrada, indices, campoArray, filtroUnidad, isAcomp) {
   var suma = 0, count = 0;
   for (var i = 0; i < dataFiltrada.length; i++) {
     var arr = dataFiltrada[i][campoArray];
     if (!arr) continue;
     for (var j = 0; j < indices.length; j++) {
       var idx = indices[j];
+      if (!isIndexInUnidad(idx, filtroUnidad, !!isAcomp)) continue;
       if (idx < arr.length && arr[idx] !== null && arr[idx] !== undefined) {
         suma += arr[idx];
         count++;
@@ -302,7 +336,10 @@ function createOrUpdateBiChart(chartId, type, labels, data, colors) {
 // ---------------------------------------------------------------
 // VISTA 1: GENERAL
 // ---------------------------------------------------------------
-function renderBiViewGeneral(dataFiltrada, modalidad) {
+// ---------------------------------------------------------------
+// VISTA 1: GENERAL
+// ---------------------------------------------------------------
+function renderBiViewGeneral(dataFiltrada, modalidad, filtroUnidad) {
   var sumProm=0, sumLMS=0, sumAcomp=0;
   var cntProm=0, cntLMS=0, cntAcomp=0;
   var distNiveles = { 'Muy Bueno (17-20)':0, 'Bueno (14-16)':0, 'Regular (11-13)':0, 'Deficiente (≤10)':0 };
@@ -347,7 +384,9 @@ function renderBiViewGeneral(dataFiltrada, modalidad) {
         for(var x=0; x<dV.length; x++){
           if(!dV[x].criteriosLMS) continue;
           for(var y=0; y<dim.indicesV.length; y++){
-            var val = dV[x].criteriosLMS[dim.indicesV[y]];
+            var idxV = dim.indicesV[y];
+            if(!isIndexInUnidad(idxV, filtroUnidad, false)) continue;
+            var val = dV[x].criteriosLMS[idxV];
             if(val) { sTotal+=val; cTotal++; }
           }
         }
@@ -356,14 +395,16 @@ function renderBiViewGeneral(dataFiltrada, modalidad) {
         for(var x=0; x<dP.length; x++){
           if(!dP[x].criteriosLMS) continue;
           for(var y=0; y<dim.indicesP.length; y++){
-            var val = dP[x].criteriosLMS[dim.indicesP[y]];
+            var idxP = dim.indicesP[y];
+            if(!isIndexInUnidad(idxP, filtroUnidad, false)) continue;
+            var val = dP[x].criteriosLMS[idxP];
             if(val) { sTotal+=val; cTotal++; }
           }
         }
       }
       lmsProms.push(cTotal > 0 ? parseFloat((sTotal/cTotal).toFixed(2)) : 0);
     } else {
-      lmsProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosLMS'));
+      lmsProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosLMS', filtroUnidad, false));
     }
   }
   createOrUpdateBiChart('chartBiRadarLmsGral', 'radar', lmsLabels, lmsProms, {bg:'rgba(6,182,212,0.15)', border:BI_COLORS.cyan});
@@ -374,7 +415,7 @@ function renderBiViewGeneral(dataFiltrada, modalidad) {
   for(var k=0; k<dimKeysAC.length; k++) {
     var dim = DIMENSIONES_ACOMP[dimKeysAC[k]];
     acLabels.push(dim.nombre);
-    acProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosAcomp'));
+    acProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosAcomp', filtroUnidad, true));
   }
   createOrUpdateBiChart('chartBiRadarAcompGral', 'radar', acLabels, acProms, {bg:'rgba(245,158,11,0.15)', border:BI_COLORS.yellow});
 
@@ -385,7 +426,7 @@ function renderBiViewGeneral(dataFiltrada, modalidad) {
 // ---------------------------------------------------------------
 // VISTA 2: LMS
 // ---------------------------------------------------------------
-function renderBiViewLms(dataFiltrada, modalidad) {
+function renderBiViewLms(dataFiltrada, modalidad, filtroUnidad) {
   var sumLMS=0, cntLMS=0;
   var distNiveles = { 'Muy Bueno (17-20)':0, 'Bueno (14-16)':0, 'Regular (11-13)':0, 'Deficiente (≤10)':0 };
 
@@ -421,30 +462,31 @@ function renderBiViewLms(dataFiltrada, modalidad) {
       var dP = dataFiltrada.filter(function(d){return d.modalidad === 'PRESENCIAL';});
       var sTotal=0, cTotal=0;
       if(dim.indicesV && dim.indicesV.length>0) {
-        for(var x=0; x<dV.length; x++){ if(dV[x].criteriosLMS) { for(var y=0; y<dim.indicesV.length; y++){ var v=dV[x].criteriosLMS[dim.indicesV[y]]; if(v){sTotal+=v;cTotal++;} } } }
+        for(var x=0; x<dV.length; x++){ if(dV[x].criteriosLMS) { for(var y=0; y<dim.indicesV.length; y++){ var idxV=dim.indicesV[y]; if(!isIndexInUnidad(idxV, filtroUnidad, false)) continue; var v=dV[x].criteriosLMS[idxV]; if(v){sTotal+=v;cTotal++;} } } }
       }
       if(dim.indicesP && dim.indicesP.length>0) {
-        for(var x=0; x<dP.length; x++){ if(dP[x].criteriosLMS) { for(var y=0; y<dim.indicesP.length; y++){ var v=dP[x].criteriosLMS[dim.indicesP[y]]; if(v){sTotal+=v;cTotal++;} } } }
+        for(var x=0; x<dP.length; x++){ if(dP[x].criteriosLMS) { for(var y=0; y<dim.indicesP.length; y++){ var idxP=dim.indicesP[y]; if(!isIndexInUnidad(idxP, filtroUnidad, false)) continue; var v=dP[x].criteriosLMS[idxP]; if(v){sTotal+=v;cTotal++;} } } }
       }
       lmsProms.push(cTotal > 0 ? parseFloat((sTotal/cTotal).toFixed(2)) : 0);
     } else {
-      lmsProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosLMS'));
+      lmsProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosLMS', filtroUnidad, false));
     }
   }
   createOrUpdateBiChart('chartBiRadarLms', 'radar', lmsLabels, lmsProms, {bg:'rgba(6,182,212,0.15)', border:BI_COLORS.cyan});
   
+  var labelUnidad = filtroUnidad === 'U1' ? 'Unidad I (Semana 1)' : (filtroUnidad === 'U2' ? 'Unidad II (Semana 2)' : (filtroUnidad === 'U3' ? 'Unidad III (Semana 3)' : (filtroUnidad === 'U4' ? 'Unidad IV (Semana 4)' : 'Total Consolidado')));
   var bdg = document.getElementById('bi-badge-lms');
-  if(bdg) bdg.textContent = modalidad === 'PRESENCIAL' ? 'Presencial' : (modalidad === 'VIRTUAL_HIBRIDO' ? 'Virtual / Híbrida' : 'Todas las Modalidades');
+  if(bdg) bdg.textContent = (modalidad === 'PRESENCIAL' ? 'Presencial' : (modalidad === 'VIRTUAL_HIBRIDO' ? 'Virtual / Híbrida' : 'Todas las Modalidades')) + ' • ' + labelUnidad;
 
-  renderLeyendaDimensiones(dataFiltrada, modalidad);
-  renderDimensionesPorMejorarLms(dataFiltrada, modalidad);
+  renderLeyendaDimensiones(dataFiltrada, modalidad, filtroUnidad);
+  renderDimensionesPorMejorarLms(dataFiltrada, modalidad, filtroUnidad);
   renderListaCritica('bi-criticos-lms', dataFiltrada, 'LMS');
 }
 
 // ---------------------------------------------------------------
 // VISTA 3: ACOMPAÑAMIENTO
 // ---------------------------------------------------------------
-function renderBiViewAcomp(dataFiltrada, modalidad) {
+function renderBiViewAcomp(dataFiltrada, modalidad, filtroUnidad) {
   var sumAc=0, cntAc=0;
   var distNiveles = { 'Muy Bueno (17-20)':0, 'Bueno (14-16)':0, 'Regular (11-13)':0, 'Deficiente (≤10)':0 };
 
@@ -475,6 +517,7 @@ function renderBiViewAcomp(dataFiltrada, modalidad) {
     var dim = DIMENSIONES_ACOMP[dimKeysAC[k]];
     for(var j=0; j<dim.indices.length; j++) {
       var idx = dim.indices[j];
+      if(!isIndexInUnidad(idx, filtroUnidad, true)) continue;
       var critTitle = NOMBRES_COMPLETOS_ACOMP[idx] || biTitlesAcomp[idx] || biHeadersAcomp[idx] || 'Criterio '+(idx+1);
       
       var words = critTitle.split(' ');
@@ -492,13 +535,13 @@ function renderBiViewAcomp(dataFiltrada, modalidad) {
       if(lines.length > 2) { lines = lines.slice(0,2); lines[1] += '...'; } // max 2 lines
       
       acLabels.push(lines);
-      acProms.push(calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp'));
+      acProms.push(calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp', filtroUnidad, true));
     }
   }
   createOrUpdateBiChart('chartBiRadarAcomp', 'radar', acLabels, acProms, {bg:'rgba(245,158,11,0.15)', border:BI_COLORS.yellow});
 
-  renderLeyendaAcomp(dataFiltrada);
-  renderDimensionesPorMejorarAcomp(dataFiltrada);
+  renderLeyendaAcomp(dataFiltrada, filtroUnidad);
+  renderDimensionesPorMejorarAcomp(dataFiltrada, filtroUnidad);
   renderListaCritica('bi-criticos-acomp', dataFiltrada, 'ACOMP');
 }
 
@@ -581,7 +624,10 @@ function renderListaAgrupadaGeneral(dataFiltrada) {
 // ---------------------------------------------------------------
 // LEYENDAS Y POR MEJORAR (LMS)
 // ---------------------------------------------------------------
-function renderLeyendaDimensiones(dataFiltrada, modalidadActiva) {
+// ---------------------------------------------------------------
+// LEYENDAS Y POR MEJORAR (LMS)
+// ---------------------------------------------------------------
+function renderLeyendaDimensiones(dataFiltrada, modalidadActiva, filtroUnidad) {
   var colVirtual = document.getElementById('bi-leyenda-virtual');
   var colPresencial = document.getElementById('bi-leyenda-presencial');
   if(!colVirtual || !colPresencial) return;
@@ -589,7 +635,7 @@ function renderLeyendaDimensiones(dataFiltrada, modalidadActiva) {
   
   function buildDimHTML(dim, dataSlice, mainColor) {
     if(!dim) return '';
-    var dimAvg = calcularPromedioDimension(dataSlice, dim.indices, 'criteriosLMS');
+    var dimAvg = calcularPromedioDimension(dataSlice, dim.indices, 'criteriosLMS', filtroUnidad, false);
     var vigesimal = (dimAvg * 5).toFixed(1);
     var pct = (dimAvg / 4) * 100;
     
@@ -603,8 +649,9 @@ function renderLeyendaDimensiones(dataFiltrada, modalidadActiva) {
     
     for(var j=0; j<dim.indices.length; j++) {
       var idx = dim.indices[j];
+      if (!isIndexInUnidad(idx, filtroUnidad, false)) continue;
       var critTitle = biTitlesLMS[idx] || biHeadersLMS[idx] || 'Criterio '+(idx+1);
-      var cAvg = calcularPromedioDimension(dataSlice, [idx], 'criteriosLMS');
+      var cAvg = calcularPromedioDimension(dataSlice, [idx], 'criteriosLMS', filtroUnidad, false);
       var cPct = (cAvg / 4) * 100;
       var cColor = cAvg >= 3 ? '#10b981' : (cAvg >= 2 ? '#f59e0b' : '#ef4444');
       
@@ -634,7 +681,7 @@ function renderLeyendaDimensiones(dataFiltrada, modalidadActiva) {
   } else colPresencial.innerHTML = '<p style="color:#94a3b8; font-style:italic; font-size:12px;">No aplica (Filtro Virtual activo)</p>';
 }
 
-function renderDimensionesPorMejorarLms(dataFiltrada, modalidad) {
+function renderDimensionesPorMejorarLms(dataFiltrada, modalidad, filtroUnidad) {
   var container = document.getElementById('bi-mejorar-lms');
   if(!container) return;
   container.innerHTML = '';
@@ -652,6 +699,7 @@ function renderDimensionesPorMejorarLms(dataFiltrada, modalidad) {
          var tiene = false;
          for(var j=0; j<dim.indices.length; j++) {
            var idx = dim.indices[j];
+           if(!isIndexInUnidad(idx, filtroUnidad, false)) continue;
            if(arr[idx] === 1 || arr[idx] === 2) { tiene=true; critsBajos[biTitlesLMS[idx]||biHeadersLMS[idx]||'Criterio '+(idx+1)] = true; }
          }
          if(tiene) asigsAfectadas++;
@@ -693,7 +741,7 @@ function renderDimensionesPorMejorarLms(dataFiltrada, modalidad) {
 // ---------------------------------------------------------------
 // LEYENDAS Y POR MEJORAR (ACOMPAÑAMIENTO)
 // ---------------------------------------------------------------
-function renderLeyendaAcomp(dataFiltrada) {
+function renderLeyendaAcomp(dataFiltrada, filtroUnidad) {
   var col = document.getElementById('bi-leyenda-acomp');
   if(!col) return;
   col.innerHTML = '';
@@ -701,7 +749,7 @@ function renderLeyendaAcomp(dataFiltrada) {
   var keys = Object.keys(DIMENSIONES_ACOMP);
   for(var i=0; i<keys.length; i++) {
     var dim = DIMENSIONES_ACOMP[keys[i]];
-    var dimAvg = calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosAcomp');
+    var dimAvg = calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosAcomp', filtroUnidad, true);
     var vigesimal = (dimAvg * 5).toFixed(1);
     var pct = (dimAvg / 4) * 100;
     
@@ -715,8 +763,9 @@ function renderLeyendaAcomp(dataFiltrada) {
     
     for(var j=0; j<dim.indices.length; j++) {
       var idx = dim.indices[j];
+      if (!isIndexInUnidad(idx, filtroUnidad, true)) continue;
       var critTitle = NOMBRES_COMPLETOS_ACOMP[idx] || biTitlesAcomp[idx] || biHeadersAcomp[idx] || 'Criterio '+(idx+1);
-      var cAvg = calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp');
+      var cAvg = calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp', filtroUnidad, true);
       var cPct = (cAvg / 4) * 100;
       var cColor = cAvg >= 3 ? '#10b981' : (cAvg >= 2 ? '#f59e0b' : '#ef4444');
       
@@ -734,7 +783,7 @@ function renderLeyendaAcomp(dataFiltrada) {
   }
 }
 
-function renderDimensionesPorMejorarAcomp(dataFiltrada) {
+function renderDimensionesPorMejorarAcomp(dataFiltrada, filtroUnidad) {
   var container = document.getElementById('bi-mejorar-acomp');
   if(!container) return;
   container.innerHTML = '';
@@ -751,6 +800,7 @@ function renderDimensionesPorMejorarAcomp(dataFiltrada) {
        var tiene = false;
        for(var j=0; j<dim.indices.length; j++) {
          var idx = dim.indices[j];
+         if(!isIndexInUnidad(idx, filtroUnidad, true)) continue;
          if(arr[idx] === 1 || arr[idx] === 2) { tiene=true; critsBajos[biTitlesAcomp[idx]||biHeadersAcomp[idx]||'Criterio '+(idx+1)] = true; }
        }
        if(tiene) asigsAfectadas++;
