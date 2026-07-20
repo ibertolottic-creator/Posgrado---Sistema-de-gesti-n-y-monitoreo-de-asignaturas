@@ -137,16 +137,24 @@
          
          <!-- Leyenda LMS -->
          <div id="bi-leyenda-lms-container" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-           <h6 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-list-check" style="color:#06b6d4; margin-right:8px;"></i>Leyenda de Dimensiones LMS</h6>
-           <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-             <div>
+           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+             <h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-list-check" style="color:#06b6d4; margin-right:8px;"></i>Leyenda de Dimensiones LMS</h6>
+             <div style="display:flex; gap:8px; align-items:center;">
+               <span style="font-size:11px; font-weight:700; color:#64748b;">Mostrar:</span>
+               <button id="btn-leyenda-ambas" onclick="toggleBiLeyendaCol('AMBAS')" style="padding:4px 12px; font-size:11px; font-weight:700; border-radius:6px; border:1px solid #06b6d4; background:#06b6d4; color:#fff; cursor:pointer; transition:all 0.2s;">Ambas</button>
+               <button id="btn-leyenda-virtual" onclick="toggleBiLeyendaCol('VIRTUAL')" style="padding:4px 12px; font-size:11px; font-weight:700; border-radius:6px; border:1px solid #2563eb; background:#eff6ff; color:#2563eb; cursor:pointer; transition:all 0.2s;">Virtual / Híbrida</button>
+               <button id="btn-leyenda-presencial" onclick="toggleBiLeyendaCol('PRESENCIAL')" style="padding:4px 12px; font-size:11px; font-weight:700; border-radius:6px; border:1px solid #7c3aed; background:#f5f3ff; color:#7c3aed; cursor:pointer; transition:all 0.2s;">Presencial</button>
+             </div>
+           </div>
+           <div id="bi-grid-leyendas" style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+             <div id="wrapper-leyenda-virtual" style="display:block;">
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:#2563eb; display:inline-block;"></span>
                   <span style="font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase;">Virtual / Híbrida</span>
                 </div>
                 <div id="bi-leyenda-virtual"></div>
              </div>
-             <div>
+             <div id="wrapper-leyenda-presencial" style="display:block;">
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
                   <span style="width:10px; height:10px; border-radius:50%; background:#7c3aed; display:inline-block;"></span>
                   <span style="font-size:12px; font-weight:800; color:#6d28d9; text-transform:uppercase;">Presencial</span>

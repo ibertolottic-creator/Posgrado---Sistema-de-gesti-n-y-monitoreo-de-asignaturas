@@ -282,6 +282,78 @@ function isIndexInUnidad(idx, filtroUnidad, isAcomp) {
   return true;
 }
 
+function calcularPuntajeVigesimalCurso(doc, tipo, filtroUnidad) {
+  if (!filtroUnidad || filtroUnidad === 'TODAS') {
+    return tipo === 'LMS' ? doc.ptsLMS : doc.ptsAcomp;
+  }
+  
+  var isAcomp = (tipo === 'ACOMP');
+  var arr = isAcomp ? doc.criteriosAcomp : doc.criteriosLMS;
+  if (!arr || arr.length === 0) return null;
+  
+  var suma = 0, count = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (!isIndexInUnidad(i, filtroUnidad, isAcomp)) continue;
+    var val = arr[i];
+    if (val !== null && val !== undefined && !isNaN(val) && val > 0) {
+      suma += Number(val);
+      count++;
+    }
+  }
+  
+  if (count === 0) return null;
+  var avg1_4 = suma / count;
+  var scoreVig = avg1_4 * 5; // Convertir escala 1-4 a Vigesimal Base 20
+  return parseFloat(scoreVig.toFixed(2));
+}
+
+function toggleBiLeyendaCol(mode) {
+  var grid = document.getElementById('bi-grid-leyendas');
+  var wV = document.getElementById('wrapper-leyenda-virtual');
+  var wP = document.getElementById('wrapper-leyenda-presencial');
+  var btnAmbas = document.getElementById('btn-leyenda-ambas');
+  var btnV = document.getElementById('btn-leyenda-virtual');
+  var btnP = document.getElementById('btn-leyenda-presencial');
+
+  if (!grid || !wV || !wP) return;
+
+  function setBtnStyle(btn, active, bg, color) {
+    if (!btn) return;
+    if (active) {
+      btn.style.background = bg;
+      btn.style.color = '#fff';
+      btn.style.borderColor = bg;
+    } else {
+      btn.style.background = '#f8fafc';
+      btn.style.color = color;
+      btn.style.borderColor = '#cbd5e1';
+    }
+  }
+
+  if (mode === 'AMBAS') {
+    wV.style.display = 'block';
+    wP.style.display = 'block';
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    setBtnStyle(btnAmbas, true, '#06b6d4', '#06b6d4');
+    setBtnStyle(btnV, false, '#2563eb', '#2563eb');
+    setBtnStyle(btnP, false, '#7c3aed', '#7c3aed');
+  } else if (mode === 'VIRTUAL') {
+    wV.style.display = 'block';
+    wP.style.display = 'none';
+    grid.style.gridTemplateColumns = '1fr';
+    setBtnStyle(btnAmbas, false, '#06b6d4', '#06b6d4');
+    setBtnStyle(btnV, true, '#2563eb', '#2563eb');
+    setBtnStyle(btnP, false, '#7c3aed', '#7c3aed');
+  } else if (mode === 'PRESENCIAL') {
+    wV.style.display = 'none';
+    wP.style.display = 'block';
+    grid.style.gridTemplateColumns = '1fr';
+    setBtnStyle(btnAmbas, false, '#06b6d4', '#06b6d4');
+    setBtnStyle(btnV, false, '#2563eb', '#2563eb');
+    setBtnStyle(btnP, true, '#7c3aed', '#7c3aed');
+  }
+}
+
 function calcularPromedioDimension(dataFiltrada, indices, campoArray, filtroUnidad, isAcomp) {
   var suma = 0, count = 0;
   for (var i = 0; i < dataFiltrada.length; i++) {
@@ -336,9 +408,6 @@ function createOrUpdateBiChart(chartId, type, labels, data, colors) {
 // ---------------------------------------------------------------
 // VISTA 1: GENERAL
 // ---------------------------------------------------------------
-// ---------------------------------------------------------------
-// VISTA 1: GENERAL
-// ---------------------------------------------------------------
 function renderBiViewGeneral(dataFiltrada, modalidad, filtroUnidad) {
   var sumProm=0, sumLMS=0, sumAcomp=0;
   var cntProm=0, cntLMS=0, cntAcomp=0;
@@ -346,24 +415,39 @@ function renderBiViewGeneral(dataFiltrada, modalidad, filtroUnidad) {
 
   for (var i = 0; i < dataFiltrada.length; i++) {
     var doc = dataFiltrada[i];
-    if (doc.promedio > 0) { sumProm += doc.promedio; cntProm++; }
-    if (doc.ptsLMS > 0)   { sumLMS += doc.ptsLMS; cntLMS++; }
-    if (doc.ptsAcomp > 0) { sumAcomp += doc.ptsAcomp; cntAcomp++; }
-    if (doc.promedio > 0) {
-      if (doc.promedio >= 17) distNiveles['Muy Bueno (17-20)']++;
-      else if (doc.promedio >= 14) distNiveles['Bueno (14-16)']++;
-      else if (doc.promedio >= 11) distNiveles['Regular (11-13)']++;
+    var scoreLmsVig = calcularPuntajeVigesimalCurso(doc, 'LMS', filtroUnidad);
+    var scoreAcompVig = calcularPuntajeVigesimalCurso(doc, 'ACOMP', filtroUnidad);
+    
+    var scoreGeneralVig = null;
+    if (scoreLmsVig !== null && scoreAcompVig !== null) {
+      scoreGeneralVig = parseFloat(((scoreLmsVig + scoreAcompVig) / 2).toFixed(2));
+    } else if (scoreLmsVig !== null) {
+      scoreGeneralVig = scoreLmsVig;
+    } else if (scoreAcompVig !== null) {
+      scoreGeneralVig = scoreAcompVig;
+    }
+
+    if (scoreGeneralVig !== null && scoreGeneralVig > 0) { sumProm += scoreGeneralVig; cntProm++; }
+    if (scoreLmsVig !== null && scoreLmsVig > 0)   { sumLMS += scoreLmsVig; cntLMS++; }
+    if (scoreAcompVig !== null && scoreAcompVig > 0) { sumAcomp += scoreAcompVig; cntAcomp++; }
+
+    if (scoreGeneralVig !== null && scoreGeneralVig > 0) {
+      if (scoreGeneralVig >= 17) distNiveles['Muy Bueno (17-20)']++;
+      else if (scoreGeneralVig >= 14) distNiveles['Bueno (14-16)']++;
+      else if (scoreGeneralVig >= 11) distNiveles['Regular (11-13)']++;
       else distNiveles['Deficiente (≤10)']++;
     }
   }
+
+  var labelUnidadKpi = filtroUnidad === 'U1' ? 'U1 (Sem 1)' : (filtroUnidad === 'U2' ? 'U2 (Sem 2)' : (filtroUnidad === 'U3' ? 'U3 (Sem 3)' : (filtroUnidad === 'U4' ? 'U4 (Sem 4)' : 'Total')));
 
   // KPIs
   var kpiD = document.getElementById('bi-kpis-general');
   if(kpiD) {
     kpiD.innerHTML = '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #3b82f6;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#3b82f6; text-transform:uppercase;">Asignaturas Evaluadas</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+dataFiltrada.length+'</p></div>' +
-                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #10b981;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#10b981; text-transform:uppercase;">Promedio General</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntProm>0 ? (sumProm/cntProm).toFixed(2) : '-')+'</p></div>' +
-                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #06b6d4;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#06b6d4; text-transform:uppercase;">Promedio LMS</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntLMS>0 ? (sumLMS/cntLMS).toFixed(2) : '-')+'</p></div>' +
-                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #f59e0b;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase;">Promedio Acompañamiento</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntAcomp>0 ? (sumAcomp/cntAcomp).toFixed(2) : '-')+'</p></div>';
+                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #10b981;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#10b981; text-transform:uppercase;" title="Promedio General ('+labelUnidadKpi+')">Prom. General ('+labelUnidadKpi+')</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntProm>0 ? (sumProm/cntProm).toFixed(2) : '-')+'</p></div>' +
+                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #06b6d4;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#06b6d4; text-transform:uppercase;" title="Promedio LMS ('+labelUnidadKpi+')">Prom. LMS ('+labelUnidadKpi+')</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntLMS>0 ? (sumLMS/cntLMS).toFixed(2) : '-')+'</p></div>' +
+                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #f59e0b;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase;" title="Promedio Acompañamiento ('+labelUnidadKpi+')">Prom. Acomp. ('+labelUnidadKpi+')</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntAcomp>0 ? (sumAcomp/cntAcomp).toFixed(2) : '-')+'</p></div>';
   }
 
   // Dist Gral
@@ -432,20 +516,23 @@ function renderBiViewLms(dataFiltrada, modalidad, filtroUnidad) {
 
   for (var i = 0; i < dataFiltrada.length; i++) {
     var doc = dataFiltrada[i];
-    if (doc.ptsLMS > 0) { 
-      sumLMS += doc.ptsLMS; cntLMS++;
-      if (doc.ptsLMS >= 17) distNiveles['Muy Bueno (17-20)']++;
-      else if (doc.ptsLMS >= 14) distNiveles['Bueno (14-16)']++;
-      else if (doc.ptsLMS >= 11) distNiveles['Regular (11-13)']++;
+    var scoreLmsVig = calcularPuntajeVigesimalCurso(doc, 'LMS', filtroUnidad);
+    if (scoreLmsVig !== null && scoreLmsVig > 0) { 
+      sumLMS += scoreLmsVig; cntLMS++;
+      if (scoreLmsVig >= 17) distNiveles['Muy Bueno (17-20)']++;
+      else if (scoreLmsVig >= 14) distNiveles['Bueno (14-16)']++;
+      else if (scoreLmsVig >= 11) distNiveles['Regular (11-13)']++;
       else distNiveles['Deficiente (≤10)']++;
     }
   }
+
+  var labelUnidadKpi = filtroUnidad === 'U1' ? 'U1 (Sem 1)' : (filtroUnidad === 'U2' ? 'U2 (Sem 2)' : (filtroUnidad === 'U3' ? 'U3 (Sem 3)' : (filtroUnidad === 'U4' ? 'U4 (Sem 4)' : 'Total')));
 
   // KPIs
   var kpiD = document.getElementById('bi-kpis-lms');
   if(kpiD) {
     kpiD.innerHTML = '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #06b6d4;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#06b6d4; text-transform:uppercase;">Asignaturas Evaluadas (LMS)</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+dataFiltrada.length+'</p></div>' +
-                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #0284c7;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#0284c7; text-transform:uppercase;">Promedio LMS (Base 20)</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntLMS>0 ? (sumLMS/cntLMS).toFixed(2) : '-')+'</p></div>';
+                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #0284c7;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#0284c7; text-transform:uppercase;">Promedio LMS (Base 20) • '+labelUnidadKpi+'</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntLMS>0 ? (sumLMS/cntLMS).toFixed(2) : '-')+'</p></div>';
   }
 
   createOrUpdateBiChart('chartBiDistLms', 'doughnut', Object.keys(distNiveles), Object.values(distNiveles), [BI_COLORS.green, BI_COLORS.blue, BI_COLORS.yellow, BI_COLORS.red]);
@@ -492,20 +579,23 @@ function renderBiViewAcomp(dataFiltrada, modalidad, filtroUnidad) {
 
   for (var i = 0; i < dataFiltrada.length; i++) {
     var doc = dataFiltrada[i];
-    if (doc.ptsAcomp > 0) { 
-      sumAc += doc.ptsAcomp; cntAc++;
-      if (doc.ptsAcomp >= 17) distNiveles['Muy Bueno (17-20)']++;
-      else if (doc.ptsAcomp >= 14) distNiveles['Bueno (14-16)']++;
-      else if (doc.ptsAcomp >= 11) distNiveles['Regular (11-13)']++;
+    var scoreAcVig = calcularPuntajeVigesimalCurso(doc, 'ACOMP', filtroUnidad);
+    if (scoreAcVig !== null && scoreAcVig > 0) { 
+      sumAc += scoreAcVig; cntAc++;
+      if (scoreAcVig >= 17) distNiveles['Muy Bueno (17-20)']++;
+      else if (scoreAcVig >= 14) distNiveles['Bueno (14-16)']++;
+      else if (scoreAcVig >= 11) distNiveles['Regular (11-13)']++;
       else distNiveles['Deficiente (≤10)']++;
     }
   }
+
+  var labelUnidadKpi = filtroUnidad === 'U1' ? 'U1 (Sem 1)' : (filtroUnidad === 'U2' ? 'U2 (Sem 2)' : (filtroUnidad === 'U3' ? 'U3 (Sem 3)' : (filtroUnidad === 'U4' ? 'U4 (Sem 4)' : 'Total')));
 
   // KPIs
   var kpiD = document.getElementById('bi-kpis-acomp');
   if(kpiD) {
     kpiD.innerHTML = '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #f59e0b;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase;">Asignaturas Evaluadas (Acomp.)</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+dataFiltrada.length+'</p></div>' +
-                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #d97706;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#d97706; text-transform:uppercase;">Promedio Acompañamiento (Base 20)</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntAc>0 ? (sumAc/cntAc).toFixed(2) : '-')+'</p></div>';
+                     '<div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #d97706;"><p style="margin:0 0 4px; font-size:11px; font-weight:700; color:#d97706; text-transform:uppercase;">Promedio Acompañamiento (Base 20) • '+labelUnidadKpi+'</p><p style="margin:0; font-size:28px; font-weight:800; color:#1e293b;">'+(cntAc>0 ? (sumAc/cntAc).toFixed(2) : '-')+'</p></div>';
   }
 
   createOrUpdateBiChart('chartBiDistAcomp', 'doughnut', Object.keys(distNiveles), Object.values(distNiveles), [BI_COLORS.green, BI_COLORS.blue, BI_COLORS.yellow, BI_COLORS.red]);
@@ -668,17 +758,25 @@ function renderLeyendaDimensiones(dataFiltrada, modalidadActiva, filtroUnidad) {
     return html;
   }
   
-  if (modalidadActiva === 'VIRTUAL_HIBRIDO' || modalidadActiva === 'TODAS') {
-    var dataV = modalidadActiva === 'TODAS' ? dataFiltrada.filter(function(d){return d.modalidad !== 'PRESENCIAL';}) : dataFiltrada;
+  if (modalidadActiva === 'VIRTUAL_HIBRIDO') {
+    toggleBiLeyendaCol('VIRTUAL');
+    var dataV = dataFiltrada;
     var keysV = Object.keys(DIMENSIONES_VIRTUAL);
     for(var i=0; i<keysV.length; i++) colVirtual.innerHTML += buildDimHTML(DIMENSIONES_VIRTUAL[keysV[i]], dataV, '#3b82f6');
-  } else colVirtual.innerHTML = '<p style="color:#94a3b8; font-style:italic; font-size:12px;">No aplica (Filtro Presencial activo)</p>';
-  
-  if (modalidadActiva === 'PRESENCIAL' || modalidadActiva === 'TODAS') {
-    var dataP = modalidadActiva === 'TODAS' ? dataFiltrada.filter(function(d){return d.modalidad === 'PRESENCIAL';}) : dataFiltrada;
+  } else if (modalidadActiva === 'PRESENCIAL') {
+    toggleBiLeyendaCol('PRESENCIAL');
+    var dataP = dataFiltrada;
     var keysP = Object.keys(DIMENSIONES_PRESENCIAL);
     for(var i=0; i<keysP.length; i++) colPresencial.innerHTML += buildDimHTML(DIMENSIONES_PRESENCIAL[keysP[i]], dataP, '#7c3aed');
-  } else colPresencial.innerHTML = '<p style="color:#94a3b8; font-style:italic; font-size:12px;">No aplica (Filtro Virtual activo)</p>';
+  } else {
+    var dataV = dataFiltrada.filter(function(d){return d.modalidad !== 'PRESENCIAL';});
+    var keysV = Object.keys(DIMENSIONES_VIRTUAL);
+    for(var i=0; i<keysV.length; i++) colVirtual.innerHTML += buildDimHTML(DIMENSIONES_VIRTUAL[keysV[i]], dataV, '#3b82f6');
+
+    var dataP = dataFiltrada.filter(function(d){return d.modalidad === 'PRESENCIAL';});
+    var keysP = Object.keys(DIMENSIONES_PRESENCIAL);
+    for(var i=0; i<keysP.length; i++) colPresencial.innerHTML += buildDimHTML(DIMENSIONES_PRESENCIAL[keysP[i]], dataP, '#7c3aed');
+  }
 }
 
 function renderDimensionesPorMejorarLms(dataFiltrada, modalidad, filtroUnidad) {
