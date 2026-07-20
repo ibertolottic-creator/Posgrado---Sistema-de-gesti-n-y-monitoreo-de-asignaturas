@@ -1,5 +1,5 @@
-<!-- Módulo Dashboard BI - Análisis de Resultados de Docentes -->
-<div id="module-dashboard-bi" style="display:none; flex-direction:column; padding:0; width:100%; height:100%; overflow-y:auto; background:#f8fafc;">
+<!-- Módulo Dashboard Coordinadores - Full Width con Filtros y Modales -->
+<div id="coordinadores-view" style="display:none; flex-direction:column; padding:0; width:100%; height:100%; overflow-y:auto; background:#f8fafc;">
 
   <!-- HEADER FIJO -->
   <div style="background:#fff; border-bottom:1px solid #e5e7eb; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
@@ -9,200 +9,230 @@
       </button>
       <div>
         <h1 style="margin:0; font-size:22px; font-weight:800; color:#1e293b; letter-spacing:-0.5px;">
-          <i class="fa-solid fa-chart-line" style="color:#3b82f6; margin-right:8px;"></i>Análisis de Resultados (BI)
+          <i class="fa-solid fa-ranking-star" style="color:#8b5cf6; margin-right:8px;"></i>Métricas de Gestión del Equipo
         </h1>
-        <p style="margin:2px 0 0; font-size:13px; color:#94a3b8;">Consolidado general vigesimal y focalizado por Modalidad</p>
+        <p style="margin:2px 0 0; font-size:13px; color:#94a3b8;">Desempeño LMS y Pedagógico (Acompañamiento) de Coordinadores Académicos</p>
       </div>
     </div>
+    
+    <!-- Filtros y Botones -->
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <div style="position:relative; display:flex; align-items:center;">
         <i class="fa-solid fa-filter" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
-        <select id="filtroBiPrograma" onchange="renderBiDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; max-width:250px; appearance:auto; text-overflow:ellipsis;">
+        <select id="filtroCoordPrograma" onchange="renderCoordinadoresDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; max-width:250px; appearance:auto; text-overflow:ellipsis;">
           <option value="TODOS" selected>Todos los Programas</option>
         </select>
       </div>
       <div style="position:relative; display:flex; align-items:center;">
         <i class="fa-solid fa-filter" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
-        <select id="filtroBiCoordinador" onchange="onChangeFiltroCoordinadorBI()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; max-width:250px; appearance:auto; text-overflow:ellipsis;">
+        <select id="filtroCoordAlias" onchange="renderCoordinadoresDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; max-width:250px; appearance:auto; text-overflow:ellipsis;">
           <option value="TODOS" selected>Todos los Coordinadores</option>
         </select>
       </div>
-      <div style="position:relative; display:flex; align-items:center;">
-        <i class="fa-solid fa-filter" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
-        <select id="filtroBiModalidad" onchange="renderBiDashboard()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:200px; appearance:auto;">
-          <option value="TODAS" selected>Todas las Modalidades</option>
-          <option value="VIRTUAL_HIBRIDO">Virtual / Híbrida (Tutorías)</option>
-          <option value="PRESENCIAL">Presencial (Evaluaciones)</option>
-        </select>
-      </div>
-      <button onclick="cargarDataSabanaBI()" id="btnRecargarBI" style="padding:8px 16px; font-size:13px; font-weight:700; color:#fff; background:#3b82f6; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-        <i class="fa-solid fa-sync-alt"></i> Actualizar Sábana
+      
+      <button onclick="generarReportePdfCoordinadores()" style="padding:8px 16px; font-size:13px; font-weight:600; color:#4f46e5; background:#e0e7ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#c7d2fe'" onmouseout="this.style.background='#e0e7ff'">
+        <i class="fa-solid fa-file-pdf"></i> Exportar PDF
+      </button>
+      
+      <button id="btnGuardarSnapshot" onclick="guardarSnapshotCoordinadores()" style="padding:8px 16px; font-size:13px; font-weight:600; color:#059669; background:#d1fae5; border:1px solid #a7f3d0; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#a7f3d0'" onmouseout="this.style.background='#d1fae5'">
+        <i class="fa-solid fa-database"></i> Guardar Snapshot
+      </button>
+      
+      <button onclick="initCoordinadores(true)" id="btnRecargarCoord" style="padding:8px 16px; font-size:13px; font-weight:700; color:#fff; background:#8b5cf6; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
+        <i class="fa-solid fa-sync-alt"></i> Actualizar
       </button>
     </div>
   </div>
 
-  <!-- CONTENIDO SCROLLABLE -->
-  <div style="flex:1; overflow-y:auto; padding:24px; max-width:1200px; margin:0 auto; width:100%;">
+  <!-- LOADER -->
+  <div id="coord-loader" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 0;">
+    <div class="loader" style="border:4px solid #e5e7eb; border-top:4px solid #8b5cf6; border-radius:50%; width:48px; height:48px; animation:spinner 1s linear infinite;"></div>
+    <p style="margin-top:16px; color:#64748b; font-weight:600; font-size:14px;">Descargando Sabana Docente y Calculando Tráfico...</p>
+  </div>
 
-    <!-- Loader -->
-    <div id="bi-loader" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 0;">
-      <div class="loader" style="border:4px solid #e5e7eb; border-top:4px solid #3b82f6; border-radius:50%; width:48px; height:48px; animation:spinner 1s linear infinite;"></div>
-      <p style="margin-top:16px; color:#64748b; font-weight:600; font-size:14px;">Calculando promedios y renderizando gráficos...</p>
+  <!-- NAVEGACIÓN DE VISTAS (PESTAÑAS/TABS) -->
+  <div id="coord-tabs-container" style="display:none; background:#fff; border-bottom:1px solid #e2e8f0; padding:0 24px;">
+    <div style="display:flex; gap:24px; font-size:13px; font-weight:600; color:#64748b;">
+      <button id="tabCoordALL" onclick="switchCoordTab('ALL')" style="padding:16px 4px; border-bottom:2px solid transparent; cursor:pointer;" class="tab-btn hover:text-slate-800 transition-colors">
+        <i class="fa-solid fa-border-all mr-2"></i>Vista Consolidada
+      </button>
+      <button id="tabCoordLMS" onclick="switchCoordTab('LMS')" style="padding:16px 4px; border-bottom:2px solid transparent; cursor:pointer;" class="tab-btn hover:text-blue-600 transition-colors">
+        <i class="fa-solid fa-laptop-code mr-2"></i>Monitoreo LMS
+      </button>
+      <button id="tabCoordACOMP" onclick="switchCoordTab('ACOMP')" style="padding:16px 4px; border-bottom:2px solid transparent; cursor:pointer;" class="tab-btn hover:text-amber-600 transition-colors">
+        <i class="fa-solid fa-chalkboard-user mr-2"></i>Acompañamiento
+      </button>
+      <button id="tabCoordANALISIS" onclick="switchCoordTab('ANALISIS')" style="padding:16px 4px; border-bottom:2px solid transparent; cursor:pointer;" class="tab-btn hover:text-purple-600 transition-colors">
+        <i class="fa-solid fa-users-viewfinder mr-2"></i>Resumen Consolidado del Equipo
+      </button>
     </div>
+  </div>
 
-    <!-- Contenido BI (oculto durante carga) -->
-    <div id="bi-content" style="display:none; flex-direction:column; gap:20px;">
+  <!-- CONTENIDO PRINCIPAL SCROLLABLE -->
+  <div id="coord-content" style="display:none; flex:1; overflow-y:auto; padding:24px; max-width:1400px; margin:0 auto; width:100%;">
       
-      <!-- TABS NAVEGACIÓN -->
-      <div style="display:flex; gap:8px; border-bottom:2px solid #e2e8f0; margin-bottom:16px; overflow-x:auto;">
-        <button id="bi-tab-btn-general" onclick="switchBiTab('GENERAL')" style="padding:10px 20px; font-weight:700; font-size:14px; color:#3b82f6; border:none; border-bottom:3px solid #3b82f6; background:transparent; cursor:pointer; white-space:nowrap; transition:all 0.2s;">1° Resultados Generales</button>
-        <button id="bi-tab-btn-lms" onclick="switchBiTab('LMS')" style="padding:10px 20px; font-weight:600; font-size:14px; color:#64748b; border:none; border-bottom:3px solid transparent; background:transparent; cursor:pointer; white-space:nowrap; transition:all 0.2s;">2° Resultados LMS</button>
-        <button id="bi-tab-btn-acomp" onclick="switchBiTab('ACOMP')" style="padding:10px 20px; font-weight:600; font-size:14px; color:#64748b; border:none; border-bottom:3px solid transparent; background:transparent; cursor:pointer; white-space:nowrap; transition:all 0.2s;">3° Resultados Acompañamiento</button>
-      </div>
+      <!-- CONTENEDOR PDF -->
+      <div id="coordPdfContainer" style="background:#f8fafc; padding-bottom:20px;">
+          <!-- 4 CARDS TOP -->
+          <div id="coord-kpis" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;">
+              <!-- Se inyectarán desde el JS -->
+          </div>
+          <!-- TABLA RESUMEN CONSOLIDADO (VISTA ANALISIS) -->
+          <div id="containerTablaResumen" style="display:none; margin-bottom:24px;">
+              <div id="coordTablaResumen"></div>
+          </div>
+          
+          <!-- LAYOUT GRÁFICAS -->
+          <div id="coordGridGraficas" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+              
+              <!-- GRAFICA LMS -->
+              <div id="cardGraphLms" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                      <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                          <i class="fa-solid fa-laptop-code" style="color:#0ea5e9; margin-right:6px;"></i>Avance de Monitoreo: LMS
+                      </h6>
+                      <button onclick="openCoordInfoModal('lms')" class="text-gray-400 hover:text-blue-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                  </div>
+                  <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;">
+                      <canvas id="chartCoordLms"></canvas>
+                  </div>
+              </div>
 
-      <!-- ========================================== -->
-      <!-- VISTA 1: RESULTADOS GENERALES              -->
-      <!-- ========================================== -->
-      <div id="bi-view-general" style="display:block; width:100%;">
-         <!-- KPIs General -->
-         <div id="bi-kpis-general" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px;"></div>
-         
-         <!-- Gráficos General -->
-         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:24px;">
-            <!-- Distribucion General -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-chart-pie" style="color:#10b981; margin-right:6px;"></i>Distribución General</h6>
+              <!-- GRAFICA ACOMP -->
+              <div id="cardGraphAcomp" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                      <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                          <i class="fa-solid fa-chalkboard-user" style="color:#f59e0b; margin-right:6px;"></i>Avance de Monitoreo: Acompañamiento
+                      </h6>
+                      <button onclick="openCoordInfoModal('acomp')" class="text-gray-400 hover:text-amber-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                  </div>
+                  <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;">
+                      <canvas id="chartCoordAcomp"></canvas>
+                  </div>
               </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;"><canvas id="chartBiDistGral"></canvas></div>
-            </div>
-            <!-- Radar LMS (General) -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-laptop" style="color:#06b6d4; margin-right:6px;"></i>Dimensiones LMS</h6>
-              </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;"><canvas id="chartBiRadarLmsGral"></canvas></div>
-            </div>
-            <!-- Radar Acomp (General) -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-chalkboard-user" style="color:#f59e0b; margin-right:6px;"></i>Dimensiones Acompañamiento</h6>
-              </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;"><canvas id="chartBiRadarAcompGral"></canvas></div>
-            </div>
-         </div>
+              
+              <!-- ZONA METRICAS TIEMPO (AHORA MÚLTIPLE EN LMS) -->
+              <div id="coordZonaTiempos" style="grid-column: span 2; display:flex; flex-direction:column; gap:20px;">
+                  
 
-         <!-- Rankings (Top/Bottom 5) -->
-         <div id="bi-rankings-general" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;"></div>
-         
-         <!-- Lista todas asignaturas -->
-         <div id="bi-lista-general" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"></div>
-      </div>
 
-      <!-- ========================================== -->
-      <!-- VISTA 2: RESULTADOS LMS                    -->
-      <!-- ========================================== -->
-      <div id="bi-view-lms" style="display:none; width:100%;">
-         <!-- KPIs LMS -->
-         <div id="bi-kpis-lms" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; margin-bottom:24px;"></div>
-         
-         <!-- Gráficos LMS -->
-         <div style="display:grid; grid-template-columns:1fr 2fr; gap:20px; margin-bottom:24px;">
-            <!-- Distribucion LMS -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                 <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-chart-pie" style="color:#06b6d4; margin-right:6px;"></i>Niveles de Desempeño LMS</h6>
+                  <!-- Gráficas de Tiempos distribuidas -->
+                  <div id="coordTiemposGrid" style="display:grid; grid-template-columns:1fr; gap:20px;">
+                      
+                      <!-- GRAFICA TIEMPOS (PROMEDIO X ASIGNATURA EVALUADA) -->
+                      <div id="cardGraphTiemposPromedio" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                          <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                              <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                                  <i class="fa-solid fa-stopwatch" style="color:#ec4899; margin-right:6px;"></i><span id="tituloTiemposProm">Tiempo Promedio por Asignatura Evaluada (Minutos)</span>
+                              </h6>
+                              <button onclick="openCoordInfoModal('tiempos')" class="text-gray-400 hover:text-pink-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                          </div>
+                          <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                              <canvas id="chartCoordTiempos"></canvas>
+                          </div>
+                      </div>
+
+                      <!-- GRAFICA TIEMPOS (TOTAL ABSOLUTO) -->
+                      <div id="cardGraphTiemposTotal" style="display:none; background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                          <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                              <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                                  <i class="fa-solid fa-layer-group" style="color:#6366f1; margin-right:6px;"></i><span id="tituloTiemposTotal">Tiempo Total Invertido (Suma Bruta)</span>
+                              </h6>
+                              <button onclick="openCoordInfoModal('tiempos_total')" class="text-gray-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                          </div>
+                          <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                              <canvas id="chartCoordTiemposTotal"></canvas>
+                          </div>
+                      </div>
+
+                      <!-- GRAFICA TIEMPOS (DEDICACION) -->
+                      <div id="cardGraphTiemposDedic" style="display:none; background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                          <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                              <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                                  <i class="fa-solid fa-scale-balanced" style="color:#0ea5e9; margin-right:6px;"></i><span id="tituloTiemposDedic">Índice Dedicación: Tiempo Absoluto / Todas sus Aulas Asignadas</span>
+                              </h6>
+                              <button onclick="openCoordInfoModal('tiempos_dedic')" class="text-gray-400 hover:text-sky-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                          </div>
+                          <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                              <canvas id="chartCoordTiemposDedic"></canvas>
+                          </div>
+                      </div>
+
+                  </div>
               </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;"><canvas id="chartBiDistLms"></canvas></div>
-            </div>
-            <!-- Radar LMS Expandido -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                 <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-diagram-project" style="color:#06b6d4; margin-right:6px;"></i>Rendimiento por Dimensiones LMS</h6>
-                 <span id="bi-badge-lms" style="font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; background:#e0f2fe; color:#0369a1; text-transform:uppercase;">Cargando...</span>
+
+              <!-- GRAFICA TRAFICO -->
+              <div id="cardGraphTrafico" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                      <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;">
+                          <i class="fa-solid fa-network-wired" style="color:#10b981; margin-right:6px;"></i>Tráfico Operativo: Accesos vs Comunicaciones
+                      </h6>
+                      <button onclick="openCoordInfoModal('trafico')" class="text-gray-400 hover:text-green-500 transition-colors"><i class="fa-solid fa-circle-question"></i></button>
+                  </div>
+                  <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;">
+                      <canvas id="chartCoordTrafico"></canvas>
+                  </div>
               </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;"><canvas id="chartBiRadarLms"></canvas></div>
-            </div>
-         </div>
-         
-         <!-- Leyenda LMS -->
-         <div id="bi-leyenda-lms-container" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-           <h6 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-list-check" style="color:#06b6d4; margin-right:8px;"></i>Leyenda de Dimensiones LMS</h6>
-           <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-             <div>
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-                  <span style="width:10px; height:10px; border-radius:50%; background:#2563eb; display:inline-block;"></span>
-                  <span style="font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase;">Virtual / Híbrida</span>
-                </div>
-                <div id="bi-leyenda-virtual"></div>
+
+          </div>
+
+
+          <!-- TABLA DETALLADA DE ASIGNATURAS -->
+          <div id="containerTablaDetalle" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
+                 <h6 style="margin:0; font-size:15px; font-weight:700; color:#334155;">
+                     <i class="fa-solid fa-list-check" style="color:#6366f1; margin-right:8px;"></i>Registro Detallado por Asignaturas Evaluadas
+                 </h6>
+                 <span id="coordBadgeListado" style="font-size:11px; color:#4f46e5; background:#e0e7ff; padding:4px 10px; border-radius:12px; font-weight:600;">0 registros</span>
              </div>
-             <div>
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-                  <span style="width:10px; height:10px; border-radius:50%; background:#7c3aed; display:inline-block;"></span>
-                  <span style="font-size:12px; font-weight:800; color:#6d28d9; text-transform:uppercase;">Presencial</span>
-                </div>
-                <div id="bi-leyenda-presencial"></div>
+             <!-- Usaremos DataTable Para esta tabla debido al tamaño -->
+             <div class="overflow-x-auto w-full">
+                 <table id="dtCoordAsignaturas" class="w-full text-sm text-left text-gray-500">
+                     <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b border-t border-slate-200 shadow-sm sticky top-0 z-20">
+                         <tr>
+                             <th class="px-4 py-3 min-w-[150px]">Programa</th>
+                             <th class="px-4 py-3 min-w-[200px]">Asignatura</th>
+                             <th class="px-4 py-3 min-w-[150px]">Docente</th>
+                             <th class="px-4 py-3 min-w-[120px]">Coordinador</th>
+                             <th class="px-3 py-3 text-center min-w-[80px]" title="Minutos LMS"><i class="fa-solid fa-laptop text-blue-500 mr-1"></i>Min LMS</th>
+                             <th class="px-3 py-3 text-center min-w-[80px]" title="Minutos Acompañamiento"><i class="fa-solid fa-chalkboard-user text-amber-500 mr-1"></i>Min Acp</th>
+                             <th class="px-3 py-3 text-center min-w-[70px]" title="Clics Moodle"><i class="fa-solid fa-mouse-pointer text-gray-500 mr-1"></i>Hits</th>
+                             <th class="px-3 py-3 text-center min-w-[70px]" title="Correos"><i class="fa-solid fa-envelope text-red-500 mr-1"></i>Mails</th>
+                             <th class="px-3 py-3 text-center min-w-[70px]" title="WhatsApp"><i class="fa-brands fa-whatsapp text-green-500 mr-1"></i>WA</th>
+                             <th class="px-3 py-3 text-center min-w-[80px]" title="Auditorías Ráfaga">Audits</th>
+                         </tr>
+                     </thead>
+                     <tbody id="coord-asignaturas-body" class="bg-white text-gray-700 font-medium">
+                         <!-- JS Datatables -->
+                     </tbody>
+                 </table>
              </div>
-           </div>
-         </div>
-         
-         <!-- Dimensiones a mejorar LMS -->
-         <div id="bi-mejorar-lms-container" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-             <h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-magnifying-glass-chart" style="color:#ef4444; margin-right:8px;"></i>Análisis Focalizado LMS: Dimensiones por Mejorar</h6>
-             <span style="font-size:11px; color:#64748b; background:#f1f5f9; padding:4px 10px; border-radius:12px;">Criterios calificados con 1 o 2</span>
-           </div>
-           <div id="bi-mejorar-lms"></div>
-         </div>
-         
-         <!-- Lista críticos LMS -->
-         <div id="bi-criticos-lms" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"></div>
-      </div>
+          </div>
 
-      <!-- ========================================== -->
-      <!-- VISTA 3: RESULTADOS ACOMPAÑAMIENTO         -->
-      <!-- ========================================== -->
-      <div id="bi-view-acomp" style="display:none; width:100%;">
-         <!-- KPIs Acomp -->
-         <div id="bi-kpis-acomp" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; margin-bottom:24px;"></div>
-         
-         <!-- Gráficos Acomp -->
-         <div style="display:grid; grid-template-columns:1fr 2fr; gap:20px; margin-bottom:24px;">
-            <!-- Distribucion Acomp -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                 <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-chart-pie" style="color:#f59e0b; margin-right:6px;"></i>Niveles de Desempeño Pedagógico</h6>
-              </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;"><canvas id="chartBiDistAcomp"></canvas></div>
-            </div>
-            <!-- Radar Acomp Expandido -->
-            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                 <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-diagram-project" style="color:#f59e0b; margin-right:6px;"></i>Rendimiento por Dimensiones del Acompañamiento</h6>
-              </div>
-              <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;"><canvas id="chartBiRadarAcomp"></canvas></div>
-            </div>
-         </div>
-         
-         <!-- Leyenda Acomp -->
-         <div id="bi-leyenda-acomp-container" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-           <h6 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-list-check" style="color:#f59e0b; margin-right:8px;"></i>Leyenda de Dimensiones Pedagógicas</h6>
-           <div id="bi-leyenda-acomp" style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"></div>
-         </div>
-         
-         <!-- Dimensiones a mejorar Acomp -->
-         <div id="bi-mejorar-acomp-container" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-             <h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-magnifying-glass-chart" style="color:#ef4444; margin-right:8px;"></i>Análisis Focalizado Acompañamiento: Dimensiones por Mejorar</h6>
-             <span style="font-size:11px; color:#64748b; background:#f1f5f9; padding:4px 10px; border-radius:12px;">Criterios calificados con 1 o 2</span>
-           </div>
-           <div id="bi-mejorar-acomp"></div>
-         </div>
-         
-         <!-- Lista críticos Acomp -->
-         <div id="bi-criticos-acomp" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"></div>
-      </div>
+      </div><!-- fin PDF Container -->
+  </div><!-- fin Content -->
 
-    </div><!-- fin bi-content -->
-  </div><!-- fin scroll container -->
+</div> <!-- FIN MÓDULO -->
+
+<!-- MODAL INFORMATIVO -->
+<div id="coordInfoModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-200">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center" id="coordInfoTitle">
+                <i class="fa-solid fa-circle-info text-blue-500 mr-2"></i> Información de Métrica
+            </h3>
+            <button onclick="closeCoordInfoModal()" class="text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        <!-- Body -->
+        <div class="px-6 py-6 overflow-y-auto text-sm text-gray-600 space-y-4" id="coordInfoBody">
+            <!-- JS -->
+        </div>
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end">
+            <button onclick="closeCoordInfoModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">Entendido</button>
+        </div>
+    </div>
 </div>
