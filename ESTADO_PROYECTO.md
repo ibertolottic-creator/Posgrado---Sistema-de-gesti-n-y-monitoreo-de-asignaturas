@@ -84,16 +84,23 @@ Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad** construi
 - **Restauración y Clonado:** Se realizó la descarga completa del repositorio de GitHub (`Posgrado---Sistema-de-gesti-n-y-monitoreo-de-asignaturas`) tras el formateo del equipo de desarrollo, sincronizando los 9 subsistemas del proyecto.
 - **Auditoría de Arquitectura:** Se auditó la coherencia entre el frontend SPA (`Index.html`, `JS_Client.html`, `JS_Coordinadores.html`, `JS_BI.html`) y el backend en Google Apps Script (`Code.gs`, `Backend_Coordinadores.gs`, `GeneradorBI.gs`, `GeneradorDoc.gs`, `GeneradorResultados.gs`).
 
-### 6.2 Consolidación de la Pestaña ANÁLISIS (Resumen del Equipo por Semanas)
-- **Integración Visual:** Se actualizó `JS_Coordinadores.html` para incorporar el manejo completo del estado `CURRENT_TAB === 'ANALISIS'`.
-- **Desglose Semanal:** Se implementó la renderización iterativa en `renderCoordResumen()` creando contenedores de tabla independientes para **Semana 1, Semana 2, Semana 3, Semana 4 y Semana de Cierre**.
-- **Aislamiento de Componentes:** Al seleccionar la pestaña "ANÁLISIS", el sistema oculta los KPIs globales, gráficas de dona/radar y el listado individual de asignaturas, enfocando la pantalla exclusivamente en el reporte ejecutivo consolidado del equipo.
+### 6.3 Filtro por Unidad/Semana y Nota Vigesimal (Base 20) en Dashboard BI Docentes
+- **Selector de Unidad Dinámico:** Se agregó en `View_Dashboard_BI.html` el selector `filtroBiUnidad` (`TODAS`, `U1`, `U2`, `U3`, `U4`), permitiendo analizar de manera focalizada el rendimiento de cada unidad de aprendizaje o el consolidado total.
+- **Cálculo Vigesimal Adaptativo (Base 20):** Se creó la función `calcularPuntajeVigesimalCurso()` en `JS_BI.html` que evalúa las asignaturas en escala de 0 a 20 en función del 100% de los criterios pertenecientes estrictamente a la unidad seleccionada.
+- **Leyenda Interactiva de Dimensiones LMS:** Botones de alternancia (`Ambas`, `Virtual / Híbrida`, `Presencial`) mediante `toggleBiLeyendaCol(mode)` para ocultar/mostrar columnas y reestructurar el grid de dimensiones.
+- **Desempeño Detallado por Programa (LMS Exclusivo):** Implementado el contenedor `bi-lista-agrupada-lms` y la función `renderListaAgrupadaLms()` para agrupar asignaturas por programa académico ordenadas por nota vigesimal de la unidad elegida.
+
+### 6.4 Convivencia Pararela e Independiente de Subsistemas (BI Docentes & Coordinadores)
+- **Resolución de Enrutamiento SPA:** Refactorizado el manejador `loadModule()` en `JS_Client.html`, `JS_BI.html` y `JS_Coordinadores.html` para asegurar la ocultación mutua de vistas principales y prevenir solapamientos visuales.
+- **Eliminación de IDs Duplicados:** Se eliminó la duplicidad del contenedor de la tabla de resumen (`containerTablaResumen` / `coordTablaResumen`) en `View_Dashboard_Coordinadores.html` que provocaba bloqueos de renderizado en el navegador.
+- **Auto-Generación del Data Mart:** Se configuraron `GeneradorBI.gs`, `Backend_BI.gs` y `Backend_Coordinadores.gs` para detectar la falta o vacuidad de la hoja `"Sábana General Docente"` e inicializar/sincronizar automáticamente sus 125 columnas sin detener la ejecución.
+- **Notificaciones Defensivas:** Integración del helper global `window.showToast` en las cabeceras frontend para garantizar que la falla de dependencias auxiliares no interrumpa la renderización.
 
 ---
 
 ## 7. Pasos para la Próxima Sesión
 
-1. **Despliegue de Nueva Versión en Google Apps Script:** Publicar la versión web actualizada en Google Workspace para que los coordinadores accedan a la vista de análisis semanal.
+1. **Despliegue de Nueva Versión en Google Apps Script:** Publicar la versión web actualizada en Google Workspace para que la comunidad de coordinadores y directivos disponga de ambos módulos estratégicos operativos.
 2. **Auditoría de Permisos en Drive:** Verificar la correcta emisión de PDFs de fichas docentes en las carpetas de destino de Google Drive.
 3. **Monitoreo de Snapshots:** Ejecutar pruebas de guardado de snapshots en `Histórico_Tiempos_Coord`.
 
