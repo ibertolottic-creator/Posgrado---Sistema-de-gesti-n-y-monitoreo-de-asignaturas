@@ -567,7 +567,8 @@ function renderBiViewLms(dataFiltrada, modalidad, filtroUnidad) {
 
   renderLeyendaDimensiones(dataFiltrada, modalidad, filtroUnidad);
   renderDimensionesPorMejorarLms(dataFiltrada, modalidad, filtroUnidad);
-  renderListaCritica('bi-criticos-lms', dataFiltrada, 'LMS');
+  renderListaCritica('bi-criticos-lms', dataFiltrada, 'LMS', filtroUnidad);
+  renderListaAgrupadaLms(dataFiltrada, filtroUnidad);
 }
 
 // ---------------------------------------------------------------
@@ -632,7 +633,7 @@ function renderBiViewAcomp(dataFiltrada, modalidad, filtroUnidad) {
 
   renderLeyendaAcomp(dataFiltrada, filtroUnidad);
   renderDimensionesPorMejorarAcomp(dataFiltrada, filtroUnidad);
-  renderListaCritica('bi-criticos-acomp', dataFiltrada, 'ACOMP');
+  renderListaCritica('bi-criticos-acomp', dataFiltrada, 'ACOMP', filtroUnidad);
 }
 
 // ---------------------------------------------------------------
@@ -704,6 +705,55 @@ function renderListaAgrupadaGeneral(dataFiltrada) {
       h += '<td style="padding:8px 10px; font-weight:800; color:'+cG+';">'+pg+'</td>';
       h += '<td style="padding:8px 10px; font-weight:600; color:#0ea5e9;">'+pl+'</td>';
       h += '<td style="padding:8px 10px; font-weight:600; color:#d97706;">'+pa+'</td>';
+      h += '</tr>';
+    }
+  }
+  h += '</table></div>';
+  container.innerHTML = h;
+}
+
+function renderListaAgrupadaLms(dataFiltrada, filtroUnidad) {
+  var container = document.getElementById('bi-lista-agrupada-lms');
+  if(!container) return;
+  
+  var byProg = {};
+  for(var i=0; i<dataFiltrada.length; i++) {
+    var p = dataFiltrada[i].programa || 'Sin Programa';
+    if(!byProg[p]) byProg[p] = [];
+    byProg[p].push(dataFiltrada[i]);
+  }
+  var progs = Object.keys(byProg).sort();
+  
+  var labelUnidad = filtroUnidad === 'U1' ? 'Unidad I (Sem 1)' : (filtroUnidad === 'U2' ? 'Unidad II (Sem 2)' : (filtroUnidad === 'U3' ? 'Unidad III (Sem 3)' : (filtroUnidad === 'U4' ? 'Unidad IV (Sem 4)' : 'Total Consolidado')));
+
+  var h = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">';
+  h += '<h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-table-list" style="color:#06b6d4; margin-right:6px;"></i>Desempeño Detallado por Programa (LMS) • '+labelUnidad+'</h6>';
+  h += '</div>';
+  h += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left; background:#fff;">';
+  
+  for(var i=0; i<progs.length; i++) {
+    var docs = byProg[progs[i]];
+    docs.forEach(function(d){
+      d._scoreLmsTemp = calcularPuntajeVigesimalCurso(d, 'LMS', filtroUnidad);
+    });
+    docs.sort(function(a,b){ return (b._scoreLmsTemp || 0) - (a._scoreLmsTemp || 0); });
+
+    h += '<tr style="background:#f8fafc;"><td colspan="4" style="padding:10px; font-weight:800; color:#334155; border-bottom:2px solid #e2e8f0; border-top:1px solid #e2e8f0;">'+progs[i]+' <span style="font-weight:600; font-size:11px; color:#64748b; margin-left:8px;">('+docs.length+' cursos)</span></td></tr>';
+    h += '<tr style="background:#fff; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; border-bottom:1px solid #e2e8f0;">';
+    h += '<th style="padding:8px 10px;">Asignatura</th><th style="padding:8px 10px;">Docente</th><th style="padding:8px 10px;">Nota LMS (Base 20)</th><th style="padding:8px 10px;">Nivel</th></tr>';
+    
+    for(var j=0; j<docs.length; j++) {
+      var d = docs[j];
+      var scoreLms = d._scoreLmsTemp;
+      var strLms = scoreLms !== null && scoreLms > 0 ? scoreLms.toFixed(2) : '-';
+      var cColor = scoreLms === null || scoreLms === 0 ? '#94a3b8' : (scoreLms >= 17 ? '#10b981' : (scoreLms >= 14 ? '#0284c7' : (scoreLms >= 11 ? '#f59e0b' : '#ef4444')));
+      var nivelStr = scoreLms === null || scoreLms === 0 ? 'Sin Datos' : (scoreLms >= 17 ? 'Muy Bueno' : (scoreLms >= 14 ? 'Bueno' : (scoreLms >= 11 ? 'Regular' : 'Deficiente')));
+      
+      h += '<tr style="border-bottom:1px solid #f1f5f9;">';
+      h += '<td style="padding:8px 10px; color:#1e293b; font-weight:600;">'+d.asignatura+'</td>';
+      h += '<td style="padding:8px 10px; color:#475569;">'+d.docente+'</td>';
+      h += '<td style="padding:8px 10px; font-weight:800; color:'+cColor+';">'+strLms+'</td>';
+      h += '<td style="padding:8px 10px; font-size:11px; font-weight:700; color:'+cColor+';">'+nivelStr+'</td>';
       h += '</tr>';
     }
   }
@@ -930,17 +980,31 @@ function renderDimensionesPorMejorarAcomp(dataFiltrada, filtroUnidad) {
 // ---------------------------------------------------------------
 // LISTA DE ASIGNATURAS CRÍTICAS
 // ---------------------------------------------------------------
-function renderListaCritica(containerId, dataFiltrada, tipo) {
+function renderListaCritica(containerId, dataFiltrada, tipo, filtroUnidad) {
   var container = document.getElementById(containerId);
   if(!container) return;
   
-  var prop = tipo === 'LMS' ? 'ptsLMS' : 'ptsAcomp';
-  var crits = dataFiltrada.filter(function(d){ return d[prop] > 0 && d[prop] <= 13; }); 
-  crits.sort(function(a,b){ return a[prop] - b[prop]; });
+  var crits = [];
+  for(var i = 0; i < dataFiltrada.length; i++) {
+    var d = dataFiltrada[i];
+    var scoreVig = calcularPuntajeVigesimalCurso(d, tipo, filtroUnidad);
+    if (scoreVig !== null && scoreVig > 0 && scoreVig <= 13) {
+      crits.push({
+        asignatura: d.asignatura,
+        docente: d.docente,
+        programa: d.programa,
+        score: scoreVig
+      });
+    }
+  }
   
-  var h = '<h6 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-clipboard-list" style="color:#64748b; margin-right:6px;"></i>Asignaturas con Rendimiento Crítico ('+tipo+')</h6>';
+  crits.sort(function(a,b){ return a.score - b.score; });
+  
+  var labelUnidad = filtroUnidad === 'U1' ? 'U1 (Sem 1)' : (filtroUnidad === 'U2' ? 'U2 (Sem 2)' : (filtroUnidad === 'U3' ? 'U3 (Sem 3)' : (filtroUnidad === 'U4' ? 'U4 (Sem 4)' : 'Total')));
+
+  var h = '<h6 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-clipboard-list" style="color:#64748b; margin-right:6px;"></i>Asignaturas con Rendimiento Crítico ('+tipo+') • '+labelUnidad+'</h6>';
   if(crits.length === 0) {
-    container.innerHTML = h + '<p style="font-size:13px; color:#10b981; font-weight:600;"><i class="fa-solid fa-check"></i> No hay asignaturas en nivel Regular o Deficiente.</p>';
+    container.innerHTML = h + '<p style="font-size:13px; color:#10b981; font-weight:600;"><i class="fa-solid fa-check"></i> No hay asignaturas en nivel Regular o Deficiente ('+labelUnidad+').</p>';
     return;
   }
   
@@ -955,8 +1019,8 @@ function renderListaCritica(containerId, dataFiltrada, tipo) {
     h += '<td style="padding:8px 10px; color:#1e293b; font-weight:600;">'+c.asignatura+'</td>';
     h += '<td style="padding:8px 10px; color:#475569;">'+c.docente+'</td>';
     h += '<td style="padding:8px 10px; color:#64748b; font-size:11px;">'+c.programa+'</td>';
-    var color = c[prop] <= 10 ? '#ef4444' : '#f59e0b';
-    h += '<td style="padding:8px 10px; font-weight:800; color:'+color+';">'+parseFloat(c[prop]).toFixed(2)+'</td>';
+    var color = c.score <= 10 ? '#ef4444' : '#f59e0b';
+    h += '<td style="padding:8px 10px; font-weight:800; color:'+color+';">'+c.score.toFixed(2)+'</td>';
     h += '</tr>';
   }
   h += '</table></div>';
