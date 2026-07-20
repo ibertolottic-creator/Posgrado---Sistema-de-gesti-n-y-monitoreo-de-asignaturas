@@ -4,7 +4,7 @@
  * Archivo: Backend_BI.gs
  * ==========================================
  * Endpoint para obtener datos de la "Sábana General Docente"
- * 
+ *
  * RESPUESTA (getSabanaBIData):
  *   headerCodesLMS[]  - Array de 38 códigos de criterios LMS
  *   headerCodesAcomp[] - Array de 11 códigos de criterios Acomp
@@ -19,15 +19,23 @@
 function getSabanaBIData() {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("Sábana General Docente");
+    var sheet = ss.getSheetByName('Sábana General Docente');
     if (!sheet) {
-       return { role: 'ERROR', message: "Hoja 'Sábana General Docente' no encontrada. Ejecute '(BI) Generar Cabeceras' y '(BI) Sincronizar' desde el menú." };
+      return {
+        role: 'ERROR',
+        message:
+          "Hoja 'Sábana General Docente' no encontrada. Ejecute '(BI) Generar Cabeceras' y '(BI) Sincronizar' desde el menú.",
+      };
     }
 
     var lastRow = sheet.getLastRow();
     var lastCol = sheet.getLastColumn();
     if (lastRow < 3) {
-       return { role: 'ERROR', message: "La Sábana no tiene datos. Ejecute '(BI) Sincronizar Sábana General Docente' desde el menú." };
+      return {
+        role: 'ERROR',
+        message:
+          "La Sábana no tiene datos. Ejecute '(BI) Sincronizar Sábana General Docente' desde el menú.",
+      };
     }
 
     // Fila 1 = Códigos, Fila 2 = Títulos, Datos desde Fila 3
@@ -44,9 +52,9 @@ function getSabanaBIData() {
     }
 
     // Columnas base de Asignación (índices 0-based)
-    var iPrograma = 2;    // Col C (Programa)
-    var iAsignatura = 4;  // Col E (Asignatura/Curso)
-    var iDocente = 6;     // Col G (Docente)
+    var iPrograma = 2; // Col C (Programa)
+    var iAsignatura = 4; // Col E (Asignatura/Curso)
+    var iDocente = 6; // Col G (Docente)
     var iCoordinador = 18; // Col S (Coordinador)
 
     // Puntajes finales (por código)
@@ -75,7 +83,7 @@ function getSabanaBIData() {
     // BLOQUE ACOMP: 11 columnas (después de LMS_TOTAL hasta ACOMP_TOTAL)
     // ---------------------------------------------------------------
     var iAcompStart = iLmsTotal !== -1 ? iLmsTotal + 1 : -1;
-    var iAcompEnd = iAcompTotal !== -1 ? iAcompTotal : (iAcompStart > 0 ? iAcompStart + 11 : -1);
+    var iAcompEnd = iAcompTotal !== -1 ? iAcompTotal : iAcompStart > 0 ? iAcompStart + 11 : -1;
     var acompCount = iAcompStart > 0 && iAcompEnd > iAcompStart ? iAcompEnd - iAcompStart : 0;
 
     var acompHeaderCodes = [];
@@ -102,11 +110,15 @@ function getSabanaBIData() {
       var coordinador = String(row[iCoordinador] || '').trim();
 
       // Determinar modalidad según reglas de negocio
-      var colD = String(row[3] || '').trim().toUpperCase();
-      var colN = String(row[13] || '').trim().toUpperCase();
+      var colD = String(row[3] || '')
+        .trim()
+        .toUpperCase();
+      var colN = String(row[13] || '')
+        .trim()
+        .toUpperCase();
 
-      var esHibrida = (colN.indexOf('HÍBRIDA') !== -1 || colN.indexOf('HIBRIDA') !== -1);
-      var esPresencialEnD = (colD.indexOf('PRESENCIAL') !== -1);
+      var esHibrida = colN.indexOf('HÍBRIDA') !== -1 || colN.indexOf('HIBRIDA') !== -1;
+      var esPresencialEnD = colD.indexOf('PRESENCIAL') !== -1;
 
       var modalidad = 'VIRTUAL'; // default
       if (esPresencialEnD && !esHibrida) {
@@ -162,7 +174,7 @@ function getSabanaBIData() {
         promedio: scoreVig,
         scoreGral: scoreGral,
         criteriosLMS: criteriosLMS,
-        criteriosAcomp: criteriosAcomp
+        criteriosAcomp: criteriosAcomp,
       });
     }
 
@@ -172,10 +184,9 @@ function getSabanaBIData() {
       headerCodesLMS: lmsHeaderCodes,
       headerTitlesLMS: lmsHeaderTitles,
       headerCodesAcomp: acompHeaderCodes,
-      headerTitlesAcomp: acompHeaderTitles
+      headerTitlesAcomp: acompHeaderTitles,
     };
-
-  } catch(e) {
-    return { role: 'ERROR', message: "Error en Backend_BI: " + e.toString() };
+  } catch (e) {
+    return { role: 'ERROR', message: 'Error en Backend_BI: ' + e.toString() };
   }
 }

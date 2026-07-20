@@ -19,8 +19,7 @@ function generarCabecerasSabanaGeneral() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaSabana = ss.getSheetByName(SABANA_DOCENTE);
     if (!hojaSabana) {
-      if(ui) ui.alert("❌ Error: No existe la hoja '" + SABANA_DOCENTE + "'.");
-      return;
+      hojaSabana = ss.insertSheet(SABANA_DOCENTE);
     }
 
     var hojaAsignacion = ss.getSheetByName(SHEET_MAP['ASIGNACION']);
@@ -201,10 +200,11 @@ function sincronizarSabanaBI(silentMode) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaSabana = ss.getSheetByName(SABANA_DOCENTE);
-    if (!hojaSabana) {
-      if(ui) ui.alert("❌ Error: No existe la hoja " + SABANA_DOCENTE);
-      return;
+    if (!hojaSabana || hojaSabana.getLastRow() < 2) {
+      generarCabecerasSabanaGeneral();
+      hojaSabana = ss.getSheetByName(SABANA_DOCENTE);
     }
+    if (!hojaSabana) return;
 
     var hojaAsignacion = ss.getSheetByName(SHEET_MAP['ASIGNACION']);
     var hojaVirtual = ss.getSheetByName(SHEET_MAP['VIRTUAL']);

@@ -77,11 +77,6 @@
           <div id="coord-kpis" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;">
               <!-- Se inyectarán desde el JS -->
           </div>
-          <!-- TABLA RESUMEN CONSOLIDADO (VISTA ANALISIS) -->
-          <div id="containerTablaResumen" style="display:none; margin-bottom:24px;">
-              <div id="coordTablaResumen"></div>
-          </div>
-          
           <!-- LAYOUT GRÁFICAS -->
           <div id="coordGridGraficas" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
               
@@ -108,14 +103,6 @@
                   </div>
                   <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:320px;">
                       <canvas id="chartCoordAcomp"></canvas>
-                  </div>
-              </div>
-              
-              
-              <!-- NUEVA TABLA: RESUMEN CONSOLIDADO DEL EQUIPO (SIEMPRE VISIBLE) -->
-              <div id="containerTablaResumen" style="margin-bottom:24px; display:block;">
-                  <div id="coordTablaResumen">
-                      <!-- El JS llenará esta tabla aquí adentro -->
                   </div>
               </div>
               

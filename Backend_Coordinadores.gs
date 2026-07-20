@@ -15,21 +15,19 @@ function getMetricasCoordinadores(forceSync) {
     var now = new Date().getTime();
     var diffMin = lastSync ? (now - parseInt(lastSync)) / 60000 : 999;
     
-    // Si se fuerza o pasaron más de 3 minutos, sincronizamos silenciosamente
-    if (forceSync || diffMin > 3) {
-      sincronizarSabanaBI(true);
-    }
-
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName("Sábana General Docente");
-    if (!sheet) {
-       return { role: 'ERROR', message: "Hoja 'Sábana General Docente' no encontrada." };
+    
+    // Si se fuerza, o pasaron más de 3 minutos, o la sábana está vacía/falta, sincronizamos silenciosamente
+    if (forceSync || diffMin > 3 || !sheet || sheet.getLastRow() < 3) {
+      sincronizarSabanaBI(true);
+      sheet = ss.getSheetByName("Sábana General Docente");
     }
 
-    var lastRow = sheet.getLastRow();
-    var lastCol = sheet.getLastColumn();
-    if (lastRow < 3) {
-       return { role: 'ERROR', message: "La Sábana no tiene datos consolidados." };
+    var lastRow = sheet ? sheet.getLastRow() : 0;
+    var lastCol = sheet ? sheet.getLastColumn() : 0;
+    if (!sheet || lastRow < 3) {
+       return { role: 'ERROR', success: false, message: "La Sábana General Docente no contiene datos consolidados aún." };
     }
 
     // Datos crudos completos (Memoria)
