@@ -78,8 +78,22 @@ Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad** construi
 
 ---
 
-## 6. Pasos para la Próxima Sesión
+## 6. Cambios Recientes (20 de Julio de 2026 - Sesión Actual)
 
-1. **Monitorear Ejecución en Drive:** Confirmar que los nuevos enlaces generados por el botón "Generar Ficha" se almacenen físicamente en las nuevas carpetas proporcionadas y que los archivos hereden permisos aptos para que el módulo de "Enviar Resultados Automáticos" pueda mandarlos sin restricciones de acceso.
-2. **Validar Importación de Posgrado:** Realizar una corrida en frío de la herramienta "Importar Matriz" (para verificar que el volumen de datos alojados corresponda únicamente a Posgrado, descartando anomalías por celdas vacías).
-3. **Auditar Tiempos LMS y Acomp (Frontend):** Desplegar a entorno productivo y realizar una prueba simulada o revisar los últimos snapshots para verificar contadores en pantalla.
+### 6.1 Reconstrucción y Auditoría Integral de Subsistemas
+- **Restauración y Clonado:** Se realizó la descarga completa del repositorio de GitHub (`Posgrado---Sistema-de-gesti-n-y-monitoreo-de-asignaturas`) tras el formateo del equipo de desarrollo, sincronizando los 9 subsistemas del proyecto.
+- **Auditoría de Arquitectura:** Se auditó la coherencia entre el frontend SPA (`Index.html`, `JS_Client.html`, `JS_Coordinadores.html`, `JS_BI.html`) y el backend en Google Apps Script (`Code.gs`, `Backend_Coordinadores.gs`, `GeneradorBI.gs`, `GeneradorDoc.gs`, `GeneradorResultados.gs`).
+
+### 6.2 Consolidación de la Pestaña ANÁLISIS (Resumen del Equipo por Semanas)
+- **Integración Visual:** Se actualizó `JS_Coordinadores.html` para incorporar el manejo completo del estado `CURRENT_TAB === 'ANALISIS'`.
+- **Desglose Semanal:** Se implementó la renderización iterativa en `renderCoordResumen()` creando contenedores de tabla independientes para **Semana 1, Semana 2, Semana 3, Semana 4 y Semana de Cierre**.
+- **Aislamiento de Componentes:** Al seleccionar la pestaña "ANÁLISIS", el sistema oculta los KPIs globales, gráficas de dona/radar y el listado individual de asignaturas, enfocando la pantalla exclusivamente en el reporte ejecutivo consolidado del equipo.
+
+---
+
+## 7. Pasos para la Próxima Sesión
+
+1. **Despliegue de Nueva Versión en Google Apps Script:** Publicar la versión web actualizada en Google Workspace para que los coordinadores accedan a la vista de análisis semanal.
+2. **Auditoría de Permisos en Drive:** Verificar la correcta emisión de PDFs de fichas docentes en las carpetas de destino de Google Drive.
+3. **Monitoreo de Snapshots:** Ejecutar pruebas de guardado de snapshots en `Histórico_Tiempos_Coord`.
+
