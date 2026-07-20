@@ -81,17 +81,38 @@ var NOMBRES_COMPLETOS_ACOMP = [
   '11. Extensión'
 ];
 
+window.showToast = window.showToast || function(title, msg, type) {
+  var toast = document.getElementById('global-toast');
+  var tTitle = document.getElementById('global-toast-title');
+  var tMsg = document.getElementById('global-toast-msg');
+  var tIcon = document.getElementById('global-toast-icon');
+  if (toast && tTitle && tMsg) {
+    tTitle.innerText = title || '';
+    tMsg.innerText = msg || '';
+    if (tIcon) {
+      if (type === 'success') tIcon.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
+      else if (type === 'error') tIcon.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+      else if (type === 'warning') tIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i>';
+      else tIcon.innerHTML = '<i class="fa-solid fa-circle-info text-blue-500"></i>';
+    }
+    toast.classList.remove('translate-x-full', 'opacity-0');
+    setTimeout(function() { toast.classList.add('translate-x-full', 'opacity-0'); }, 4000);
+  } else {
+    console.log('[' + (type || 'info').toUpperCase() + '] ' + title + ': ' + msg);
+  }
+};
+
 /** Punto de entrada: llamado desde loadModule('BI') en JS_Client */
 function mostrarModuloBI() {
   // Ocultar TODAS las vistas principales
-  var ids = ['home-view','module-view','module-acomp','assignment-view','resultados-view'];
+  var ids = ['home-view','module-view','module-acomp','assignment-view','resultados-view','coordinadores-view'];
   for (var i = 0; i < ids.length; i++) {
     var el = document.getElementById(ids[i]);
-    if (el) { el.style.display = 'none'; }
+    if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
   }
   // Mostrar Dashboard BI
   var biView = document.getElementById('module-dashboard-bi');
-  if (biView) { biView.style.display = 'flex'; }
+  if (biView) { biView.classList.remove('hidden'); biView.style.display = 'flex'; }
   // Cargar datos si es la primera vez
   if (biDataGlobal.length === 0) { cargarDataSabanaBI(); }
 }

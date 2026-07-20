@@ -1,5 +1,26 @@
 <!-- ==================== JS START: MÓDULO COORDINADORES ==================== -->
 <script>
+    window.showToast = window.showToast || function(title, msg, type) {
+      var toast = document.getElementById('global-toast');
+      var tTitle = document.getElementById('global-toast-title');
+      var tMsg = document.getElementById('global-toast-msg');
+      var tIcon = document.getElementById('global-toast-icon');
+      if (toast && tTitle && tMsg) {
+        tTitle.innerText = title || '';
+        tMsg.innerText = msg || '';
+        if (tIcon) {
+          if (type === 'success') tIcon.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
+          else if (type === 'error') tIcon.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+          else if (type === 'warning') tIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i>';
+          else tIcon.innerHTML = '<i class="fa-solid fa-circle-info text-blue-500"></i>';
+        }
+        toast.classList.remove('translate-x-full', 'opacity-0');
+        setTimeout(function() { toast.classList.add('translate-x-full', 'opacity-0'); }, 4000);
+      } else {
+        console.log('[' + (type || 'info').toUpperCase() + '] ' + title + ': ' + msg);
+      }
+    };
+
     // Variables Globales
     var CURRENT_TAB = 'ALL';
     var CURRENT_WEEK_TAB = 'ALL';
@@ -11,96 +32,25 @@
     var chartCoordTiemposDedicInst = null;
     var chartCoordTraficoInst = null;
     var dtCoordAsignaturasInst = null;
-    
-    // Configuración Modal
-    const COORD_MODAL_DATA = {
-        'lms': {
-            title: 'Avance de Monitoreo: LMS',
-            icon: 'fa-laptop-code',
-            color: 'text-sky-500',
-            content: `
-                <p><strong>¿Qué mide?</strong> El porcentaje de aulas virtuales que ya fueron supervisadas y calificadas en la plataforma Moodle.</p>
-                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-2">
-                    <p class="text-blue-700"><strong>Fórmula:</strong> (Aulas con Calificación Vig. Final Mayor a Cero / Total de Aulas Asignadas) * 100%</p>
-                </div>
-                <ul class="list-disc pl-5 mt-3 space-y-1">
-                    <li>Un 100% indica que todas sus asignaturas virtuales están listas.</li>
-                    <li>Las Asignaturas en estado "Proceso" no suman puntos de Avance.</li>
-                </ul>
-            `
-        },
-        'acomp': {
-            title: 'Avance de Monitoreo: Acompañamiento',
-            icon: 'fa-chalkboard-user',
-            color: 'text-amber-500',
-            content: `
-                <p><strong>¿Qué mide?</strong> El porcentaje de visitas o acompañamientos pedagógicos sincrónicos finalizados.</p>
-                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mt-2">
-                    <p class="text-amber-700"><strong>Regla:</strong> Aulas con Rúbrica de Acompañamiento Generada y Evaluada completamente.</p>
-                </div>
-                <p class="mt-3">Para alcanzar la meta de Desempeño Efectivo, este indicador debe subir equitativamente junto al Monitoreo LMS.</p>
-            `
-        },
-        'tiempos': {
-            title: 'Tiempos Promedio de Evaluación',
-            icon: 'fa-stopwatch',
-            color: 'text-pink-500',
-            content: `
-                <p><strong>¿Qué mide?</strong> Registra cuántos minutos efectivos demoró un coordinador revisando una asignatura.</p>
-                <div class="bg-pink-50 border-l-4 border-pink-400 p-4 mt-2 text-sm">
-                    <p class="text-pink-700 mb-1"><strong>LMS:</strong> Se suman los minutos exactos precalculados en las bitácoras semanales (Ej. <em>audit_time_s1 + s2...</em>).</p>
-                    <p class="text-pink-700 mt-2"><strong>Acompañamiento:</strong> Se calcula restando la hora de calificacion del *último* criterio contra el *primer* criterio marcado.</p>
-                </div>
-                <ul class="list-disc pl-5 mt-3 space-y-1 text-xs">
-                    <li>Alerta de evaluaciones "express" (Ej. Menos de 1 Minuto) que indican automatismos sin rigor.</li>
-                    <li>Ayuda a balancear el nivel de tiempo que cada coordinador invierte en sus aulas.</li>
-                </ul>
-            `
-        },
-        'tiempos_total': {
-            title: 'Tiempo Total Invertido (Suma Bruta)',
-            icon: 'fa-layer-group',
-            color: 'text-indigo-500',
-            content: `
-                <p><strong>¿Qué mide?</strong> Registra cuántos minutos totales ha invertido el coordinador en toda su carga de trabajo en la semana seleccionada o en total.</p>
-                <div class="bg-indigo-50 border-l-4 border-indigo-400 p-4 mt-2 text-sm">
-                    <p class="text-indigo-700">Muestra fielmente quién ha pasado más horas métricas auditando y sirviendo aulas independientemente de la velocidad individual de cada una.</p>
-                </div>
-            `
-        },
-        'tiempos_dedic': {
-            title: 'Índice de Dedicación (Tiempo / Aulas Asignadas)',
-            icon: 'fa-scale-balanced',
-            color: 'text-sky-500',
-            content: `
-                <p><strong>¿Qué mide?</strong> Mide cuántos minutos teóricos dedica a <strong>cada una de sus aulas asignadas</strong> (inclusive a las que aún no evaluó o ignoró).</p>
-                <div class="bg-sky-50 border-l-4 border-sky-400 p-4 mt-2 text-sm">
-                    <p class="text-sky-700">A diferencia del "Promedio Efectivo" que solo promedia las aulas tocadas... este indicador evalúa el nivel de atención cruzado contra su carga laboral real. Resulta útil para observar cómo se diluye el tiempo y esfuerzo si ignoran gran parte de sus aulas.</p>
-                </div>
-            `
-        },
-        'trafico': {
-            title: 'Tráfico Operativo: Accesos vs Comunicaciones',
-            icon: 'fa-network-wired',
-            color: 'text-green-500',
-            content: `
-                <p><strong>¿Qué mide?</strong> El esfuerzo de gestión manual que hace el equipo para empujar el avance.</p>
-                <ul class="list-disc pl-5 mt-3 space-y-2">
-                    <li><strong class="text-gray-800">Hits Aula (Azul):</strong> Número de clics profundos y navegaciones dentro del Aula Virtual Moodle del docente.</li>
-                    <li><strong class="text-gray-800">Emails (Naranja):</strong> Cantidad de Correos Institucionales Automáticos despachados vía el Robot de Reportes.</li>
-                    <li><strong class="text-gray-800">WhatsApp (Verde):</strong> Cantidad de Mensajes Vía API mandados al celular personal de los Docentes.</li>
-                </ul>
-                <div class="bg-gray-100 border-l-4 border-gray-400 p-3 mt-3 text-xs italic">
-                    "A mayor tráfico y baja tasa de correos, significa alta carga presencial/LMS sin necesidad de alarmas de advertencia."
-                </div>
-            `
+
+    function initCoordinadores(forceSync) {
+        if (typeof forceSync !== 'boolean') forceSync = false;
+        
+        var ids = ['home-view','module-view','module-acomp','assignment-view','resultados-view','module-dashboard-bi'];
+        for (var i = 0; i < ids.length; i++) {
+          var el = document.getElementById(ids[i]);
+          if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
         }
-    };
-  
-    function initCoordinadores(forceSync = false) {
-        document.getElementById('coord-content').style.display = 'none';
+        var coordView = document.getElementById('coordinadores-view');
+        if (coordView) {
+          coordView.classList.remove('hidden');
+          coordView.style.display = 'flex';
+        }
+
+        var content = document.getElementById('coord-content');
+        if (content) content.style.display = 'none';
         const loader = document.getElementById('coord-loader');
-        loader.style.display = 'flex';
+        if (loader) loader.style.display = 'flex';
         
         const btn = document.getElementById('btnRecargarCoord');
         if(btn) {
@@ -113,7 +63,7 @@
         google.script.run
             .withSuccessHandler(onCoordinadoresSuccess)
             .withFailureHandler(err => {
-                loader.style.display = 'none';
+                if (loader) loader.style.display = 'none';
                 if(btn) {
                     btn.innerHTML = '<i class="fa-solid fa-sync-alt"></i> Intentar de Nuevo';
                     btn.disabled = false;
@@ -294,10 +244,12 @@
         const bgAll = tab === 'ALL' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500';
         const bgLms = tab === 'LMS' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500';
         const bgAcp = tab === 'ACOMP' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500';
+        const bgAnalisis = tab === 'ANALISIS' ? 'border-purple-500 text-purple-600' : 'border-transparent text-slate-500';
         
         document.getElementById('tabCoordALL').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAll;
         document.getElementById('tabCoordLMS').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgLms;
         document.getElementById('tabCoordACOMP').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAcp;
+        document.getElementById('tabCoordANALISIS').className = 'flex align-center pb-2 px-1 border-b-2 font-bold cursor-pointer transition-colors ' + bgAnalisis;
         
         // Repintar Todo
         renderCoordinadoresDashboard();
@@ -511,32 +463,40 @@
             
             
             // Lógica de Visibilidad Global
-            // Otras pestañas: Mostrar KPIs, gráficas, detalle y tabla resumen (Siempre Visible)
-            if(contKpis) contKpis.style.display = 'grid';
-            if(contGraficas) contGraficas.style.display = 'grid';
-            if(contDetalle) contDetalle.style.display = 'block';
-            if(contResumen) contResumen.style.display = 'block';
-            if(cardPro) cardPro.style.display = 'block';
-            
-            if(CURRENT_TAB === 'LMS') {
-                if(cardLms) cardLms.style.display = 'block';
-                if(cardAcp) cardAcp.style.display = 'none';
-                if(cardTrf) cardTrf.style.display = 'block';
-                if(cardTot) cardTot.style.display = 'block';
-                if(cardDed) cardDed.style.display = 'block';
-            } else if(CURRENT_TAB === 'ACOMP') {
-                if(cardLms) cardLms.style.display = 'none';
-                if(cardAcp) cardAcp.style.display = 'block';
-                if(cardTrf) cardTrf.style.display = 'none';
-                if(cardTot) cardTot.style.display = 'none';
-                if(cardDed) cardDed.style.display = 'none';
+            if(CURRENT_TAB === 'ANALISIS') {
+                // Pestaña ANALISIS: Solo mostrar tablas semanales de resumen
+                if(contKpis) contKpis.style.display = 'none';
+                if(contGraficas) contGraficas.style.display = 'none';
+                if(contDetalle) contDetalle.style.display = 'none';
+                if(contResumen) contResumen.style.display = 'block';
             } else {
-                // ALL
-                if(cardLms) cardLms.style.display = 'block';
-                if(cardAcp) cardAcp.style.display = 'block';
-                if(cardTrf) cardTrf.style.display = 'block';
-                if(cardTot) cardTot.style.display = 'none';
-                if(cardDed) cardDed.style.display = 'none';
+                // Otras pestañas: Mostrar KPIs, gráficas, detalle; ocultar tablas semanales
+                if(contKpis) contKpis.style.display = 'grid';
+                if(contGraficas) contGraficas.style.display = 'grid';
+                if(contDetalle) contDetalle.style.display = 'block';
+                if(contResumen) contResumen.style.display = 'none';
+                if(cardPro) cardPro.style.display = 'block';
+                
+                if(CURRENT_TAB === 'LMS') {
+                    if(cardLms) cardLms.style.display = 'block';
+                    if(cardAcp) cardAcp.style.display = 'none';
+                    if(cardTrf) cardTrf.style.display = 'block';
+                    if(cardTot) cardTot.style.display = 'block';
+                    if(cardDed) cardDed.style.display = 'block';
+                } else if(CURRENT_TAB === 'ACOMP') {
+                    if(cardLms) cardLms.style.display = 'none';
+                    if(cardAcp) cardAcp.style.display = 'block';
+                    if(cardTrf) cardTrf.style.display = 'none';
+                    if(cardTot) cardTot.style.display = 'none';
+                    if(cardDed) cardDed.style.display = 'none';
+                } else {
+                    // ALL
+                    if(cardLms) cardLms.style.display = 'block';
+                    if(cardAcp) cardAcp.style.display = 'block';
+                    if(cardTrf) cardTrf.style.display = 'block';
+                    if(cardTot) cardTot.style.display = 'none';
+                    if(cardDed) cardDed.style.display = 'none';
+                }
             }
 
             // Renderizar Gráficos (Aislados con try-catch para jamás bloquear al sistema)
@@ -620,101 +580,94 @@
         `;
     }
 
-    /** RENDER 2: TABLAS RESUMEN CONSOLIDADO (TODAS LAS SEMANAS) */
+    /** RENDER 2: TABLAS RESUMEN CONSOLIDADO POR SEMANA (S1, S2, S3, S4, Cierre) */
     function renderCoordResumen(arr) {
-        let tbody = document.getElementById('coord-resumen-body');
-        if (!tbody) {
-            console.error('[COORD] No se encontró el tbody coord-resumen-body para la tabla de resumen.');
+        var container = document.getElementById('coordTablaResumen');
+        if (!container) {
+            console.error('[COORD] No se encontró el contenedor coordTablaResumen.');
             return;
         }
         
         try {
-            tbody.innerHTML = '';
-            if(!arr || arr.length === 0) return;
-
-            let showLms = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS');
-            let showAcp = (CURRENT_TAB === 'ALL' || CURRENT_TAB === 'ACOMP');
-            let showTrf = (CURRENT_TAB !== 'ACOMP');
-
-            // Actualizar visibilidad de cabeceras estáticas si es necesario
-            let thLmsAv = document.getElementById('thR_lmsAv');
-            let thAcpAv = document.getElementById('thR_acpAv');
-            let thLmsTm = document.getElementById('thR_lmsTm');
-            let thLmsTotal = document.getElementById('thR_lmsTotal');
-            let thLmsDedic = document.getElementById('thR_lmsDedic');
-            let thAcpTm = document.getElementById('thR_acpTm');
-            let thHits = document.getElementById('thR_hits');
-            let thMails = document.getElementById('thR_mails');
-            let thWa = document.getElementById('thR_wa');
+            if (!arr || arr.length === 0) {
+                container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:40px; font-size:14px;">No hay datos de coordinadores disponibles.</p>';
+                return;
+            }
             
-            if(thLmsAv) thLmsAv.style.display = showLms ? 'table-cell' : 'none';
-            if(thAcpAv) thAcpAv.style.display = showAcp ? 'table-cell' : 'none';
-            if(thLmsTm) thLmsTm.style.display = showLms ? 'table-cell' : 'none';
-            if(thLmsTotal) thLmsTotal.style.display = showLms ? 'table-cell' : 'none';
-            if(thLmsDedic) thLmsDedic.style.display = showLms ? 'table-cell' : 'none';
-            if(thAcpTm) thAcpTm.style.display = showAcp ? 'table-cell' : 'none';
-            if(thHits) thHits.style.display = showTrf ? 'table-cell' : 'none';
-            if(thMails) thMails.style.display = showTrf ? 'table-cell' : 'none';
-            if(thWa) thWa.style.display = showTrf ? 'table-cell' : 'none';
-
-            let htmlOut = '';
-
-            arr.forEach(function(c, idx) {
-                // Obtenemos los valores asumiendo wk.id === -1 (Consolidado)
-                let valAvgLms = c.avgLms || 0;
-                let valAbsLms = c.lmsTsTotal || 0;
-                let valDedLms = c.dedicLms || 0;
+            var WEEKS = [
+                { idx: 1, label: 'Semana 1' },
+                { idx: 2, label: 'Semana 2' },
+                { idx: 3, label: 'Semana 3' },
+                { idx: 4, label: 'Semana 4' },
+                { idx: 5, label: 'Semana: Cierre' }
+            ];
+            
+            var html = '';
+            
+            WEEKS.forEach(function(wk) {
+                // Card contenedor con header oscuro
+                html += '<div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">';
                 
-                let valHits   = c.hits || 0;
-                let valMails  = c.mails || 0;
-                let valWa     = c.wa || 0;
-
-                let valAuds = CURRENT_TAB === 'LMS' ? (c.auditsLms||0) : (CURRENT_TAB === 'ACOMP' ? (c.auditsAcp||0) : (c.audits||0));
-
-                let numPctLms = Number(c.pctLms) || 0;
-                let bgLms = '#e0f2fe'; let clLms = '#0369a1';
-                if (numPctLms < 100) { bgLms = '#fef3c7'; clLms = '#b45309'; }
-                if (numPctLms < 50)  { bgLms = '#fee2e2'; clLms = '#b91c1c'; }
-                let badgeLms = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgLms + '; color:' + clLms + ';">' + numPctLms.toFixed(1) + '%</span>';
-
-                let numPctAcp = Number(c.pctAcomp) || 0;
-                let bgAcp = '#dcfce7'; let clAcp = '#15803d';
-                if (numPctAcp < 100) { bgAcp = '#fef3c7'; clAcp = '#b45309'; }
-                if (numPctAcp < 50)  { bgAcp = '#fee2e2'; clAcp = '#b91c1c'; }
-                let badgeAcp = '<span style="padding:4px 8px; border-radius:12px; font-size:11px; font-weight:800; background:' + bgAcp + '; color:' + clAcp + ';">' + numPctAcp.toFixed(1) + '%</span>';
-
-                let auditBadge = valAuds > 0 
-                    ? '<span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; background:#ffedd5; color:#c2410c; border:1px solid #fdba74;"><i class="fa-solid fa-triangle-exclamation mr-1"></i>' + valAuds + '</span>'
-                    : '<span style="color:#94a3b8; font-size:11px;">-</span>';
-
-                htmlOut += '<tr style="border-bottom:1px solid #f1f5f9; hover:bg-slate-50 transition-colors;">';
-                htmlOut += '<td style="padding:14px 16px; font-size:13px; color:#64748b;">' + (idx+1) + '</td>';
-                htmlOut += '<td style="padding:14px 16px;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></div><span style="font-size:14px; font-weight:700; color:#1e293b;">' + (c.coord||'N/A') + '</span><span style="font-size:10px; color:#94a3b8; background:#f1f5f9; padding:2px 6px; border-radius:10px;">' + (c.total||0) + ' Aulas</span></div></td>';
+                // Header oscuro con gradiente
+                html += '<div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); padding:12px 20px; display:flex; align-items:center; gap:10px;">';
+                html += '<i class="fa-solid fa-users-viewfinder" style="color:#94a3b8; font-size:14px;"></i>';
+                html += '<span style="color:#e2e8f0; font-size:13px; font-weight:700;">Resumen Consolidado: <span style="color:#60a5fa;">' + wk.label + '</span></span>';
+                html += '</div>';
                 
-                if (showLms) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeLms + '</td>';
-                if (showAcp) htmlOut += '<td style="padding:14px 16px; text-align:center;">' + badgeAcp + '</td>';
+                // Tabla
+                html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
+                html += '<thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">';
+                html += '<th style="padding:10px 16px; text-align:left; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; width:40px;">N°</th>';
+                html += '<th style="padding:10px 16px; text-align:left; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Coordinador</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Promedio Min LMS</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Tiempo Absoluto LMS</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Dedicación LMS</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Hits Aula</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Emails</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">WhatsApp</th>';
+                html += '</tr></thead>';
+                html += '<tbody>';
                 
-                if (showLms) {
-                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + (valAvgLms > 0 ? formatMinutes(valAvgLms) : '-') + '</td>';
-                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#4338ca;">' + (valAbsLms > 0 ? formatMinutes(valAbsLms) : '-') + '</td>';
-                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valDedLms > 0 ? '<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">' + valDedLms.toFixed(2) + ' asig.</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
-                }
+                arr.forEach(function(c, idx) {
+                    var w = wk.idx;
+                    var promMinLms = c.avgLmsW ? (c.avgLmsW[w] || 0) : 0;
+                    var tiempoAbs  = c.lmsTsTotalW ? (c.lmsTsTotalW[w] || 0) : 0;
+                    var dedicacion = c.total > 0 ? ((c.lmsTsTotalW ? c.lmsTsTotalW[w] : 0) || 0) / c.total : 0;
+                    var hits  = c.hitsW ? (c.hitsW[w] || 0) : 0;
+                    var mails = c.mailsW ? (c.mailsW[w] || 0) : 0;
+                    var wa    = c.waW ? (c.waW[w] || 0) : 0;
+                    
+                    var mailsDisplay = mails > 0 
+                        ? '<span style="color:#d97706; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">' + mails + '</span>' 
+                        : '<span style="color:#94a3b8;">-</span>';
+                    
+                    var waDisplay = wa > 0 
+                        ? '<span style="color:#15803d; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:10px;">' + wa + '</span>' 
+                        : '<span style="color:#94a3b8;">-</span>';
+                    
+                    var dedicDisplay = dedicacion > 0 
+                        ? '<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">' + dedicacion.toFixed(2) + '</span>' 
+                        : '<span style="color:#94a3b8;">-</span>';
+                    
+                    html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+                    html += '<td style="padding:12px 16px; color:#64748b;">' + (idx + 1) + '</td>';
+                    html += '<td style="padding:12px 16px;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:8px; height:8px; border-radius:50%; background:#8b5cf6;"></div><span style="font-weight:700; color:#1e293b;">' + (c.coord || 'N/A') + '</span><span style="font-size:10px; color:#94a3b8; background:#f1f5f9; padding:2px 6px; border-radius:10px;">' + (c.total || 0) + ' Aulas</span></div></td>';
+                    html += '<td style="padding:12px 16px; text-align:center; font-weight:600; color:#475569;">' + (promMinLms > 0 ? formatMinutes(promMinLms) : '-') + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center; font-weight:600; color:#4338ca;">' + (tiempoAbs > 0 ? formatMinutes(tiempoAbs) : '-') + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + dedicDisplay + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center; color:#475569;">' + (hits > 0 ? hits : '-') + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + mailsDisplay + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + waDisplay + '</td>';
+                    html += '</tr>';
+                });
                 
-                if (showAcp) {
-                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; font-weight:600; color:#475569;">' + ((c.avgAcomp||0) > 0 ? formatMinutes(c.avgAcomp) : '-') + '</td>';
-                }
-                
-                if (showTrf) {
-                    htmlOut += '<td style="padding:14px 16px; text-align:center; font-size:13px; color:#475569;">' + (valHits > 0 ? valHits : '-') + '</td>';
-                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valMails > 0 ? '<span style="color:#d97706; font-size:13px; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">' + valMails + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
-                    htmlOut += '<td style="padding:14px 16px; text-align:center;">' + (valWa > 0 ? '<span style="color:#15803d; font-size:13px; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:10px;">' + valWa + '</span>' : '<span style="color:#94a3b8; font-size:11px;">-</span>') + '</td>';
-                }
-                htmlOut += '<td style="padding:14px 16px; text-align:center;">' + auditBadge + '</td></tr>';
+                html += '</tbody></table></div>';
             });
-
-            tbody.innerHTML = htmlOut;
+            
+            container.innerHTML = html;
+            
         } catch (err) {
-            tbody.innerHTML = '<tr><td colspan="12"><div style="color:red; padding:20px; border:1px solid red; background:#fef2f2;"><b>ERROR RENDER TABLA RESUMEN:</b> ' + err.message + '</div></td></tr>';
+            container.innerHTML = '<div style="color:red; padding:20px; border:1px solid red; background:#fef2f2;"><b>ERROR RENDER TABLAS RESUMEN:</b> ' + err.message + '</div>';
             console.error(err);
         }
     }
