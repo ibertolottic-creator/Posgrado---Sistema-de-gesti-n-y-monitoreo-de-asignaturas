@@ -30,6 +30,17 @@
         </select>
       </div>
       
+      <div id="containerFiltroCoordUnidad" style="position:relative; display:flex; align-items:center;">
+        <i class="fa-solid fa-calendar-week" style="position:absolute; left:10px; color:#94a3b8; font-size:11px;"></i>
+        <select id="filtroCoordUnidad" onchange="onChangeFiltroUnidadCoord()" style="padding:8px 14px 8px 30px; font-size:13px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; outline:none; min-width:180px; appearance:auto; text-overflow:ellipsis;">
+          <option value="ALL" selected>Todas las Semanas / Unidades</option>
+          <option value="S1">Semana 1 / Unidad I</option>
+          <option value="S2">Semana 2 / Unidad II</option>
+          <option value="S3">Semana 3 / Unidad III</option>
+          <option value="S4">Semana 4 / Unidad IV</option>
+        </select>
+      </div>
+      
       <button onclick="generarReportePdfCoordinadores()" style="padding:8px 16px; font-size:13px; font-weight:600; color:#4f46e5; background:#e0e7ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#c7d2fe'" onmouseout="this.style.background='#e0e7ff'">
         <i class="fa-solid fa-file-pdf"></i> Exportar PDF
       </button>
@@ -172,6 +183,51 @@
           </div>
 
 
+          <!-- TABLA RESUMEN CONSOLIDADO POR SEMANA (Pestaña ANALISIS) -->
+          <div id="containerTablaResumen" style="display:none; background:transparent; margin-bottom:24px;">
+              <!-- GUÍA DE CRITERIOS Y FÓRMULAS DE GESTIÓN -->
+              <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <h5 style="margin:0 0 12px; font-size:14px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px;">
+                      <i class="fa-solid fa-circle-info" style="color:#8b5cf6;"></i> Guía de Criterios y Fórmulas de Gestión del Equipo
+                  </h5>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; font-size:12px; line-height:1.5; color:#475569;">
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-clock text-blue-500 mr-1" style="width:14px;"></i> Promedio Min LMS:</strong> 
+                          Promedio aritmético del tiempo en minutos que toma evaluar cada aula (registrado por el cronómetro integrado).
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-business-time text-indigo-500 mr-1" style="width:14px;"></i> Tiempo Absoluto LMS:</strong> 
+                          Suma neta del tiempo en minutos invertido en plataforma, calculada mediante algoritmos de agrupación (clustering) por sesiones de trabajo (intervalos <= 15 min).
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-scale-balanced text-sky-500 mr-1" style="width:14px;"></i> Dedicación LMS:</strong> 
+                          Índice que divide el Tiempo Absoluto acumulado entre el total de aulas asignadas (tiempo promedio real invertido por aula a cargo).
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-mouse-pointer text-slate-500 mr-1" style="width:14px;"></i> Hits Aula:</strong> 
+                          Cantidad total de interacciones, guardados y clics del coordinador registrados en el aula virtual.
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-envelope text-orange-500 mr-1" style="width:14px;"></i> Emails:</strong> 
+                          Número de notificaciones y correos de retroalimentación automáticos enviados desde el sistema al docente.
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-brands fa-whatsapp text-emerald-500 mr-1" style="width:14px;"></i> WhatsApp:</strong> 
+                          Número de alertas de retroalimentación y envíos de reportes de monitoreo realizados por WhatsApp.
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-triangle-exclamation text-red-500 mr-1" style="width:14px;"></i> Auditorías (Audits):</strong> 
+                          Número de alertas generadas por "calificación ráfaga" (cuando se guardan notas masivamente en un intervalo de tiempo extremadamente corto, omitiendo una revisión exhaustiva).
+                      </div>
+                      <div>
+                          <strong style="color:#0f172a;"><i class="fa-solid fa-hourglass-half text-amber-600 mr-1" style="width:14px;"></i> Fuera Plazo:</strong> 
+                          Criterios calificados después de la fecha límite establecida (Bienvenida > 5 días; S1 > 10 días; S2 > 17 días; S3 > 24 días; S4 > 31 días; Cierre > 35 días; Acompañamiento > 31 días desde el inicio del curso).
+                      </div>
+                  </div>
+              </div>
+              <div id="coordTablaResumen"></div>
+          </div>
+
           <!-- TABLA DETALLADA DE ASIGNATURAS -->
           <div id="containerTablaDetalle" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
@@ -195,6 +251,8 @@
                              <th class="px-3 py-3 text-center min-w-[70px]" title="Correos"><i class="fa-solid fa-envelope text-red-500 mr-1"></i>Mails</th>
                              <th class="px-3 py-3 text-center min-w-[70px]" title="WhatsApp"><i class="fa-brands fa-whatsapp text-green-500 mr-1"></i>WA</th>
                              <th class="px-3 py-3 text-center min-w-[80px]" title="Auditorías Ráfaga">Audits</th>
+                             <th class="px-3 py-3 text-center min-w-[80px]" title="Bienvenida Tardía (>5 días)">B. Tardía</th>
+                             <th class="px-3 py-3 text-center min-w-[85px]" title="Calificaciones fuera de plazo">Fuera Plazo</th>
                          </tr>
                      </thead>
                      <tbody id="coord-asignaturas-body" class="bg-white text-gray-700 font-medium">

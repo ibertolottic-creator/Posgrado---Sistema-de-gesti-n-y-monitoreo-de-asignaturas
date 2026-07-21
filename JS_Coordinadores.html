@@ -189,51 +189,77 @@
     }
   
     function onCoordinadoresSuccess(response) {
-        if (!response.success) {
-            document.getElementById('coord-loader').style.display = 'none';
-            document.getElementById('btnRecargarCoord').disabled = false;
-            document.getElementById('btnRecargarCoord').innerHTML = '<i class="fa-solid fa-sync-alt"></i> Actualizar';
-            showToast("Advertencia BI", response.message, "warning");
-            return;
+        try {
+            if (!response || !response.success) {
+                var msg = response ? response.message : "El servidor devolvió una respuesta vacía.";
+                document.getElementById('coord-loader').style.display = 'none';
+                var btnRec = document.getElementById('btnRecargarCoord');
+                if (btnRec) {
+                    btnRec.disabled = false;
+                    btnRec.innerHTML = '<i class="fa-solid fa-sync-alt"></i> Actualizar';
+                }
+                showToast("Advertencia BI", msg, "warning");
+                return;
+            }
+      
+            RAW_COORD_DATA = response.data || [];
+            
+            // Populate Filtros
+            var setProgs = new Set();
+            var setCoords = new Set();
+            
+            RAW_COORD_DATA.forEach(r => {
+                if (r) {
+                    if(r.prog) setProgs.add(r.prog);
+                    if(r.coord) setCoords.add(r.coord);
+                }
+            });
+
+            // Populate Dropdowns
+            const cboProg = document.getElementById('filtroCoordPrograma');
+            if (cboProg) {
+                cboProg.innerHTML = '<option value="TODOS" selected>Todos los Programas</option>';
+                [...setProgs].sort().forEach(p => cboProg.add(new Option(p, p)));
+            }
+
+            const cboCoord = document.getElementById('filtroCoordAlias');
+            if (cboCoord) {
+                cboCoord.innerHTML = '<option value="TODOS" selected>Todos los Coordinadores</option>';
+                [...setCoords].sort().forEach(c => cboCoord.add(new Option(c, c)));
+            }
+
+            // Fill Tab logic
+            const tabsCont = document.getElementById('coord-tabs-container');
+            if (tabsCont) tabsCont.style.display = 'block';
+
+            // Render Initial Dashboard
+            renderCoordinadoresDashboard();
+      
+            const ldr = document.getElementById('coord-loader');
+            if (ldr) ldr.style.display = 'none';
+            const cnt = document.getElementById('coord-content');
+            if (cnt) cnt.style.display = 'flex';
+            
+            const btn = document.getElementById('btnRecargarCoord');
+            if(btn) {
+                btn.innerHTML = '<i class="fa-solid fa-sync-alt"></i> Actualizar Front';
+                btn.disabled = false;
+            }
+            showToast("Métricas Analizadas", "Data Lake de Gestión descargado exitosamente.", "success");
+        } catch (err) {
+            console.error("Crash in onCoordinadoresSuccess:", err);
+            const ldr = document.getElementById('coord-loader');
+            if (ldr) ldr.style.display = 'none';
+            alert("Crash en Frontend (onCoordinadoresSuccess): " + err.toString() + "\nStack: " + err.stack);
         }
-  
-        RAW_COORD_DATA = response.data || [];
-        
-        // Populate Filtros
-        var setProgs = new Set();
-        var setCoords = new Set();
-        
-        RAW_COORD_DATA.forEach(r => {
-            if(r.prog) setProgs.add(r.prog);
-            if(r.coord) setCoords.add(r.coord);
-        });
+    }
 
-        // Populate Dropdowns
-        const cboProg = document.getElementById('filtroCoordPrograma');
-        cboProg.innerHTML = '<option value="TODOS" selected>Todos los Programas</option>';
-        [...setProgs].sort().forEach(p => cboProg.add(new Option(p, p)));
-
-        const cboCoord = document.getElementById('filtroCoordAlias');
-        cboCoord.innerHTML = '<option value="TODOS" selected>Todos los Coordinadores</option>';
-        [...setCoords].sort().forEach(c => cboCoord.add(new Option(c, c)));
-
-        // Fill Tab logic
-        document.getElementById('coord-tabs-container').style.display = 'block';
-
-        // Auto-inyección obsoleta removida, el contenedor ya es estático en el HTML.
-
-        // Render Initial Dashboard
-        renderCoordinadoresDashboard();
-  
-        document.getElementById('coord-loader').style.display = 'none';
-        document.getElementById('coord-content').style.display = 'flex';
-        
-        const btn = document.getElementById('btnRecargarCoord');
-        if(btn) {
-            btn.innerHTML = '<i class="fa-solid fa-sync-alt"></i> Actualizar Front';
-            btn.disabled = false;
+    function onChangeFiltroUnidadCoord() {
+        const cbo = document.getElementById('filtroCoordUnidad');
+        if (cbo) {
+            CURRENT_WEEK_TAB = cbo.value;
+            renderCoordinadoresDashboard();
         }
-        showToast("Métricas Analizadas", "Data Lake de Gestión descargado exitosamente.", "success");
     }
 
     /** Módulo de Cambio de Pestañas **/
@@ -287,8 +313,15 @@
                 lmsAprobados: 0, lmsProceso: 0, 
                 acompAprobados: 0, acompProceso: 0,
                 totalAsigs: filteredData.length,
-                evidencias: 0, bursts: 0
+                evidencias: 0, bursts: 0,
+                lateB: 0, lateW: 0
             };
+
+            let wkIdx = -1;
+            if (CURRENT_WEEK_TAB === 'S1') wkIdx = 1;
+            else if (CURRENT_WEEK_TAB === 'S2') wkIdx = 2;
+            else if (CURRENT_WEEK_TAB === 'S3') wkIdx = 3;
+            else if (CURRENT_WEEK_TAB === 'S4') wkIdx = 4;
 
             filteredData.forEach(r => {
                 if (!coordMap[r.coord]) {
@@ -306,17 +339,41 @@
                         acompAprobados: 0, acompProceso: 0, acpTsTotal: 0, acpTsCount: 0,
                         hits: 0, mails: 0, wa: 0, audits: 0, auditsLms: 0, auditsAcp: 0,
                         hitsW: [0,0,0,0,0,0], mailsW: [0,0,0,0,0,0], waW: [0,0,0,0,0,0], 
-                        auditsW: [0,0,0,0,0,0], auditsLmsW: [0,0,0,0,0,0], auditsAcpW: [0,0,0,0,0,0]
+                        auditsW: [0,0,0,0,0,0], auditsLmsW: [0,0,0,0,0,0], auditsAcpW: [0,0,0,0,0,0],
+                        lateB: 0, lateW: 0, lateTot: 0,
+                        lateLmsW: [0,0,0,0,0,0]
                     };
                 }
                 let c = coordMap[r.coord];
                 c.total++;
 
-                // LMS Logic
-                if(r.s_lms !== null && r.s_lms > 0) { 
-                    c.lmsAprobados++; globals.lmsAprobados++;
-                } else if (r.startedLms) {
-                    c.lmsProceso++; globals.lmsProceso++;
+                // LMS Logic (Sensible a la semana/unidad seleccionada)
+                if (wkIdx === -1) {
+                    if(r.s_lms !== null && r.s_lms > 0) { 
+                        c.lmsAprobados++; globals.lmsAprobados++;
+                    } else if (r.startedLms) {
+                        c.lmsProceso++; globals.lmsProceso++;
+                    }
+                } else {
+                    if (r.raw_lms_w && r.raw_lms_w[wkIdx] && r.raw_lms_w[wkIdx].length > 0) {
+                        c.lmsAprobados++; globals.lmsAprobados++;
+                    } else {
+                        c.lmsProceso++; globals.lmsProceso++;
+                    }
+                }
+
+                // Acumulación de métricas tardías
+                c.lateB += (r.late_b || 0);
+                c.lateW += (r.late_w || 0);
+                c.lateTot += ((r.late_b || 0) + (r.late_w || 0));
+                
+                globals.lateB += (r.late_b || 0);
+                globals.lateW += (r.late_w || 0);
+
+                if (r.late_lms_w) {
+                    for (let w = 0; w < 6; w++) {
+                        c.lateLmsW[w] += r.late_lms_w[w];
+                    }
                 }
                 // ---- PROMEDIO MIN LMS (audit_time clásico) ----
                 if (r.audit_lms > 0) {
@@ -461,6 +518,13 @@
             const contGraficas = document.getElementById('coordGridGraficas');
             const contDetalle = document.getElementById('containerTablaDetalle');
             
+            // Lógica de Visibilidad del filtro de semanas
+            const divFiltroUnidad = document.getElementById('containerFiltroCoordUnidad');
+            if (CURRENT_TAB === 'ANALISIS' || CURRENT_TAB === 'ACOMP') {
+                if (divFiltroUnidad) divFiltroUnidad.style.display = 'none';
+            } else {
+                if (divFiltroUnidad) divFiltroUnidad.style.display = 'flex';
+            }
             
             // Lógica de Visibilidad Global
             if(CURRENT_TAB === 'ANALISIS') {
@@ -524,6 +588,12 @@
         let pct = 0;
         let titlePct = "Avance Medio";
         
+        let filteredData = RAW_COORD_DATA.filter(r => {
+            if (document.getElementById('filtroCoordPrograma').value !== 'TODOS' && r.prog !== document.getElementById('filtroCoordPrograma').value) return false;
+            if (document.getElementById('filtroCoordAlias').value !== 'TODOS' && r.coord !== document.getElementById('filtroCoordAlias').value) return false;
+            return true;
+        });
+        
         if(CURRENT_TAB === 'ALL') {
             const lmsP = globals.totalAsigs > 0 ? (globals.lmsAprobados / globals.totalAsigs) * 100 : 0;
             const acpP = globals.totalAsigs > 0 ? (globals.acompAprobados / globals.totalAsigs) * 100 : 0;
@@ -557,6 +627,48 @@
                 </div>
             </div>` : '';
 
+        let valLateB = 0;
+        let valLateW = 0;
+        if (CURRENT_TAB === 'LMS') {
+            valLateB = filteredData.reduce((acc, r) => acc + (r.late_b || 0), 0);
+            valLateW = filteredData.reduce((acc, r) => acc + (r.late_w || 0), 0);
+        } else if (CURRENT_TAB === 'ACOMP') {
+            valLateB = 0;
+            valLateW = filteredData.reduce((acc, r) => acc + (r.late_w || 0), 0);
+        } else {
+            valLateB = globals.lateB;
+            valLateW = globals.lateW;
+        }
+
+        const lateBlock = CURRENT_TAB !== 'ACOMP' ? `
+            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="width:48px; height:48px; border-radius:50%; background:#fee2e2; color:#ef4444; font-size:20px; display:flex; justify-content:center; align-items:center;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                    <h5 style="margin:0; font-size:12px; font-weight:700; color:#ef4444; text-transform:uppercase;">Bienv. Tardía</h5>
+                    <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#991b1b;">${valLateB}</p>
+                </div>
+            </div>
+            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="width:48px; height:48px; border-radius:50%; background:#ffedd5; color:#f97316; font-size:20px; display:flex; justify-content:center; align-items:center;">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <h5 style="margin:0; font-size:12px; font-weight:700; color:#f97316; text-transform:uppercase;">Fuera Plazo</h5>
+                    <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#9a3412;">${valLateW}</p>
+                </div>
+            </div>` : `
+            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="width:48px; height:48px; border-radius:50%; background:#ffedd5; color:#f97316; font-size:20px; display:flex; justify-content:center; align-items:center;">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <h5 style="margin:0; font-size:12px; font-weight:700; color:#f97316; text-transform:uppercase;">Fuera Plazo</h5>
+                    <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#9a3412;">${valLateW}</p>
+                </div>
+            </div>`;
+
         document.getElementById('coord-kpis').innerHTML = `
             <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                 <div style="width:48px; height:48px; border-radius:50%; background:#f3e8ff; color:#9333ea; font-size:20px; display:flex; justify-content:center; align-items:center;">
@@ -577,10 +689,11 @@
                 </div>
             </div>
             ${trfBlock}
+            ${lateBlock}
         `;
     }
 
-    /** RENDER 2: TABLAS RESUMEN CONSOLIDADO POR SEMANA (S1, S2, S3, S4, Cierre) */
+    /** RENDER 2: TABLAS RESUMEN CONSOLIDADO POR SEMANA (S0 a S5) */
     function renderCoordResumen(arr) {
         var container = document.getElementById('coordTablaResumen');
         if (!container) {
@@ -595,6 +708,7 @@
             }
             
             var WEEKS = [
+                { idx: 0, label: 'Bienvenida / Pre-inicio (W0)' },
                 { idx: 1, label: 'Semana 1' },
                 { idx: 2, label: 'Semana 2' },
                 { idx: 3, label: 'Semana 3' },
@@ -625,6 +739,8 @@
                 html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Hits Aula</th>';
                 html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Emails</th>';
                 html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">WhatsApp</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Auditorías</th>';
+                html += '<th style="padding:10px 16px; text-align:center; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Fuera Plazo</th>';
                 html += '</tr></thead>';
                 html += '<tbody>';
                 
@@ -636,6 +752,8 @@
                     var hits  = c.hitsW ? (c.hitsW[w] || 0) : 0;
                     var mails = c.mailsW ? (c.mailsW[w] || 0) : 0;
                     var wa    = c.waW ? (c.waW[w] || 0) : 0;
+                    var audits = c.auditsW ? (c.auditsW[w] || 0) : 0;
+                    var lateCount = c.lateLmsW ? (c.lateLmsW[w] || 0) : 0;
                     
                     var mailsDisplay = mails > 0 
                         ? '<span style="color:#d97706; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">' + mails + '</span>' 
@@ -648,6 +766,14 @@
                     var dedicDisplay = dedicacion > 0 
                         ? '<span style="padding:3px 8px; border-radius:10px; font-size:12px; font-weight:800; background:#e0f2fe; color:#0369a1;">' + dedicacion.toFixed(2) + '</span>' 
                         : '<span style="color:#94a3b8;">-</span>';
+                        
+                    var auditsDisplay = audits > 0
+                        ? '<span style="color:#ef4444; font-weight:700; background:#fee2e2; padding:2px 8px; border-radius:10px;">' + audits + '</span>'
+                        : '<span style="color:#94a3b8;">-</span>';
+
+                    var lateDisplay = lateCount > 0
+                        ? '<span style="color:#991b1b; font-weight:700; background:#fee2e2; padding:2px 8px; border-radius:10px;"><i class="fa-solid fa-clock mr-1" style="font-size:10px;"></i>' + lateCount + '</span>'
+                        : '<span style="color:#94a3b8;">-</span>';
                     
                     html += '<tr style="border-bottom:1px solid #f1f5f9;">';
                     html += '<td style="padding:12px 16px; color:#64748b;">' + (idx + 1) + '</td>';
@@ -658,6 +784,8 @@
                     html += '<td style="padding:12px 16px; text-align:center; color:#475569;">' + (hits > 0 ? hits : '-') + '</td>';
                     html += '<td style="padding:12px 16px; text-align:center;">' + mailsDisplay + '</td>';
                     html += '<td style="padding:12px 16px; text-align:center;">' + waDisplay + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + auditsDisplay + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + lateDisplay + '</td>';
                     html += '</tr>';
                 });
                 
@@ -673,7 +801,7 @@
     }
 
     /** 
-     * RENDER 3: TABLA INDIVIDUAL DATATABLES DETALLADA 
+     * RENDER 3: TABLA INDIVIDUAL DETALLADA 
      */
     function renderCoordDetalleAsignaturas(dataArr) {
         if(dtCoordAsignaturasInst) {
@@ -691,13 +819,17 @@
             let rawLmsTime = r.audit_lms || 0;
             let isIncomplete = false;
             
-            if (CURRENT_WEEK_TAB !== 'ALL') {
-                let wIdxOld = ['S1','S2','S3','S4'].indexOf(CURRENT_WEEK_TAB);
-                let wIdxNew = ['BIEN','S1','S2','S3','S4','CIER'].indexOf(CURRENT_WEEK_TAB);
-                if (r.audit_lms_w && wIdxOld !== -1 && r.audit_lms_w[wIdxOld] > 0) {
-                    rawLmsTime = r.audit_lms_w[wIdxOld];
-                } else if (r.ts_lms_w && wIdxNew !== -1 && r.ts_lms_w[wIdxNew] === -1) {
-                    isIncomplete = true;
+            let wkIdx = -1;
+            if (CURRENT_WEEK_TAB === 'S1') wkIdx = 1;
+            else if (CURRENT_WEEK_TAB === 'S2') wkIdx = 2;
+            else if (CURRENT_WEEK_TAB === 'S3') wkIdx = 3;
+            else if (CURRENT_WEEK_TAB === 'S4') wkIdx = 4;
+
+            if (wkIdx !== -1) {
+                if (r.audit_lms_w && r.audit_lms_w[wkIdx] > 0) {
+                    rawLmsTime = r.audit_lms_w[wkIdx];
+                } else if (r.raw_lms_w && r.raw_lms_w[wkIdx] && r.raw_lms_w[wkIdx].length === 0) {
+                    if (r.startedLms) isIncomplete = true;
                 } else {
                     rawLmsTime = 0;
                 }
@@ -716,6 +848,21 @@
             
             let audBag = vAud > 0 ? `<span class="bg-red-100 border border-red-300 text-red-700 text-xs px-2 py-1 rounded font-bold shadow-sm" title="Ráfagas Alertadas"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${vAud}</span>` : `<span class="text-xs text-gray-300 font-bold">0</span>`;
 
+            let vLateB = r.late_b || 0;
+            let vLateW = r.late_w || 0;
+            if (wkIdx !== -1) {
+                vLateB = 0; 
+                vLateW = r.late_lms_w ? (r.late_lms_w[wkIdx] || 0) : 0;
+            }
+
+            let badgeLateB = vLateB > 0 
+                ? `<span class="bg-red-100 border border-red-300 text-red-700 text-xs px-2 py-1 rounded font-bold shadow-sm" title="Bienvenida fuera de plazo"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${vLateB}</span>`
+                : `<span class="text-xs text-gray-300 font-bold">0</span>`;
+
+            let badgeLateW = vLateW > 0
+                ? `<span class="bg-amber-100 border border-amber-300 text-amber-700 text-xs px-2 py-1 rounded font-bold shadow-sm" title="Calificación fuera de plazo"><i class="fa-solid fa-clock mr-1"></i>${vLateW}</span>`
+                : `<span class="text-xs text-gray-300 font-bold">0</span>`;
+
             tr.innerHTML = `
                 <td class="px-4 py-3 font-medium text-xs truncate max-w-[150px]" title="${r.prog}">${r.prog}</td>
                 <td class="px-4 py-3 text-xs text-gray-800 truncate max-w-[200px]" title="${r.cur}">${r.cur}</td>
@@ -727,6 +874,8 @@
                 <td class="px-3 py-3 text-center text-xs text-orange-600 font-bold border-l">${r.m}</td>
                 <td class="px-3 py-3 text-center text-xs text-emerald-600 font-bold border-l">${r.w}</td>
                 <td class="px-3 py-3 text-center border-l">${audBag}</td>
+                <td class="px-3 py-3 text-center border-l">${badgeLateB}</td>
+                <td class="px-3 py-3 text-center border-l">${badgeLateW}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -752,7 +901,9 @@
         dtCoordAsignaturasInst.column(6).visible(showTrafico); // hits
         dtCoordAsignaturasInst.column(7).visible(showTrafico); // mails
         dtCoordAsignaturasInst.column(8).visible(showTrafico); // wa
-        dtCoordAsignaturasInst.column(9).visible(true);        // audits se queda siempre visible porque Acomp tiene los suyos
+        dtCoordAsignaturasInst.column(9).visible(true);        // audits
+        dtCoordAsignaturasInst.column(10).visible(CURRENT_TAB === 'ALL' || CURRENT_TAB === 'LMS'); // B. Tardía
+        dtCoordAsignaturasInst.column(11).visible(true);       // fuera plazo
     }
 
     /** 
@@ -810,10 +961,10 @@
         let labels = arr.map(c => c.coord);
         
         let wIdx = -1;
-        if (CURRENT_WEEK_TAB === 'S1') wIdx = 0;
-        else if (CURRENT_WEEK_TAB === 'S2') wIdx = 1;
-        else if (CURRENT_WEEK_TAB === 'S3') wIdx = 2;
-        else if (CURRENT_WEEK_TAB === 'S4') wIdx = 3;
+        if (CURRENT_WEEK_TAB === 'S1') wIdx = 1;
+        else if (CURRENT_WEEK_TAB === 'S2') wIdx = 2;
+        else if (CURRENT_WEEK_TAB === 'S3') wIdx = 3;
+        else if (CURRENT_WEEK_TAB === 'S4') wIdx = 4;
 
         let dataLms = arr.map(c => wIdx === -1 ? c.avgLms.toFixed(1) : Math.max(0, c.avgLmsW[wIdx]).toFixed(1));
         let dataAcp = arr.map(c => CURRENT_WEEK_TAB === 'ALL' ? c.avgAcomp.toFixed(1) : 0);

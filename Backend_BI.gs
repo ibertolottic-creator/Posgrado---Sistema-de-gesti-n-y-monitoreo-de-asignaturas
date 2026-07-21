@@ -68,7 +68,7 @@ function getSabanaBIData() {
     // Se ubican dinámicamente: desde col después de Asignación (19 cols)
     // hasta LMS_TOTAL (exclusive)
     // ---------------------------------------------------------------
-    var iLmsStart = 19; // Índice 0-based de la primera col LMS
+    var iLmsStart = 20; // Índice 0-based de la primera col LMS (luego de las 20 columnas de Asignación)
     var iLmsEnd = iLmsTotal !== -1 ? iLmsTotal : iLmsStart + 38;
     var lmsCount = iLmsEnd - iLmsStart;
 

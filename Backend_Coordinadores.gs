@@ -20,7 +20,14 @@ function getMetricasCoordinadores(forceSync) {
     
     // Si se fuerza, o pasaron más de 3 minutos, o la sábana está vacía/falta, sincronizamos silenciosamente
     if (forceSync || diffMin > 3 || !sheet || sheet.getLastRow() < 3) {
-      sincronizarSabanaBI(true);
+      try {
+        sincronizarSabanaBI(true);
+      } catch (errSync) {
+        if (!sheet || sheet.getLastRow() < 3) {
+          return { role: 'ERROR', success: false, message: "Error al sincronizar datos en tiempo real: " + errSync.toString() };
+        }
+        Logger.log("Advertencia de sincronización de fondo: " + errSync.toString());
+      }
       sheet = ss.getSheetByName("Sábana General Docente");
     }
 
@@ -44,6 +51,15 @@ function getMetricasCoordinadores(forceSync) {
     var idxScoreLMS = headerCodes.indexOf('LMS_TOTAL');
     var idxScoreAcomp = headerCodes.indexOf('ACOMP_TOTAL');
     
+    // Función robusta para parsear números y evitar errores de celdas rotas o fórmulas inválidas (#N/A)
+    var parseNumberSafe = function(val) {
+        if (val === null || val === undefined || val === '') return null;
+        if (typeof val === 'number') return isNaN(val) ? null : val;
+        var strVal = String(val).trim();
+        var parsed = parseFloat(strVal.replace(/[^0-9.]/g, ''));
+        return isNaN(parsed) ? null : parsed;
+    };
+
     // Función robusta para buscar columna por código (sin depender de findIndex)
     var getColIdx = function(targetCode) {
         var target = targetCode.toLowerCase().trim();
@@ -128,15 +144,21 @@ function getMetricasCoordinadores(forceSync) {
         // Tiempos LMS: Extracción Raw para Clustering en Frontend (6 Bins: Bienvenida, S1-S4, Cierre)
         var tieneTsLms = false;
         var raw_lms_w = [[], [], [], [], [], []];
-        
+        var late_b_count = 0;
+        var late_w_count = 0;
+        var late_lms_w = [0, 0, 0, 0, 0, 0];
+
+        var rawStartDate = row[19];
+        var startDate = parseDateHelper(rawStartDate);
+
         for (var t = 0; t < idxTsLms.length; t++) {
             var colIndex = idxTsLms[t];
             var codeName = String(headerCodes[colIndex]).trim().toLowerCase();
 
             var val = row[colIndex];
             if (val && String(val).trim() !== '') {
-                var d = new Date(val);
-                if (!isNaN(d.getTime())) {
+                var d = parseDateHelper(val);
+                if (d && !isNaN(d.getTime())) {
                     var wk = -1;
                     if (codeName.indexOf('_b') !== -1 || codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1) wk = 0;
                     else if (codeName.indexOf('_s1') !== -1) wk = 1;
@@ -147,6 +169,33 @@ function getMetricasCoordinadores(forceSync) {
 
                     if (wk !== -1) {
                         raw_lms_w[wk].push(d.getTime());
+                        
+                        if (startDate) {
+                            var diffDays = (d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                            var isLate = false;
+                            if (wk === 0 && diffDays > 5) {
+                                late_b_count++;
+                                isLate = true;
+                            } else if (wk === 1 && diffDays > 10) {
+                                late_w_count++;
+                                isLate = true;
+                            } else if (wk === 2 && diffDays > 17) {
+                                late_w_count++;
+                                isLate = true;
+                            } else if (wk === 3 && diffDays > 24) {
+                                late_w_count++;
+                                isLate = true;
+                            } else if (wk === 4 && diffDays > 31) {
+                                late_w_count++;
+                                isLate = true;
+                            } else if (wk === 5 && diffDays > 35) {
+                                late_w_count++;
+                                isLate = true;
+                            }
+                            if (isLate) {
+                                late_lms_w[wk]++;
+                            }
+                        }
                     }
                     tieneTsLms = true;
                 }
@@ -190,10 +239,17 @@ function getMetricasCoordinadores(forceSync) {
         for (var t = 0; t < idxTsAcomp.length; t++) {
             var val = row[idxTsAcomp[t]];
             if (val && String(val).trim() !== '') {
-                var d = new Date(val);
-                if (!isNaN(d.getTime())) {
+                var d = parseDateHelper(val);
+                if (d && !isNaN(d.getTime())) {
                     raw_acp.push(d.getTime());
                     tieneTsAcomp = true;
+                    
+                    if (startDate) {
+                        var diffDays = (d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                        if (diffDays > 31) {
+                            late_w_count++;
+                        }
+                    }
                 }
             }
         }
@@ -206,6 +262,28 @@ function getMetricasCoordinadores(forceSync) {
                 var num = parseFloat(numStr);
                 if (!isNaN(num)) diffMinAcomp += num;
                 tieneTsAcomp = true;
+            }
+        }
+
+        // Lógica de Evaluaciones Pendientes Fuera de Plazo
+        if (startDate) {
+            var today = new Date();
+            var diffDaysToday = (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+            var deadlines = [5, 10, 17, 24, 31, 35]; // W0, W1, W2, W3, W4, W5
+            for (var w = 0; w < 6; w++) {
+                if (raw_lms_w[w].length === 0) {
+                    if (diffDaysToday > deadlines[w]) {
+                        if (w === 0) {
+                            late_b_count++;
+                        } else {
+                            late_w_count++;
+                        }
+                        late_lms_w[w]++;
+                    }
+                }
+            }
+            if (raw_acp.length === 0 && diffDaysToday > 31) {
+                late_w_count++;
             }
         }
 
@@ -225,11 +303,11 @@ function getMetricasCoordinadores(forceSync) {
         var h = 0;
         var h_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxHits.length; idx++) {
-            var valH = row[idxHits[idx]];
-            if (valH && !isNaN(valH)) {
-                h += Number(valH);
+            var valH = parseNumberSafe(row[idxHits[idx]]);
+            if (valH !== null) {
+                h += valH;
                 var w = extractWk(idxHits[idx]);
-                if (w !== -1) h_w[w] += Number(valH);
+                if (w !== -1) h_w[w] += valH;
             }
         }
 
@@ -237,11 +315,11 @@ function getMetricasCoordinadores(forceSync) {
         var m = 0;
         var m_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxEmails.length; idx++) {
-            var valM = row[idxEmails[idx]];
-            if (valM && !isNaN(valM)) {
-                m += Number(valM);
+            var valM = parseNumberSafe(row[idxEmails[idx]]);
+            if (valM !== null) {
+                m += valM;
                 var w = extractWk(idxEmails[idx]);
-                if (w !== -1) m_w[w] += Number(valM);
+                if (w !== -1) m_w[w] += valM;
             }
         }
 
@@ -249,11 +327,11 @@ function getMetricasCoordinadores(forceSync) {
         var w_tot = 0;
         var w_w = [0,0,0,0,0,0];
         for (var idx = 0; idx < idxWa.length; idx++) {
-            var valW = row[idxWa[idx]];
-            if (valW && !isNaN(valW)) {
-                w_tot += Number(valW);
+            var valW = parseNumberSafe(row[idxWa[idx]]);
+            if (valW !== null) {
+                w_tot += valW;
                 var wk = extractWk(idxWa[idx]);
-                if (wk !== -1) w_w[wk] += Number(valW);
+                if (wk !== -1) w_w[wk] += valW;
             }
         }
 
@@ -281,14 +359,17 @@ function getMetricasCoordinadores(forceSync) {
             }
         }
 
+        var cleanLmsScore = parseNumberSafe(scoreLMS);
+        var cleanAcpScore = parseNumberSafe(scoreAcomp);
+
         asignaturasRaw.push({
             prog: prog,
             cur: cur,
             doc: doc,
             coord: cleanName,
             coordEmail: coordEmail,
-            s_lms: (scoreLMS !== '' && !isNaN(scoreLMS)) ? parseFloat(scoreLMS) : null,
-            s_acp: (scoreAcomp !== '' && !isNaN(scoreAcomp)) ? parseFloat(scoreAcomp) : null,
+            s_lms: cleanLmsScore,
+            s_acp: cleanAcpScore,
             // Promedio Min LMS (método clásico audit_time)
             audit_lms: parseFloat(audit_lms_total.toFixed(1)),
             audit_lms_w: audit_lms_w,
@@ -307,6 +388,11 @@ function getMetricasCoordinadores(forceSync) {
             a_acp: a_acp,
             a_lms_w: a_lms_w,
             a_acp_w: a_acp_w,
+            // Métricas de evaluaciones fuera de plazo
+            late_b: late_b_count,
+            late_w: late_w_count,
+            late_lms_w: late_lms_w,
+            late_tot: late_b_count + late_w_count,
             // Bandera para saber si se empezó el llenado (aunque sea con score 0 pero tiene timestamp)
             startedLms: tieneTsLms,
             startedAcp: tieneTsAcomp
@@ -319,7 +405,7 @@ function getMetricasCoordinadores(forceSync) {
     };
 
   } catch(e) {
-    return { role: 'ERROR', message: "Error Extract Coordinadores: " + e.toString() };
+    return { role: 'ERROR', success: false, message: "Error Extract Coordinadores: " + e.toString() };
   }
 }
 
@@ -362,4 +448,39 @@ function saveCoordinatorSnapshot(payload) {
   } catch(e) {
     return { success: false, message: e.toString() };
   }
+}
+
+function parseDateHelper(dateVal) {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return dateVal;
+  var dateStr = String(dateVal).trim();
+  
+  // Priorizar formato DD/MM/YYYY o DD/MM/YYYY HH:mm:ss si contiene barra
+  if (dateStr.indexOf('/') !== -1) {
+      var parts = dateStr.split(' ');
+      var dateParts = parts[0].split('/');
+      if (dateParts.length === 3) {
+          var day = parseInt(dateParts[0], 10);
+          var month = parseInt(dateParts[1], 10) - 1;
+          var year = parseInt(dateParts[2], 10);
+          
+          var hour = 0, min = 0, sec = 0;
+          if (parts.length > 1) {
+              var timeParts = parts[1].split(':');
+              if (timeParts.length >= 2) {
+                  hour = parseInt(timeParts[0], 10);
+                  min = parseInt(timeParts[1], 10);
+                  if (timeParts.length >= 3) {
+                      sec = parseInt(timeParts[2], 10);
+                  }
+              }
+          }
+          var d = new Date(year, month, day, hour, min, sec);
+          if (!isNaN(d.getTime())) return d;
+      }
+  }
+  
+  var d = new Date(dateStr);
+  if (!isNaN(d.getTime())) return d;
+  return null;
 }

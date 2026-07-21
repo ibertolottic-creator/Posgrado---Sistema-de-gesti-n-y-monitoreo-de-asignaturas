@@ -126,16 +126,35 @@
   // --- LOGIC: STATUS AND COLOR ---
   function parseDate(dateStr) {
       if (!dateStr) return null;
-      let d = new Date(dateStr);
-      if (!isNaN(d.getTime())) return d;
+      var str = String(dateStr).trim();
       
-      // Fallback for DD/MM/YYYY
-      const parts = dateStr.split('/');
-      if (parts.length === 3) {
-          // Month is 0-indexed in JS Date(Y, M, D)
-          d = new Date(parts[2], parts[1] - 1, parts[0]);
-          if (!isNaN(d.getTime())) return d;
+      // Priorizar formato DD/MM/YYYY o DD/MM/YYYY HH:mm:ss si contiene barra
+      if (str.indexOf('/') !== -1) {
+          var parts = str.split(' ');
+          var dateParts = parts[0].split('/');
+          if (dateParts.length === 3) {
+              var day = parseInt(dateParts[0], 10);
+              var month = parseInt(dateParts[1], 10) - 1;
+              var year = parseInt(dateParts[2], 10);
+              
+              var hour = 0, min = 0, sec = 0;
+              if (parts.length > 1) {
+                  var timeParts = parts[1].split(':');
+                  if (timeParts.length >= 2) {
+                      hour = parseInt(timeParts[0], 10);
+                      min = parseInt(timeParts[1], 10);
+                      if (timeParts.length >= 3) {
+                          sec = parseInt(timeParts[2], 10);
+                      }
+                  }
+              }
+              var d = new Date(year, month, day, hour, min, sec);
+              if (!isNaN(d.getTime())) return d;
+          }
       }
+      
+      var d = new Date(str);
+      if (!isNaN(d.getTime())) return d;
       return null;
   }
 

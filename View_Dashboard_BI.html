@@ -93,20 +93,26 @@
               </div>
               <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;"><canvas id="chartBiRadarLmsGral"></canvas></div>
             </div>
-            <!-- Radar Acomp (General) -->
+            <!-- Radar Acomp (General - Indicadores) -->
             <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
               <div style="padding:16px 20px 8px; border-bottom:1px solid #f1f5f9;">
-                <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-chalkboard-user" style="color:#f59e0b; margin-right:6px;"></i>Dimensiones Acompañamiento</h6>
+                <h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="fa-solid fa-chalkboard-user" style="color:#f59e0b; margin-right:6px;"></i>Rendimiento por Indicadores de Acompañamiento</h6>
               </div>
               <div style="padding:16px 20px; display:flex; align-items:center; justify-content:center; height:280px;"><canvas id="chartBiRadarAcompGral"></canvas></div>
             </div>
          </div>
 
-         <!-- Rankings (Top/Bottom 5) -->
-         <div id="bi-rankings-general" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;"></div>
-         
-         <!-- Lista todas asignaturas -->
-         <div id="bi-lista-general" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"></div>
+         <!-- CONTROLES UNIFICADOS DE BI -->
+         <div id="bi-controles-unificados" style="margin-bottom:20px;"></div>
+
+         <!-- SECCIÓN IMPRIMIBLE -->
+         <div id="bi-print-section" style="display:flex; flex-direction:column; gap:24px; width:100%;">
+             <!-- Rankings (Top/Bottom 5) -->
+             <div id="bi-rankings-general" style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"></div>
+             
+             <!-- Lista todas asignaturas -->
+             <div id="bi-lista-general" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"></div>
+         </div>
       </div>
 
       <!-- ========================================== -->

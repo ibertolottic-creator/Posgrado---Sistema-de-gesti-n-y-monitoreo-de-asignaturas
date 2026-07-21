@@ -16,6 +16,8 @@ var biHeadersAcomp = [];
 var biTitlesAcomp = [];
 var chartDistribucionInstance = null;
 var chartDimensionesInstance = null;
+var biTablaVistaModo = 'COMPLETA';
+var biMostrarPctRev = true;
 
 var BI_COLORS = {
   blue: '#3b82f6', green: '#10b981', cyan: '#06b6d4',
@@ -304,8 +306,18 @@ function isIndexInUnidad(idx, filtroUnidad, isAcomp) {
 }
 
 function calcularPuntajeVigesimalCurso(doc, tipo, filtroUnidad) {
+  if (tipo === 'GENERAL') {
+    var sL = calcularPuntajeVigesimalCurso(doc, 'LMS', filtroUnidad);
+    var sA = calcularPuntajeVigesimalCurso(doc, 'ACOMP', filtroUnidad);
+    if (sL !== null && sA !== null) return parseFloat(((sL + sA) / 2).toFixed(2));
+    if (sL !== null) return sL;
+    if (sA !== null) return sA;
+    return null;
+  }
+
   if (!filtroUnidad || filtroUnidad === 'TODAS') {
-    return tipo === 'LMS' ? doc.ptsLMS : doc.ptsAcomp;
+    var score = tipo === 'LMS' ? doc.ptsLMS : doc.ptsAcomp;
+    return (score !== null && score !== undefined && !isNaN(score) && score > 0) ? parseFloat(Number(score).toFixed(2)) : null;
   }
   
   var isAcomp = (tipo === 'ACOMP');
@@ -314,6 +326,13 @@ function calcularPuntajeVigesimalCurso(doc, tipo, filtroUnidad) {
   
   var suma = 0, count = 0;
   for (var i = 0; i < arr.length; i++) {
+    if (!isAcomp) {
+      if (doc.modalidad === 'PRESENCIAL') {
+        if ([12, 13, 14, 15].indexOf(i) !== -1) continue;
+      } else {
+        if ([16, 17, 18, 19].indexOf(i) !== -1) continue;
+      }
+    }
     if (!isIndexInUnidad(i, filtroUnidad, isAcomp)) continue;
     var val = arr[i];
     if (val !== null && val !== undefined && !isNaN(val) && val > 0) {
@@ -326,6 +345,77 @@ function calcularPuntajeVigesimalCurso(doc, tipo, filtroUnidad) {
   var avg1_4 = suma / count;
   var scoreVig = avg1_4 * 5; // Convertir escala 1-4 a Vigesimal Base 20
   return parseFloat(scoreVig.toFixed(2));
+}
+
+function calcularStatsRevision(doc, tipo, filtroUnidad) {
+  if (tipo === 'GENERAL') {
+    var stL = calcularStatsRevision(doc, 'LMS', filtroUnidad);
+    var stA = calcularStatsRevision(doc, 'ACOMP', filtroUnidad);
+    var tot = stL.total + stA.total;
+    var rev = stL.revisados + stA.revisados;
+    var pct = tot > 0 ? Math.round((rev / tot) * 100) : 0;
+    return { total: tot, revisados: rev, porcentaje: pct };
+  }
+
+  var isAcomp = (tipo === 'ACOMP');
+  var arr = isAcomp ? doc.criteriosAcomp : doc.criteriosLMS;
+  if (!arr || arr.length === 0) return { total: 0, revisados: 0, porcentaje: 0 };
+  
+  var total = 0, revisados = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (!isAcomp) {
+      if (doc.modalidad === 'PRESENCIAL') {
+        if ([12, 13, 14, 15].indexOf(i) !== -1) continue;
+      } else {
+        if ([16, 17, 18, 19].indexOf(i) !== -1) continue;
+      }
+    }
+    if (!isIndexInUnidad(i, filtroUnidad, isAcomp)) continue;
+    
+    total++;
+    var val = arr[i];
+    if (val !== null && val !== undefined && val !== '' && !isNaN(val) && Number(val) > 0) {
+      revisados++;
+    }
+  }
+  
+  var pct = total > 0 ? Math.round((revisados / total) * 100) : 0;
+  return { total: total, revisados: revisados, porcentaje: pct };
+}
+
+function getBadgeRevisionHTML(stats) {
+  if (!stats || stats.total === 0) return '';
+  var colorBg = '#f1f5f9';
+  var colorTxt = '#475569';
+  var border = '#cbd5e1';
+  
+  if (stats.porcentaje === 100) {
+    colorBg = '#dcfce7';
+    colorTxt = '#15803d';
+    border = '#86efac';
+  } else if (stats.porcentaje >= 50) {
+    colorBg = '#fef3c7';
+    colorTxt = '#b45309';
+    border = '#fde68a';
+  } else {
+    colorBg = '#fee2e2';
+    colorTxt = '#b91c1c';
+    border = '#fca5a5';
+  }
+  
+  return '<span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:4px; background:'+colorBg+'; color:'+colorTxt+'; border:1px solid '+border+'; white-space:nowrap; display:inline-flex; align-items:center; gap:2px;" title="Revisión del coordinador: '+stats.revisados+' de '+stats.total+' indicadores ('+stats.porcentaje+'%)">' +
+         '<i class="fa-solid fa-clipboard-check" style="font-size:9px;"></i>'+stats.porcentaje+'% rev.' +
+         '</span>';
+}
+
+function setBiTablaVistaModo(modo) {
+  biTablaVistaModo = modo;
+  renderBiDashboard();
+}
+
+function toggleBiMostrarPctRev() {
+  biMostrarPctRev = !biMostrarPctRev;
+  renderBiDashboard();
 }
 
 function toggleBiLeyendaCol(mode) {
@@ -514,18 +604,34 @@ function renderBiViewGeneral(dataFiltrada, modalidad, filtroUnidad) {
   }
   createOrUpdateBiChart('chartBiRadarLmsGral', 'radar', lmsLabels, lmsProms, {bg:'rgba(6,182,212,0.15)', border:BI_COLORS.cyan});
 
-  // Radar Acomp Gral
-  var acLabels=[], acProms=[];
-  var dimKeysAC = Object.keys(DIMENSIONES_ACOMP);
-  for(var k=0; k<dimKeysAC.length; k++) {
-    var dim = DIMENSIONES_ACOMP[dimKeysAC[k]];
-    acLabels.push(dim.nombre);
-    acProms.push(calcularPromedioDimension(dataFiltrada, dim.indices, 'criteriosAcomp', filtroUnidad, true));
+  // Radar Acomp Gral (Todos los 11 indicadores)
+  var acLabelsGral=[], acPromsGral=[];
+  for(var idx=0; idx<NOMBRES_COMPLETOS_ACOMP.length; idx++) {
+    if(!isIndexInUnidad(idx, filtroUnidad, true)) continue;
+    var critTitle = NOMBRES_COMPLETOS_ACOMP[idx] || biTitlesAcomp[idx] || biHeadersAcomp[idx] || 'Criterio '+(idx+1);
+    
+    var words = critTitle.split(' ');
+    var lines = [];
+    var currentLine = '';
+    for(var w=0; w<words.length; w++) {
+      if(currentLine.length + words[w].length > 18) {
+        if(currentLine) lines.push(currentLine.trim());
+        currentLine = words[w] + ' ';
+      } else {
+        currentLine += words[w] + ' ';
+      }
+    }
+    if(currentLine) lines.push(currentLine.trim());
+    if(lines.length > 2) { lines = lines.slice(0,2); lines[1] += '...'; }
+    
+    acLabelsGral.push(lines);
+    acPromsGral.push(calcularPromedioDimension(dataFiltrada, [idx], 'criteriosAcomp', filtroUnidad, true));
   }
-  createOrUpdateBiChart('chartBiRadarAcompGral', 'radar', acLabels, acProms, {bg:'rgba(245,158,11,0.15)', border:BI_COLORS.yellow});
+  createOrUpdateBiChart('chartBiRadarAcompGral', 'radar', acLabelsGral, acPromsGral, {bg:'rgba(245,158,11,0.15)', border:BI_COLORS.yellow});
 
-  renderRankingBi(dataFiltrada);
-  renderListaAgrupadaGeneral(dataFiltrada);
+  renderControlesUnificados(filtroUnidad);
+  renderRankingBi(dataFiltrada, filtroUnidad);
+  renderListaAgrupadaGeneral(dataFiltrada, filtroUnidad);
 }
 
 // ---------------------------------------------------------------
@@ -660,28 +766,115 @@ function renderBiViewAcomp(dataFiltrada, modalidad, filtroUnidad) {
 // ---------------------------------------------------------------
 // RANKINGS Y LISTAS (VISTA GENERAL)
 // ---------------------------------------------------------------
-function renderRankingBi(dataFiltrada) {
+function renderControlesUnificados(filtroUnidad) {
+  var container = document.getElementById('bi-controles-unificados');
+  if(!container) return;
+  
+  var labelUnidad = filtroUnidad === 'U1' ? 'Unidad I (Sem 1)' : (filtroUnidad === 'U2' ? 'Unidad II (Sem 2)' : (filtroUnidad === 'U3' ? 'Unidad III (Sem 3)' : (filtroUnidad === 'U4' ? 'Unidad IV (Sem 4)' : 'Total Consolidado')));
+
+  var h = '<div id="bi-tabla-controls-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:#fff; padding:14px 20px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04);">';
+  h += '<div>';
+  h += '<h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-sliders" style="color:#64748b; margin-right:6px;"></i>Controles de Análisis • '+labelUnidad+'</h6>';
+  h += '</div>';
+  
+  h += '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">';
+  
+  // 3 View Selector Buttons
+  h += '<div style="display:inline-flex; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">';
+  
+  var btnCompClass = biTablaVistaModo === 'COMPLETA' ? 'background:#3b82f6; color:#fff; font-weight:700;' : 'background:transparent; color:#64748b; font-weight:600;';
+  var btnLmsClass = biTablaVistaModo === 'LMS' ? 'background:#06b6d4; color:#fff; font-weight:700;' : 'background:transparent; color:#64748b; font-weight:600;';
+  var btnAcompClass = biTablaVistaModo === 'ACOMP' ? 'background:#f59e0b; color:#fff; font-weight:700;' : 'background:transparent; color:#64748b; font-weight:600;';
+
+  h += '<button onclick="setBiTablaVistaModo(\'COMPLETA\')" style="padding:4px 10px; font-size:11px; border:none; border-radius:6px; cursor:pointer; transition:all 0.2s; '+btnCompClass+'">Vista Completa</button>';
+  h += '<button onclick="setBiTablaVistaModo(\'LMS\')" style="padding:4px 10px; font-size:11px; border:none; border-radius:6px; cursor:pointer; transition:all 0.2s; '+btnLmsClass+'">Solo LMS</button>';
+  h += '<button onclick="setBiTablaVistaModo(\'ACOMP\')" style="padding:4px 10px; font-size:11px; border:none; border-radius:6px; cursor:pointer; transition:all 0.2s; '+btnAcompClass+'">Solo Acompañamiento</button>';
+  h += '</div>';
+  
+  // Toggle Mostrar/Ocultar % Revision
+  var btnRevStyle = biMostrarPctRev ? 'background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;' : 'background:#f8fafc; color:#64748b; border:1px solid #cbd5e1;';
+  var btnRevIcon = biMostrarPctRev ? 'fa-eye' : 'fa-eye-slash';
+  var btnRevText = biMostrarPctRev ? '% Rev. Visible' : '% Rev. Oculto';
+  
+  h += '<button onclick="toggleBiMostrarPctRev()" style="padding:5px 12px; font-size:11px; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.2s; '+btnRevStyle+'" title="Mostrar u ocultar el % de cumplimiento de revisión del coordinador">';
+  h += '<i class="fa-solid '+btnRevIcon+'"></i> '+btnRevText+'</button>';
+  
+  // Download PDF Button
+  h += '<button id="btn-export-pdf-prog" onclick="descargarTablaPdfPorPrograma()" style="padding:5px 12px; border:none; border-radius:8px; background:#ef4444; color:#fff; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.background=\'#dc2626\'" onmouseout="this.style.background=\'#ef4444\'"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>';
+  
+  h += '</div>';
+  h += '</div>';
+  
+  container.innerHTML = h;
+}
+
+function renderRankingBi(dataFiltrada, filtroUnidad) {
   var container = document.getElementById('bi-rankings-general');
   if(!container) return;
   
-  var conPromedio = dataFiltrada.filter(function(d){ return d.promedio > 0; });
-  conPromedio.sort(function(a,b){ return b.promedio - a.promedio; });
+  var listaCalculada = [];
   
-  var top5 = conPromedio.slice(0, 5);
-  var bottom5 = conPromedio.slice(-5).reverse();
+  for (var i = 0; i < dataFiltrada.length; i++) {
+    var d = dataFiltrada[i];
+    
+    var scoreLms = calcularPuntajeVigesimalCurso(d, 'LMS', filtroUnidad);
+    var scoreAcomp = calcularPuntajeVigesimalCurso(d, 'ACOMP', filtroUnidad);
+    var scoreGen = calcularPuntajeVigesimalCurso(d, 'GENERAL', filtroUnidad);
+    
+    var activeScore = null;
+    var statsRev = null;
+    
+    if (biTablaVistaModo === 'LMS') {
+      activeScore = scoreLms;
+      statsRev = calcularStatsRevision(d, 'LMS', filtroUnidad);
+    } else if (biTablaVistaModo === 'ACOMP') {
+      activeScore = scoreAcomp;
+      statsRev = calcularStatsRevision(d, 'ACOMP', filtroUnidad);
+    } else {
+      activeScore = scoreGen;
+      statsRev = calcularStatsRevision(d, 'GENERAL', filtroUnidad);
+    }
+    
+    if (activeScore !== null && activeScore > 0) {
+      listaCalculada.push({
+        docente: d.docente,
+        asignatura: d.asignatura,
+        programa: d.programa,
+        promedio: activeScore,
+        statsRev: statsRev
+      });
+    }
+  }
   
+  listaCalculada.sort(function(a,b){ return b.promedio - a.promedio; });
+  
+  var top5 = listaCalculada.slice(0, 5);
+  var bottom5 = listaCalculada.slice(-5).reverse();
+  
+  var labelUnidad = filtroUnidad === 'U1' ? 'U1' : (filtroUnidad === 'U2' ? 'U2' : (filtroUnidad === 'U3' ? 'U3' : (filtroUnidad === 'U4' ? 'U4' : 'Total')));
+  var suffixTitle = biTablaVistaModo === 'LMS' ? ' (LMS)' : (biTablaVistaModo === 'ACOMP' ? ' (Acomp.)' : '');
+
   function buildHtml(titulo, lista, colorIcono, iconoClase) {
     var h = '<div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">';
-    h += '<h6 style="margin:0 0 12px; font-size:13px; font-weight:700; color:#334155;"><i class="'+iconoClase+'" style="color:'+colorIcono+'; margin-right:6px;"></i>'+titulo+'</h6>';
+    h += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">';
+    h += '<h6 style="margin:0; font-size:13px; font-weight:700; color:#334155;"><i class="'+iconoClase+'" style="color:'+colorIcono+'; margin-right:6px;"></i>'+titulo+suffixTitle+'</h6>';
+    h += '<span style="font-size:10px; font-weight:700; background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:10px;">'+labelUnidad+'</span>';
+    h += '</div>';
+    
     if(lista.length === 0) return h + '<p style="font-size:12px; color:#94a3b8;">Sin datos</p></div>';
+    
     h += '<ul style="margin:0; padding:0; list-style:none;">';
     for(var i=0; i<lista.length; i++) {
        var d = lista[i];
+       var badgeHtml = biMostrarPctRev ? getBadgeRevisionHTML(d.statsRev) : '';
        h += '<li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;">';
-       h += '<div style="max-width:75%;">';
+       h += '<div style="max-width:65%;">';
        h += '<p style="margin:0; font-size:12px; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="'+d.asignatura+'">'+d.asignatura+'</p>';
        h += '<p style="margin:0; font-size:10px; color:#64748b;">'+d.docente+' ('+(d.programa||'Sin Prog')+')</p></div>';
-       h += '<span style="font-weight:800; font-size:13px; color:'+colorIcono+';">'+d.promedio.toFixed(2)+'</span></li>';
+       h += '<div style="display:flex; align-items:center; gap:6px;">';
+       h += badgeHtml;
+       h += '<span style="font-weight:800; font-size:13px; color:'+colorIcono+'; min-width:36px; text-align:right;">'+d.promedio.toFixed(2)+'</span>';
+       h += '</div></li>';
     }
     return h + '</ul></div>';
   }
@@ -689,7 +882,7 @@ function renderRankingBi(dataFiltrada) {
   container.innerHTML = buildHtml('Top 5 Rendimiento', top5, '#10b981', 'fa-solid fa-trophy') + buildHtml('Bottom 5 Rendimiento (Críticos)', bottom5, '#ef4444', 'fa-solid fa-circle-exclamation');
 }
 
-function renderListaAgrupadaGeneral(dataFiltrada) {
+function renderListaAgrupadaGeneral(dataFiltrada, filtroUnidad) {
   var container = document.getElementById('bi-lista-general');
   if(!container) return;
   
@@ -701,31 +894,88 @@ function renderListaAgrupadaGeneral(dataFiltrada) {
   }
   var progs = Object.keys(byProg).sort();
   
-  var h = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">';
+  var h = '<div style="margin-bottom:16px;">';
   h += '<h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-table-list" style="color:#64748b; margin-right:6px;"></i>Desempeño Detallado por Programa</h6>';
-  h += '<button id="btn-export-pdf-prog" onclick="descargarTablaPdfPorPrograma()" style="padding:6px 12px; border:none; border-radius:6px; background:#ef4444; color:#fff; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background=\'#dc2626\'" onmouseout="this.style.background=\'#ef4444\'"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>';
   h += '</div>';
+  
   h += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left; background:#fff;">';
   
   for(var i=0; i<progs.length; i++) {
-    h += '<tr style="background:#f8fafc;"><td colspan="5" style="padding:10px; font-weight:800; color:#334155; border-bottom:2px solid #e2e8f0; border-top:1px solid #e2e8f0;">'+progs[i]+' <span style="font-weight:600; font-size:11px; color:#64748b; margin-left:8px;">('+byProg[progs[i]].length+' cursos)</span></td></tr>';
-    h += '<tr style="background:#fff; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; border-bottom:1px solid #e2e8f0;">';
-    h += '<th style="padding:8px 10px;">Asignatura</th><th style="padding:8px 10px;">Docente</th><th style="padding:8px 10px;">Prom. General</th><th style="padding:8px 10px;">Prom. LMS</th><th style="padding:8px 10px;">Prom. Acomp.</th></tr>';
     var docs = byProg[progs[i]];
-    docs.sort(function(a,b){ return b.promedio - a.promedio; });
+    
+    for (var dIdx = 0; dIdx < docs.length; dIdx++) {
+      var d = docs[dIdx];
+      d._scoreLmsVig = calcularPuntajeVigesimalCurso(d, 'LMS', filtroUnidad);
+      d._scoreAcompVig = calcularPuntajeVigesimalCurso(d, 'ACOMP', filtroUnidad);
+      d._scoreGenVig = calcularPuntajeVigesimalCurso(d, 'GENERAL', filtroUnidad);
+      
+      d._statsRevLms = calcularStatsRevision(d, 'LMS', filtroUnidad);
+      d._statsRevAcomp = calcularStatsRevision(d, 'ACOMP', filtroUnidad);
+      d._statsRevGen = calcularStatsRevision(d, 'GENERAL', filtroUnidad);
+    }
+    
+    docs.sort(function(a,b){
+      var valA = biTablaVistaModo === 'LMS' ? (a._scoreLmsVig || 0) : (biTablaVistaModo === 'ACOMP' ? (a._scoreAcompVig || 0) : (a._scoreGenVig || 0));
+      var valB = biTablaVistaModo === 'LMS' ? (b._scoreLmsVig || 0) : (biTablaVistaModo === 'ACOMP' ? (b._scoreAcompVig || 0) : (b._scoreGenVig || 0));
+      return valB - valA;
+    });
+
+    var numCols = biTablaVistaModo === 'COMPLETA' ? 5 : 4;
+    h += '<tr style="background:#f8fafc;"><td colspan="'+numCols+'" style="padding:10px; font-weight:800; color:#334155; border-bottom:2px solid #e2e8f0; border-top:1px solid #e2e8f0;">'+progs[i]+' <span style="font-weight:600; font-size:11px; color:#64748b; margin-left:8px;">('+docs.length+' cursos)</span></td></tr>';
+    
+    h += '<tr style="background:#fff; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; border-bottom:1px solid #e2e8f0;">';
+    h += '<th style="padding:8px 10px;">Asignatura</th><th style="padding:8px 10px;">Docente</th>';
+    
+    if (biTablaVistaModo === 'COMPLETA') {
+      h += '<th style="padding:8px 10px;">Prom. General</th><th style="padding:8px 10px;">Prom. LMS</th><th style="padding:8px 10px;">Prom. Acomp.</th>';
+    } else if (biTablaVistaModo === 'LMS') {
+      h += '<th style="padding:8px 10px;">Nota LMS (Base 20)</th><th style="padding:8px 10px;">Nivel LMS</th>';
+    } else if (biTablaVistaModo === 'ACOMP') {
+      h += '<th style="padding:8px 10px;">Nota Acomp. (Base 20)</th><th style="padding:8px 10px;">Nivel Acomp.</th>';
+    }
+    h += '</tr>';
     
     for(var j=0; j<docs.length; j++) {
       var d = docs[j];
-      var pg = d.promedio > 0 ? d.promedio.toFixed(2) : '-';
-      var pl = d.ptsLMS > 0 ? d.ptsLMS.toFixed(2) : '-';
-      var pa = d.ptsAcomp > 0 ? d.ptsAcomp.toFixed(2) : '-';
-      var cG = pg === '-' ? '' : (pg>=14 ? '#10b981' : (pg>=11 ? '#f59e0b' : '#ef4444'));
       h += '<tr style="border-bottom:1px solid #f1f5f9;">';
       h += '<td style="padding:8px 10px; color:#1e293b; font-weight:600;">'+d.asignatura+'</td>';
       h += '<td style="padding:8px 10px; color:#475569;">'+d.docente+'</td>';
-      h += '<td style="padding:8px 10px; font-weight:800; color:'+cG+';">'+pg+'</td>';
-      h += '<td style="padding:8px 10px; font-weight:600; color:#0ea5e9;">'+pl+'</td>';
-      h += '<td style="padding:8px 10px; font-weight:600; color:#d97706;">'+pa+'</td>';
+      
+      if (biTablaVistaModo === 'COMPLETA') {
+        var pg = d._scoreGenVig !== null ? d._scoreGenVig.toFixed(2) : '-';
+        var pl = d._scoreLmsVig !== null ? d._scoreLmsVig.toFixed(2) : '-';
+        var pa = d._scoreAcompVig !== null ? d._scoreAcompVig.toFixed(2) : '-';
+        var cG = pg === '-' ? '' : (d._scoreGenVig>=14 ? '#10b981' : (d._scoreGenVig>=11 ? '#f59e0b' : '#ef4444'));
+        
+        var bGen = biMostrarPctRev ? ' ' + getBadgeRevisionHTML(d._statsRevGen) : '';
+        var bLms = biMostrarPctRev ? ' ' + getBadgeRevisionHTML(d._statsRevLms) : '';
+        var bAcomp = biMostrarPctRev ? ' ' + getBadgeRevisionHTML(d._statsRevAcomp) : '';
+
+        h += '<td style="padding:8px 10px; font-weight:800; color:'+cG+';"><div style="display:flex; align-items:center; gap:6px;"><span>'+pg+'</span>'+bGen+'</div></td>';
+        h += '<td style="padding:8px 10px; font-weight:600; color:#0ea5e9;"><div style="display:flex; align-items:center; gap:6px;"><span>'+pl+'</span>'+bLms+'</div></td>';
+        h += '<td style="padding:8px 10px; font-weight:600; color:#d97706;"><div style="display:flex; align-items:center; gap:6px;"><span>'+pa+'</span>'+bAcomp+'</div></td>';
+
+      } else if (biTablaVistaModo === 'LMS') {
+        var scoreLms = d._scoreLmsVig;
+        var strLms = scoreLms !== null ? scoreLms.toFixed(2) : '-';
+        var cColor = scoreLms === null ? '#94a3b8' : (scoreLms >= 17 ? '#10b981' : (scoreLms >= 14 ? '#0284c7' : (scoreLms >= 11 ? '#f59e0b' : '#ef4444')));
+        var nivelStr = scoreLms === null ? 'Sin Datos' : (scoreLms >= 17 ? 'Muy Bueno' : (scoreLms >= 14 ? 'Bueno' : (scoreLms >= 11 ? 'Regular' : 'Deficiente')));
+        var bLms = biMostrarPctRev ? ' ' + getBadgeRevisionHTML(d._statsRevLms) : '';
+
+        h += '<td style="padding:8px 10px; font-weight:800; color:'+cColor+';"><div style="display:flex; align-items:center; gap:6px;"><span>'+strLms+'</span>'+bLms+'</div></td>';
+        h += '<td style="padding:8px 10px; font-size:11px; font-weight:700; color:'+cColor+';">'+nivelStr+'</td>';
+
+      } else if (biTablaVistaModo === 'ACOMP') {
+        var scoreAc = d._scoreAcompVig;
+        var strAc = scoreAc !== null ? scoreAc.toFixed(2) : '-';
+        var cColor = scoreAc === null ? '#94a3b8' : (scoreAc >= 17 ? '#10b981' : (scoreAc >= 14 ? '#d97706' : (scoreAc >= 11 ? '#f59e0b' : '#ef4444')));
+        var nivelStr = scoreAc === null ? 'Sin Datos' : (scoreAc >= 17 ? 'Muy Bueno' : (scoreAc >= 14 ? 'Bueno' : (scoreAc >= 11 ? 'Regular' : 'Deficiente')));
+        var bAcomp = biMostrarPctRev ? ' ' + getBadgeRevisionHTML(d._statsRevAcomp) : '';
+
+        h += '<td style="padding:8px 10px; font-weight:800; color:'+cColor+';"><div style="display:flex; align-items:center; gap:6px;"><span>'+strAc+'</span>'+bAcomp+'</div></td>';
+        h += '<td style="padding:8px 10px; font-size:11px; font-weight:700; color:'+cColor+';">'+nivelStr+'</td>';
+      }
+      
       h += '</tr>';
     }
   }
@@ -756,6 +1006,7 @@ function renderListaAgrupadaLms(dataFiltrada, filtroUnidad) {
     var docs = byProg[progs[i]];
     docs.forEach(function(d){
       d._scoreLmsTemp = calcularPuntajeVigesimalCurso(d, 'LMS', filtroUnidad);
+      d._statsRevLmsTemp = calcularStatsRevision(d, 'LMS', filtroUnidad);
     });
     docs.sort(function(a,b){ return (b._scoreLmsTemp || 0) - (a._scoreLmsTemp || 0); });
 
@@ -769,11 +1020,12 @@ function renderListaAgrupadaLms(dataFiltrada, filtroUnidad) {
       var strLms = scoreLms !== null && scoreLms > 0 ? scoreLms.toFixed(2) : '-';
       var cColor = scoreLms === null || scoreLms === 0 ? '#94a3b8' : (scoreLms >= 17 ? '#10b981' : (scoreLms >= 14 ? '#0284c7' : (scoreLms >= 11 ? '#f59e0b' : '#ef4444')));
       var nivelStr = scoreLms === null || scoreLms === 0 ? 'Sin Datos' : (scoreLms >= 17 ? 'Muy Bueno' : (scoreLms >= 14 ? 'Bueno' : (scoreLms >= 11 ? 'Regular' : 'Deficiente')));
-      
+      var badgeLms = getBadgeRevisionHTML(d._statsRevLmsTemp);
+
       h += '<tr style="border-bottom:1px solid #f1f5f9;">';
       h += '<td style="padding:8px 10px; color:#1e293b; font-weight:600;">'+d.asignatura+'</td>';
       h += '<td style="padding:8px 10px; color:#475569;">'+d.docente+'</td>';
-      h += '<td style="padding:8px 10px; font-weight:800; color:'+cColor+';">'+strLms+'</td>';
+      h += '<td style="padding:8px 10px; font-weight:800; color:'+cColor+';"><div style="display:flex; align-items:center; gap:6px;"><span>'+strLms+'</span>'+badgeLms+'</div></td>';
       h += '<td style="padding:8px 10px; font-size:11px; font-weight:700; color:'+cColor+';">'+nivelStr+'</td>';
       h += '</tr>';
     }
@@ -1059,15 +1311,18 @@ function descargarTablaPdfPorPrograma() {
   }
   
   var btn = document.getElementById('btn-export-pdf-prog');
+  var controlsBar = document.getElementById('bi-tabla-controls-bar');
+
   if(btn) {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
     btn.disabled = true;
     btn.style.opacity = '0.7';
   }
 
+  // Ocultar barra de controles UI antes de la captura
+  if(controlsBar) controlsBar.style.display = 'none';
+
   var element = document.getElementById('bi-lista-general');
-  // Temporarily hide the button before capturing
-  if(btn) btn.style.display = 'none';
 
   var opt = {
     margin:       10,
@@ -1078,16 +1333,16 @@ function descargarTablaPdfPorPrograma() {
   };
   
   html2pdf().set(opt).from(element).save().then(function() {
+    if(controlsBar) controlsBar.style.display = 'flex';
     if(btn) {
-      btn.style.display = 'flex';
       btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Descargar PDF';
       btn.disabled = false;
       btn.style.opacity = '1';
     }
   }).catch(function(e) {
     console.error("Error PDF:", e);
+    if(controlsBar) controlsBar.style.display = 'flex';
     if(btn) {
-      btn.style.display = 'flex';
       btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Descargar PDF';
       btn.disabled = false;
       btn.style.opacity = '1';
