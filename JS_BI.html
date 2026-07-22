@@ -282,19 +282,39 @@ function isIndexInUnidad(idx, filtroUnidad, isAcomp) {
   if (!isAcomp) {
     // LMS Criterios (38 cols)
     var code = (biHeadersLMS[idx] || '').toLowerCase();
-    if (filtroUnidad === 'U1') {
-      if (code.indexOf('_s1') !== -1 || code.indexOf('_pre') !== -1) return true;
-      return (idx <= 3 || idx === 12 || idx === 16 || idx === 20 || idx === 28 || idx === 32);
-    } else if (filtroUnidad === 'U2') {
-      if (code.indexOf('_s2') !== -1) return true;
-      return (idx === 4 || idx === 5 || idx === 13 || idx === 17 || idx === 21 || idx === 29 || idx === 33);
-    } else if (filtroUnidad === 'U3') {
-      if (code.indexOf('_s3') !== -1) return true;
-      return (idx === 6 || idx === 7 || idx === 14 || idx === 22 || idx === 30 || idx === 34);
-    } else if (filtroUnidad === 'U4') {
-      if (code.indexOf('_s4') !== -1 || code.indexOf('_cierre') !== -1) return true;
-      return ((idx >= 8 && idx <= 11) || idx === 15 || idx === 18 || idx === 19 || (idx >= 23 && idx <= 27) || idx === 31 || idx === 35 || idx >= 36);
+    if (!code) return false;
+    
+    var codeUnit = '';
+    if (code.indexOf('_pre') !== -1 || code.indexOf('_b') !== -1 || code.indexOf('_bien') !== -1 || code.indexOf('_s1') !== -1) {
+      codeUnit = 'U1';
+    } else if (code.indexOf('_s2') !== -1) {
+      codeUnit = 'U2';
+    } else if (code.indexOf('_s3') !== -1) {
+      codeUnit = 'U3';
+    } else if (code.indexOf('_s4') !== -1 || code.indexOf('_cier') !== -1 || code.indexOf('_cierre') !== -1) {
+      codeUnit = 'U4';
+    } else {
+      var indexToUnitMap = {
+        0: 'U1', 1: 'U1', 2: 'U1', 3: 'U1',
+        4: 'U2',
+        5: 'U3',
+        6: 'U4',
+        7: 'U1', 8: 'U1',
+        9: 'U2',
+        10: 'U3',
+        11: 'U4',
+        12: 'U1', 13: 'U2', 14: 'U3', 15: 'U4',
+        16: 'U1', 17: 'U2', 18: 'U4', 19: 'U4',
+        20: 'U1', 21: 'U2', 22: 'U3', 23: 'U4',
+        24: 'U1', 25: 'U2', 26: 'U3', 27: 'U4',
+        28: 'U1', 29: 'U2', 30: 'U3', 31: 'U4',
+        32: 'U1', 33: 'U2', 34: 'U3', 35: 'U4',
+        36: 'U4', 37: 'U4'
+      };
+      codeUnit = indexToUnitMap[idx] || 'U1';
     }
+    
+    return codeUnit === filtroUnidad;
   } else {
     // Acompañamiento Criterios (11 cols)
     if (filtroUnidad === 'U1') return (idx >= 0 && idx <= 2);
@@ -309,6 +329,13 @@ function calcularPuntajeVigesimalCurso(doc, tipo, filtroUnidad) {
   if (tipo === 'GENERAL') {
     var sL = calcularPuntajeVigesimalCurso(doc, 'LMS', filtroUnidad);
     var sA = calcularPuntajeVigesimalCurso(doc, 'ACOMP', filtroUnidad);
+    
+    // Si la unidad es específica (U1, U2, U3, U4) y el LMS está vacío (sL === null),
+    // entonces el promedio general para esta unidad es null (para evitar que Acomp infle promedios de semanas no evaluadas).
+    if (filtroUnidad && filtroUnidad !== 'TODAS' && sL === null) {
+      return null;
+    }
+    
     if (sL !== null && sA !== null) return parseFloat(((sL + sA) / 2).toFixed(2));
     if (sL !== null) return sL;
     if (sA !== null) return sA;
@@ -351,6 +378,13 @@ function calcularStatsRevision(doc, tipo, filtroUnidad) {
   if (tipo === 'GENERAL') {
     var stL = calcularStatsRevision(doc, 'LMS', filtroUnidad);
     var stA = calcularStatsRevision(doc, 'ACOMP', filtroUnidad);
+    
+    // Si la unidad es específica y el LMS no se ha revisado en absoluto (revisados === 0),
+    // el avance general es 0 (para evitar mostrar avance fantasma por Acomp).
+    if (filtroUnidad && filtroUnidad !== 'TODAS' && stL.revisados === 0) {
+      return { total: stL.total + stA.total, revisados: 0, porcentaje: 0 };
+    }
+    
     var tot = stL.total + stA.total;
     var rev = stL.revisados + stA.revisados;
     var pct = tot > 0 ? Math.round((rev / tot) * 100) : 0;
@@ -529,14 +563,7 @@ function renderBiViewGeneral(dataFiltrada, modalidad, filtroUnidad) {
     var scoreLmsVig = calcularPuntajeVigesimalCurso(doc, 'LMS', filtroUnidad);
     var scoreAcompVig = calcularPuntajeVigesimalCurso(doc, 'ACOMP', filtroUnidad);
     
-    var scoreGeneralVig = null;
-    if (scoreLmsVig !== null && scoreAcompVig !== null) {
-      scoreGeneralVig = parseFloat(((scoreLmsVig + scoreAcompVig) / 2).toFixed(2));
-    } else if (scoreLmsVig !== null) {
-      scoreGeneralVig = scoreLmsVig;
-    } else if (scoreAcompVig !== null) {
-      scoreGeneralVig = scoreAcompVig;
-    }
+    var scoreGeneralVig = calcularPuntajeVigesimalCurso(doc, 'GENERAL', filtroUnidad);
 
     if (scoreGeneralVig !== null && scoreGeneralVig > 0) { sumProm += scoreGeneralVig; cntProm++; }
     if (scoreLmsVig !== null && scoreLmsVig > 0)   { sumLMS += scoreLmsVig; cntLMS++; }
