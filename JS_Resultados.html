@@ -515,26 +515,115 @@
   }
 
   /**
-   * @description Abre la hoja de Google Sheets en la pestaña de Envío de Resultados
+   * @description Descarga toda la Matriz Consolidada en formato Microsoft Excel (.xlsx)
    */
-  function abrirHojaGoogleSheetsResultados() {
-    if (CURRENT_SHEET_URL && CURRENT_SHEET_URL.trim() !== '') {
-      window.open(CURRENT_SHEET_URL, '_blank');
-    } else {
-      showToast("Abriendo Sheets", "Obteniendo enlace de la hoja institucional...", "info");
-      google.script.run
-        .withSuccessHandler((res) => {
-          if (res && res.sheetUrl) {
-            CURRENT_SHEET_URL = res.sheetUrl;
-            window.open(res.sheetUrl, '_blank');
-          } else {
-            showToast("Aviso", "Por favor actualice los datos primero.", "warning");
-          }
-        })
-        .withFailureHandler((err) => {
-          showToast("Error", "No se pudo obtener el enlace: " + err.toString(), "error");
-        })
-        .getConsolidatedData(false);
+  function exportarExcelMatrizConsolidada() {
+    if (!CURRENT_RESULTADOS_DATA || CURRENT_RESULTADOS_DATA.length === 0) {
+      showToast("Sin Datos", "No hay datos consolidados para exportar a Excel.", "warning");
+      return;
+    }
+
+    showToast("Generando Excel", "Estructurando hoja de cálculo con todos los registros...", "info");
+
+    const btn = document.getElementById('btnExportarExcelResultados');
+    const originalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Generando...';
+      btn.disabled = true;
+    }
+
+    try {
+      const formatNum = (v) => (v !== '' && v !== null && v !== undefined && !isNaN(v)) ? Number(parseFloat(v).toFixed(2)) : '';
+      const formatInt = (v) => (v !== '' && v !== null && v !== undefined && !isNaN(v)) ? Number(v) : '';
+
+      const excelRows = CURRENT_RESULTADOS_DATA.map((r, idx) => {
+        return {
+          "N°": idx + 1,
+          "ID Asignación": r.id || '',
+          "Asignatura": r.curso || '',
+          "Programa": r.programa || '',
+          "Docente": r.docente || '',
+          "DNI Coord.": r.coordinadorId || '',
+          "Coordinador Asignado": r.coordinadorName || '',
+          "Ptje LMS": formatNum(r.lmsScore),
+          "Vigesimal LMS": formatNum(r.lmsVigesimal),
+          "% Avance LMS": formatInt(r.lmsAvance),
+          "Criterios a Mejorar LMS": r.lmsMejorar || '',
+          "URL Ficha LMS": r.lmsUrl || '',
+          "Ptje Acompañamiento": formatNum(r.acompScore),
+          "Vigesimal Acompañamiento": formatNum(r.acompVigesimal),
+          "% Avance Acompañamiento": formatInt(r.acompAvance),
+          "Criterios a Mejorar Acompañamiento": r.acompMejorar || '',
+          "URL Ficha Acompañamiento": r.acompUrl || '',
+          "Puntaje Centesimal": formatNum(r.centesimal),
+          "Puntaje Vigesimal General": formatNum(r.vigesimal),
+          "Nivel de Desempeño": r.nivel || '',
+          "Estado de Envío": (r.fechaEnvio && r.fechaEnvio.trim() !== '') ? 'Enviado' : 'Pendiente',
+          "Fecha Histórica de Envío": r.fechaEnvio || ''
+        };
+      });
+
+      if (typeof XLSX !== 'undefined') {
+        // Generación con SheetJS (.xlsx)
+        const ws = XLSX.utils.json_to_sheet(excelRows);
+
+        // Anchos de columna automáticos
+        const colKeys = Object.keys(excelRows[0] || {});
+        ws['!cols'] = colKeys.map(key => {
+          let maxLen = key.length;
+          excelRows.forEach(row => {
+            const valStr = String(row[key] || '');
+            if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+          });
+          return { wch: Math.max(maxLen + 3, 10) };
+        });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Matriz Consolidada");
+        XLSX.writeFile(wb, "Matriz_Consolidada_Resultados_USMP.xlsx");
+
+        if (btn) {
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        }
+        showToast("¡Descarga Completa!", "La Matriz Consolidada se descargó en Excel (.xlsx) exitosamente.", "success");
+      } else {
+        // Fallback robusto a archivo CSV delimitado con UTF-8 BOM
+        const headers = Object.keys(excelRows[0] || {});
+        const csvRows = [headers.join(";")];
+
+        excelRows.forEach(row => {
+          const values = headers.map(header => {
+            let val = row[header] === null || row[header] === undefined ? "" : String(row[header]);
+            val = val.replace(/"/g, '""');
+            if (val.search(/([";\n])/g) >= 0) val = `"${val}"`;
+            return val;
+          });
+          csvRows.push(values.join(";"));
+        });
+
+        const csvString = "\uFEFF" + csvRows.join("\r\n");
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "Matriz_Consolidada_Resultados_USMP.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        if (btn) {
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        }
+        showToast("¡Descarga Completa!", "La Matriz Consolidada se descargó en formato CSV (Excel) exitosamente.", "success");
+      }
+    } catch (err) {
+      if (btn) {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+      showToast("Error en Excel", err.toString(), "error");
     }
   }
 

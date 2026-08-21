@@ -49,13 +49,15 @@ Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad (Posgrado)
 3. **Validación de Propiedad en Escritura (`saveGrade`)**:
    - Se valida en backend que el usuario que intenta calificar sea el coordinador asignado a la fila o un Administrador/Jefe. Si un usuario intenta enviar una nota a un curso no asignado, la petición se bloquea con `Acceso denegado`.
 
-### E. Consolidación de Resultados, Exportación PDF e Integración Sheets (v2.8.0)
+### E. Consolidación de Resultados, Exportación PDF y Descarga Excel XLSX (v2.8.0)
 1. **Exportación a PDF de toda la Matriz Consolidada (`html2pdf.js`)**:
    - Botón `Descargar PDF` con diseño institucional en la cabecera del módulo *Envío de Resultados y Fichas*.
    - Genera un documento horizontal (*landscape* A4) con membrete oficial USMP Virtual, fecha/hora de emisión, conteo de asignaturas, resumen multidimensional y badges de estado.
-2. **Acceso Directo a Hoja de Cálculo (`abrirHojaGoogleSheetsResultados`)**:
-   - Botón `Abrir en Sheets` para abrir directamente la pestaña `Envío de resultados y fichas` en Google Sheets.
+2. **Descarga Directa en Excel (.xlsx) (`exportarExcelMatrizConsolidada`)**:
+   - Botón `Descargar Excel` con ícono verde institucional (`fa-solid fa-file-excel`) en la cabecera.
+   - Genera dinámicamente un archivo nativo Microsoft Excel (`.xlsx`) mediante **SheetJS** con anchos de columna automáticos, tipificación numérica adecuada (scores con 2 decimales, porcentajes de avance enteros) y fallback transparente a formato CSV UTF-8 con BOM.
 3. **Corrección de Precisión Decimal y Consistencia 1:1 con BI**:
    - Lectura numérica exacta `getValues()` en `GeneradorResultados.gs` y formato `.setNumberFormat("0.00")` para preservar los decimales reales (ej. `17.35`, `15.82`).
    - Alineación total con el cálculo vigesimal de BI (`(sL + sA) / 2`).
+
 
