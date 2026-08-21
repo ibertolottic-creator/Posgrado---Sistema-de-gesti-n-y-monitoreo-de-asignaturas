@@ -24,6 +24,7 @@ function getConsolidatedData(forceSync = false) {
 
     if (!sheet) throw new Error('No se encontró la hoja de resultados.');
 
+    const sheetUrl = ss.getUrl() + '#gid=' + sheet.getSheetId();
     const lastRow = sheet.getLastRow();
     let data = [];
 
@@ -32,50 +33,59 @@ function getConsolidatedData(forceSync = false) {
     const userEmail = sessionData.userEmail;
 
     if (lastRow > 1) {
-      // Leemos desde la fila 2 para devolver al frontal (34 columnas: de A a AH)
-      const rawData = sheet.getRange(2, 1, lastRow - 1, 34).getDisplayValues();
+      // Leemos valores crudos (números exactos con decimales) y display (para fechas y textos)
+      const rawValues = sheet.getRange(2, 1, lastRow - 1, 34).getValues();
+      const rawDisplay = sheet.getRange(2, 1, lastRow - 1, 34).getDisplayValues();
 
       // Formatear para el frontend:
       // Nos interesan las columnas A(0) a S(18), y U(20) a AG(32)
-      for (let i = 0; i < rawData.length; i++) {
-        let row = rawData[i];
+      for (let i = 0; i < rawValues.length; i++) {
+        let rowVal = rawValues[i];
+        let rowDisp = rawDisplay[i];
         // Filtramos filas vacías basándonos en ID de Asignación (Col P=15) o Nombre (Col E=4)
-        if (!row[4] && !row[15]) continue;
+        if (!rowDisp[4] && !rowDisp[15]) continue;
 
-        const coordEmail = String(row[18] || '').trim(); // Col S
+        const coordEmail = String(rowDisp[18] || '').trim(); // Col S
         if (role !== 'Admin' && role !== 'Invitado') {
           if (coordEmail.toLowerCase() !== userEmail.toLowerCase()) continue;
         }
 
+        // Helper para extraer valor numérico float limpio
+        const parseNumFloat = (val) => {
+          if (val === '' || val === null || val === undefined) return '';
+          var num = Number(val);
+          return !isNaN(num) ? num : '';
+        };
+
         data.push({
-          id: row[15],
-          programa: row[2],
-          curso: row[4],
-          docente: row[6],
-          coordinadorId: row[14], // Nro Documento de Coord
-          coordinadorName: row[17],
+          id: rowDisp[15],
+          programa: rowDisp[2],
+          curso: rowDisp[4],
+          docente: rowDisp[6],
+          coordinadorId: rowDisp[14], // Nro Documento de Coord
+          coordinadorName: rowDisp[17],
 
-          lmsScore: row[20], // U
-          lmsVigesimal: row[21], // V
-          lmsAvance: row[22], // W
-          lmsMejorar: row[23], // X (NUEVO)
-          lmsUrl: row[24], // Y
+          lmsScore: parseNumFloat(rowVal[20]) !== '' ? parseNumFloat(rowVal[20]) : rowDisp[20], // U
+          lmsVigesimal: parseNumFloat(rowVal[21]), // V
+          lmsAvance: rowVal[22] !== '' && !isNaN(rowVal[22]) ? Number(rowVal[22]) : (rowDisp[22] || ''), // W
+          lmsMejorar: rowDisp[23] || '', // X (NUEVO)
+          lmsUrl: rowDisp[24] || '', // Y
 
-          acompScore: row[25], // Z
-          acompVigesimal: row[26], // AA
-          acompAvance: row[27], // AB
-          acompMejorar: row[28], // AC (NUEVO)
-          acompUrl: row[29], // AD
+          acompScore: parseNumFloat(rowVal[25]) !== '' ? parseNumFloat(rowVal[25]) : rowDisp[25], // Z
+          acompVigesimal: parseNumFloat(rowVal[26]), // AA
+          acompAvance: rowVal[27] !== '' && !isNaN(rowVal[27]) ? Number(rowVal[27]) : (rowDisp[27] || ''), // AB
+          acompMejorar: rowDisp[28] || '', // AC (NUEVO)
+          acompUrl: rowDisp[29] || '', // AD
 
-          centesimal: row[30], // AE
-          vigesimal: row[31], // AF
-          nivel: row[32], // AG
-          fechaEnvio: row[33] || '', // AH (NUEVO)
+          centesimal: parseNumFloat(rowVal[30]), // AE
+          vigesimal: parseNumFloat(rowVal[31]), // AF
+          nivel: rowDisp[32] || '', // AG
+          fechaEnvio: rowDisp[33] || '', // AH (NUEVO)
         });
       }
     }
 
-    return { success: true, data: data, userEmail: userEmail, role: role };
+    return { success: true, data: data, sheetUrl: sheetUrl, userEmail: userEmail, role: role };
   } catch (e) {
     return { success: false, message: e.toString() };
   }
@@ -210,29 +220,40 @@ function sincronizarResultadosGenerales(isManualUI = false) {
         ad_urlAcomp = matchA.url;
       }
 
-      // Cálculos Matemáticos (Centesimal, Vigesimal y Nivel)
+      // Cálculos Matemáticos (Centesimal, Vigesimal y Nivel) con precisión de 2 decimales
       // Aseguramos que los scores sean numéricos válidos o cero antes del cálculo
-      var u_val = u_scoreLMS !== '' && !isNaN(u_scoreLMS) ? parseFloat(u_scoreLMS) : 0;
-      var z_val = z_scoreAcomp !== '' && !isNaN(z_scoreAcomp) ? parseFloat(z_scoreAcomp) : 0;
+      var u_val = u_scoreLMS !== '' && !isNaN(u_scoreLMS) ? parseFloat(u_scoreLMS) : null;
+      var z_val = z_scoreAcomp !== '' && !isNaN(z_scoreAcomp) ? parseFloat(z_scoreAcomp) : null;
 
       var ae_centesimal = '';
       var af_vigesimal = '';
       var ag_nivel = '';
 
-      // Si al menos una de las dos sedes tiene calificación, procesamos matemática
-      if (u_scoreLMS !== '' || z_scoreAcomp !== '') {
-        if (u_scoreLMS !== '') v_vigesimalLMS = (u_val / 136) * 20;
-        if (z_scoreAcomp !== '') aa_vigesimalAcomp = (z_val / 44) * 20;
+      // Si al menos una de las dos sedes tiene calificación, procesamos matemática alineada con BI
+      if (u_val !== null || z_val !== null) {
+        var sL = u_val !== null ? parseFloat(((u_val / 136) * 20).toFixed(2)) : null;
+        var sA = z_val !== null ? parseFloat(((z_val / 44) * 20).toFixed(2)) : null;
 
-        ae_centesimal = ((u_val / 136) * 100) / 2 + ((z_val / 44) * 100) / 2;
-        af_vigesimal = ((u_val / 136) * 20) / 2 + ((z_val / 44) * 20) / 2;
+        if (sL !== null) v_vigesimalLMS = sL;
+        if (sA !== null) aa_vigesimalAcomp = sA;
 
-        // Limpieza anti NaN: Si las sumas generan NaN por algún div/0 imprevisto (que no debería por los enteros literales 136 y 44), volvemos a cadena vacía
+        if (sL !== null && sA !== null) {
+          af_vigesimal = parseFloat(((sL + sA) / 2).toFixed(2));
+          ae_centesimal = parseFloat((af_vigesimal * 5).toFixed(2));
+        } else if (sL !== null) {
+          af_vigesimal = sL;
+          ae_centesimal = parseFloat((sL * 5).toFixed(2));
+        } else if (sA !== null) {
+          af_vigesimal = sA;
+          ae_centesimal = parseFloat((sA * 5).toFixed(2));
+        }
+
+        // Limpieza anti NaN
         if (isNaN(ae_centesimal) || isNaN(af_vigesimal)) {
           ae_centesimal = '';
           af_vigesimal = '';
         } else {
-          // Redondeo de visualización a 2 decimales para almacenar en base
+          // Clasificación cualitativa según escala institucional
           if (af_vigesimal >= 17) ag_nivel = 'Muy Bueno';
           else if (af_vigesimal >= 14) ag_nivel = 'Bueno';
           else if (af_vigesimal >= 11) ag_nivel = 'Regular';
@@ -245,19 +266,19 @@ function sincronizarResultadosGenerales(isManualUI = false) {
       var filaDestino = filaCentral.slice(); // Copia A a S
       filaDestino.push(''); // Col T vacía
       filaDestino.push(u_scoreLMS === '' ? '' : u_scoreLMS); // U
-      filaDestino.push(v_vigesimalLMS); // V (Nuevo - Vigesimal)
+      filaDestino.push(v_vigesimalLMS !== '' ? v_vigesimalLMS : ''); // V (Vigesimal LMS con decimales)
       filaDestino.push(w_avanceLMS); // W (Avance)
       filaDestino.push(x_mejorarLMS); // X (Criterios Bajos LMS)
       filaDestino.push(y_urlLMS); // Y (Url)
 
       filaDestino.push(z_scoreAcomp === '' ? '' : z_scoreAcomp); // Z
-      filaDestino.push(aa_vigesimalAcomp); // AA (Nuevo - Vigesimal)
+      filaDestino.push(aa_vigesimalAcomp !== '' ? aa_vigesimalAcomp : ''); // AA (Vigesimal Acomp con decimales)
       filaDestino.push(ab_avanceAcomp); // AB (Avance)
       filaDestino.push(ac_mejorarAcomp); // AC (Criterios Bajos Acomp)
       filaDestino.push(ad_urlAcomp); // AD (Url)
 
-      filaDestino.push(ae_centesimal); // AE
-      filaDestino.push(af_vigesimal); // AF
+      filaDestino.push(ae_centesimal !== '' ? ae_centesimal : ''); // AE (Centesimal con decimales)
+      filaDestino.push(af_vigesimal !== '' ? af_vigesimal : ''); // AF (Vigesimal Gral con decimales)
       filaDestino.push(ag_nivel); // AG
 
       // Inyectar fecha histórica de envío rescatada de la RAM (si existe)
@@ -275,6 +296,11 @@ function sincronizarResultadosGenerales(isManualUI = false) {
       }
 
       hojaResultados.getRange(2, 1, resultadosFinales.length, 34).setValues(resultadosFinales);
+
+      // Formato numérico explícito con 2 decimales para preservar precisión
+      hojaResultados.getRange(2, 22, resultadosFinales.length, 1).setNumberFormat("0.00"); // Col V (Vigesimal LMS)
+      hojaResultados.getRange(2, 27, resultadosFinales.length, 1).setNumberFormat("0.00"); // Col AA (Vigesimal Acomp)
+      hojaResultados.getRange(2, 31, resultadosFinales.length, 2).setNumberFormat("0.00"); // Col AE y AF (Centesimal y Vigesimal Gral)
     }
 
     if (ui) ui.alert('✅ Panel General de Resultados consolidado y actualizado.');

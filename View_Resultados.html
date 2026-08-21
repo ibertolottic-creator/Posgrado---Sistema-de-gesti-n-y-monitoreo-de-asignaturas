@@ -14,12 +14,18 @@
                 <i class="fa-regular fa-user mr-2"></i> <span id="resultados-user-email">Cargando...</span>
             </div>
         </div>
-        <div class="flex gap-3">
-             <button id="btnSyncResultados" onclick="fetchResultados(true)" class="btn-usmp-red">
-                <i id="iconSyncResultados" class="fa-solid fa-rotate mr-2"></i>Actualizar Datos
+        <div class="flex flex-wrap items-center gap-2">
+             <button id="btnExportarPdfResultados" onclick="exportarPdfMatrizConsolidada()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3.5 py-2 rounded-xl flex items-center shadow-sm text-xs transition-all hover:shadow-md cursor-pointer" title="Descargar toda la Matriz Consolidada en formato PDF">
+                <i class="fa-solid fa-file-pdf mr-1.5 text-sm"></i>Descargar PDF
+             </button>
+             <button id="btnAbrirSheetsResultados" onclick="abrirHojaGoogleSheetsResultados()" class="bg-green-700 hover:bg-green-800 text-white font-medium px-3.5 py-2 rounded-xl flex items-center shadow-sm text-xs transition-all hover:shadow-md cursor-pointer" title="Abrir la pestaña de resultados en Google Sheets">
+                <i class="fa-solid fa-file-excel mr-1.5 text-sm"></i>Abrir en Sheets
+             </button>
+             <button id="btnSyncResultados" onclick="fetchResultados(true)" class="btn-usmp-red text-xs py-2 px-3.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer">
+                <i id="iconSyncResultados" class="fa-solid fa-rotate mr-1.5"></i>Actualizar Datos
             </button>
-            <button id="btnEnviarCorreos" onclick="openCorreoModalMasivo()" class="btn-usmp-blue opacity-50 cursor-not-allowed" disabled>
-                <i class="fa-solid fa-paper-plane mr-2"></i>Enviar Correos y Fichas
+            <button id="btnEnviarCorreos" onclick="openCorreoModalMasivo()" class="btn-usmp-blue text-xs py-2 px-3.5 rounded-xl opacity-50 cursor-not-allowed shadow-sm transition-all" disabled>
+                <i class="fa-solid fa-paper-plane mr-1.5"></i>Enviar Correos y Fichas
             </button>
         </div>
     </div>

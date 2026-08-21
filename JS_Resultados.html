@@ -2,6 +2,8 @@
 <script>
   var dtResultadosInstance = null;
   var isLoadingResultados = false;
+  var CURRENT_RESULTADOS_DATA = [];
+  var CURRENT_SHEET_URL = '';
 
   // Fallback nativo: Si showToast no está definido globalmente, usa un alert() para que el código jamás colapse.
   window.showToast = window.showToast || function(title, msg, type) {
@@ -62,6 +64,10 @@
           if (res.userEmail) {
             document.getElementById('resultados-user-email').innerText = res.userEmail;
           }
+          if (res.sheetUrl) {
+            CURRENT_SHEET_URL = res.sheetUrl;
+          }
+          CURRENT_RESULTADOS_DATA = res.data || [];
           renderResultadosTable(res.data);
         } else {
           if (res.retryLater) {
@@ -80,7 +86,7 @@
         showToast('Error de Conexión', err.toString(), 'error');
         document.getElementById('resultados-empty-state').classList.remove('hidden');
       })
-      // Llamamos a la nueva función creada en GeneradorResultados.gs
+      // Llamamos a la función en GeneradorResultados.gs
       // Si forceSync es true, ejecuta sincronizarResultadosGenerales interno.
       .getConsolidatedData(forceSync);
   }
@@ -92,6 +98,8 @@
     const container = document.getElementById('resultados-table-container');
     const emptyState = document.getElementById('resultados-empty-state');
     const btnCorreos = document.getElementById('btnEnviarCorreos');
+
+    CURRENT_RESULTADOS_DATA = dataArray || [];
 
     if (!dataArray || dataArray.length === 0) {
       container.classList.remove('hidden');
@@ -220,19 +228,19 @@
                 <td class="px-4 py-3 text-gray-500 text-xs truncate" style="max-width:150px;" title="${row.coordinadorName}">${row.coordinadorName || '-'}</td>
                 
                 <td class="px-4 py-3 border-l border-blue-100 text-blue-900 font-medium">${row.lmsScore !== '' ? row.lmsScore : '-'}</td>
-                <td class="px-4 py-3 border-l border-blue-50 text-blue-900 font-bold">${row.lmsVigesimal ? parseFloat(row.lmsVigesimal).toFixed(2) : '-'}</td>
+                <td class="px-4 py-3 border-l border-blue-50 text-blue-900 font-bold">${(row.lmsVigesimal !== '' && row.lmsVigesimal !== null && row.lmsVigesimal !== undefined && !isNaN(row.lmsVigesimal)) ? parseFloat(row.lmsVigesimal).toFixed(2) : '-'}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-center bg-blue-50/10">${lmsAvanceHtml}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-left" style="min-width: 120px; max-width: 250px; white-space: normal;">${lmsMejorarHtml}</td>
                 <td class="px-4 py-3 border-l border-blue-50 text-center">${linkLmsHtml}</td>
 
                 <td class="px-4 py-3 border-l border-purple-100 text-purple-900 font-medium">${row.acompScore !== '' ? row.acompScore : '-'}</td>
-                <td class="px-4 py-3 border-l border-purple-50 text-purple-900 font-bold">${row.acompVigesimal ? parseFloat(row.acompVigesimal).toFixed(2) : '-'}</td>
+                <td class="px-4 py-3 border-l border-purple-50 text-purple-900 font-bold">${(row.acompVigesimal !== '' && row.acompVigesimal !== null && row.acompVigesimal !== undefined && !isNaN(row.acompVigesimal)) ? parseFloat(row.acompVigesimal).toFixed(2) : '-'}</td>
                 <td class="px-4 py-3 border-l border-purple-50 text-center bg-purple-50/10">${acompAvanceHtml}</td>
                 <td class="px-4 py-3 border-l border-purple-50 text-left" style="min-width: 120px; max-width: 250px; white-space: normal;">${acompMejorarHtml}</td>
                 <td class="px-4 py-3 border-l border-purple-50 text-center">${linkAcompHtml}</td>
 
-                <td class="px-4 py-3 border-l border-green-100 text-green-700 font-bold bg-green-50/10">${row.centesimal ? parseFloat(row.centesimal).toFixed(2) : '-'}</td>
-                <td class="px-4 py-3 text-green-900 font-extrabold bg-green-50/10">${row.vigesimal ? parseFloat(row.vigesimal).toFixed(2) : '-'}</td>
+                <td class="px-4 py-3 border-l border-green-100 text-green-700 font-bold bg-green-50/10">${(row.centesimal !== '' && row.centesimal !== null && row.centesimal !== undefined && !isNaN(row.centesimal)) ? parseFloat(row.centesimal).toFixed(2) : '-'}</td>
+                <td class="px-4 py-3 text-green-900 font-extrabold bg-green-50/10">${(row.vigesimal !== '' && row.vigesimal !== null && row.vigesimal !== undefined && !isNaN(row.vigesimal)) ? parseFloat(row.vigesimal).toFixed(2) : '-'}</td>
                 <td class="px-4 py-3 bg-green-50/10">
                     ${row.nivel ? `<span class="px-2 py-1 rounded-full text-xs font-semibold ${badgeColor}">${row.nivel}</span>` : '<span class="text-gray-300">-</span>'}
                 </td>
@@ -504,6 +512,188 @@
           })
           .enviarCorreosResultadosMasivos(ids);
     }
+  }
+
+  /**
+   * @description Abre la hoja de Google Sheets en la pestaña de Envío de Resultados
+   */
+  function abrirHojaGoogleSheetsResultados() {
+    if (CURRENT_SHEET_URL && CURRENT_SHEET_URL.trim() !== '') {
+      window.open(CURRENT_SHEET_URL, '_blank');
+    } else {
+      showToast("Abriendo Sheets", "Obteniendo enlace de la hoja institucional...", "info");
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.sheetUrl) {
+            CURRENT_SHEET_URL = res.sheetUrl;
+            window.open(res.sheetUrl, '_blank');
+          } else {
+            showToast("Aviso", "Por favor actualice los datos primero.", "warning");
+          }
+        })
+        .withFailureHandler((err) => {
+          showToast("Error", "No se pudo obtener el enlace: " + err.toString(), "error");
+        })
+        .getConsolidatedData(false);
+    }
+  }
+
+  /**
+   * @description Genera y descarga el PDF de toda la Matriz Consolidada con diseño institucional en alta resolución
+   */
+  function exportarPdfMatrizConsolidada() {
+    if (!CURRENT_RESULTADOS_DATA || CURRENT_RESULTADOS_DATA.length === 0) {
+      showToast("Sin Datos", "No hay datos consolidados para exportar.", "warning");
+      return;
+    }
+
+    if (typeof html2pdf === 'undefined') {
+      showToast("Dependencia Faltante", "La librería de exportación PDF no está disponible.", "error");
+      return;
+    }
+
+    showToast("Generando PDF", "Preparando reporte de toda la Matriz Consolidada...", "info");
+
+    const btn = document.getElementById('btnExportarPdfResultados');
+    const originalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Generando...';
+      btn.disabled = true;
+    }
+
+    // Exportar todos los datos cargados en memoria
+    let dataToExport = CURRENT_RESULTADOS_DATA;
+
+    // Crear contenedor temporal para el PDF
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.padding = '18px 22px';
+    pdfWrapper.style.fontFamily = "'Inter', 'Segoe UI', Arial, sans-serif";
+    pdfWrapper.style.color = '#1e293b';
+    pdfWrapper.style.backgroundColor = '#ffffff';
+    pdfWrapper.style.width = '100%';
+
+    const nowStr = new Date().toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' });
+
+    // Cabecera institucional
+    let html = `
+      <div style="border-bottom: 2px solid #b91c1c; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #b91c1c; margin-bottom: 2px;">
+            Universidad de San Martín de Porres — USMP Virtual
+          </div>
+          <h1 style="font-size: 17px; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.2;">
+            Matriz Consolidada de Resultados de Monitoreo Docente
+          </h1>
+          <p style="font-size: 10px; color: #64748b; margin: 3px 0 0 0;">
+            Consolidación integral de Gestión del Aprendizaje (LMS) y Acompañamiento Pedagógico
+          </p>
+        </div>
+        <div style="text-align: right; font-size: 9px; color: #475569;">
+          <div style="font-weight: 700; color: #0f172a;">Fecha de Emisión:</div>
+          <div>${nowStr}</div>
+          <div style="margin-top: 3px; display: inline-block; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #1e293b;">
+            Total Asignaturas: ${dataToExport.length}
+          </div>
+        </div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; margin-top: 6px;">
+        <thead>
+          <tr style="background: #f8fafc; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; text-transform: uppercase; font-size: 7.5px; color: #475569;">
+            <th style="padding: 5px 3px; text-align: center; width: 22px;">N°</th>
+            <th style="padding: 5px 4px; text-align: left;">Asignatura</th>
+            <th style="padding: 5px 4px; text-align: left;">Programa</th>
+            <th style="padding: 5px 4px; text-align: left;">Docente</th>
+            <th style="padding: 5px 4px; text-align: left;">Coordinador</th>
+            <th style="padding: 5px 3px; text-align: center; background: #eff6ff; color: #1e40af;">Ptje LMS</th>
+            <th style="padding: 5px 3px; text-align: center; background: #eff6ff; color: #1e40af; font-weight: 800;">Vig. LMS</th>
+            <th style="padding: 5px 3px; text-align: center; background: #eff6ff; color: #1e40af;">% LMS</th>
+            <th style="padding: 5px 3px; text-align: center; background: #faf5ff; color: #6b21a8;">Ptje Acp</th>
+            <th style="padding: 5px 3px; text-align: center; background: #faf5ff; color: #6b21a8; font-weight: 800;">Vig. Acp</th>
+            <th style="padding: 5px 3px; text-align: center; background: #faf5ff; color: #6b21a8;">% Acp</th>
+            <th style="padding: 5px 3px; text-align: center; background: #f0fdf4; color: #166534; font-weight: 800;">Centesimal</th>
+            <th style="padding: 5px 3px; text-align: center; background: #f0fdf4; color: #166534; font-weight: 800;">Vigesimal</th>
+            <th style="padding: 5px 3px; text-align: center; background: #f0fdf4; color: #166534; font-weight: 800;">Nivel</th>
+            <th style="padding: 5px 3px; text-align: center;">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    dataToExport.forEach((r, idx) => {
+      const bgRow = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      const formatVal = (v) => (v !== '' && v !== null && v !== undefined && !isNaN(v)) ? parseFloat(v).toFixed(2) : '-';
+
+      let nivelColor = '#64748b';
+      let nivelBg = '#f1f5f9';
+      if (r.nivel === 'Muy Bueno') { nivelColor = '#15803d'; nivelBg = '#dcfce7'; }
+      else if (r.nivel === 'Bueno') { nivelColor = '#1d4ed8'; nivelBg = '#dbeafe'; }
+      else if (r.nivel === 'Regular') { nivelColor = '#b45309'; nivelBg = '#fef3c7'; }
+      else if (r.nivel === 'Deficiente' || r.nivel === 'Bajo') { nivelColor = '#b91c1c'; nivelBg = '#fee2e2'; }
+
+      const estadoText = r.fechaEnvio && r.fechaEnvio.trim() !== '' ? 'Enviado' : 'Pendiente';
+      const estadoColor = r.fechaEnvio && r.fechaEnvio.trim() !== '' ? '#15803d' : '#b45309';
+
+      html += `
+        <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; page-break-inside: avoid;">
+          <td style="padding: 4px 3px; text-align: center; color: #64748b; font-weight: 600;">${idx + 1}</td>
+          <td style="padding: 4px 4px; font-weight: 600; color: #0f172a; max-width: 170px;">${r.curso || '-'}</td>
+          <td style="padding: 4px 4px; color: #475569; max-width: 100px;">${r.programa || '-'}</td>
+          <td style="padding: 4px 4px; color: #334155; max-width: 130px;">${r.docente || '-'}</td>
+          <td style="padding: 4px 4px; color: #64748b; font-size: 7.5px;">${r.coordinadorName || '-'}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #f8fafc; color: #1e40af;">${r.lmsScore !== '' ? r.lmsScore : '-'}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #f8fafc; font-weight: 700; color: #1e40af;">${formatVal(r.lmsVigesimal)}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #f8fafc; color: #475569;">${r.lmsAvance !== '' ? Math.round(r.lmsAvance) + '%' : '-'}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #faf5ff; color: #6b21a8;">${r.acompScore !== '' ? r.acompScore : '-'}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #faf5ff; font-weight: 700; color: #6b21a8;">${formatVal(r.acompVigesimal)}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #faf5ff; color: #475569;">${r.acompAvance !== '' ? Math.round(r.acompAvance) + '%' : '-'}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #f0fdf4; font-weight: 700; color: #166534;">${formatVal(r.centesimal)}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #f0fdf4; font-weight: 800; color: #166534; font-size: 9.5px;">${formatVal(r.vigesimal)}</td>
+          <td style="padding: 4px 3px; text-align: center; background: #f0fdf4;">
+            <span style="display: inline-block; padding: 1.5px 5px; border-radius: 8px; font-size: 7.5px; font-weight: 700; background: ${nivelBg}; color: ${nivelColor};">
+              ${r.nivel || '-'}
+            </span>
+          </td>
+          <td style="padding: 4px 3px; text-align: center; font-size: 7.5px; font-weight: 600; color: ${estadoColor};">
+            ${estadoText}
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `
+        </tbody>
+      </table>
+      <div style="margin-top: 12px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7.5px; color: #94a3b8;">
+        <div>Sistema de Monitoreo del Cumplimiento de Estándares de Calidad Docente</div>
+        <div>Documento Oficial Generado Digitalmente por USMP Virtual</div>
+      </div>
+    `;
+
+    pdfWrapper.innerHTML = html;
+
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: 'Matriz_Consolidada_Resultados_USMP.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+      if (btn) {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+      showToast("¡Descarga Completa!", "La Matriz Consolidada se descargó en PDF exitosamente.", "success");
+    }).catch((err) => {
+      if (btn) {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+      showToast("Error en PDF", err.toString(), "error");
+    });
   }
 </script>
 <!-- ==================== JS END ==================== -->
