@@ -119,21 +119,31 @@
             if (r.raw_acp && r.raw_acp.length > 0) c.rawAcp.push(...r.raw_acp);
         });
 
-        const GAP_TOLERANCE_MS = 15 * 60 * 1000;
+        const GAP_SESSION_MS = 20 * 60 * 1000;
         const BASE_CRITERIA_MS = 2 * 60 * 1000;
         
         let dumpData = Object.values(coordMap).map(c => {
-            // Calcular Clusters Finales antes de enviar
+            // Calcular Clusters Finales antes de enviar (Sesiones <= 20 min, exclusión tiempos muertos > 30 min)
             c.lmsTsTotal = 0;
             for (let w=0; w<6; w++) {
                 let bag = c.rawLmsW[w];
                 if (bag && bag.length > 0) {
-                    bag.sort((a,b) => a - b);
-                    let totalMs = BASE_CRITERIA_MS;
-                    for (let i = 1; i < bag.length; i++) {
-                        let diff = bag[i] - bag[i-1];
-                        if (diff <= GAP_TOLERANCE_MS) totalMs += diff;
-                        else totalMs += BASE_CRITERIA_MS;
+                    let sorted = bag.filter(t => typeof t === 'number' && !isNaN(t)).sort((a,b) => a - b);
+                    let totalMs = 0;
+                    if (sorted.length > 0) {
+                        totalMs += BASE_CRITERIA_MS;
+                        let lastValidTs = sorted[0];
+                        for (let i = 1; i < sorted.length; i++) {
+                            let diff = sorted[i] - lastValidTs;
+                            if (diff <= 0) continue;
+                            if (diff <= GAP_SESSION_MS) {
+                                totalMs += diff;
+                                lastValidTs = sorted[i];
+                            } else {
+                                totalMs += BASE_CRITERIA_MS;
+                                lastValidTs = sorted[i];
+                            }
+                        }
                     }
                     c.lmsTsTotal += (totalMs / 60000);
                 }
@@ -141,12 +151,22 @@
             
             c.acpTsTotal = 0;
             if (c.rawAcp && c.rawAcp.length > 0) {
-                c.rawAcp.sort((a,b) => a - b);
-                let totalMsAcp = BASE_CRITERIA_MS;
-                for (let i = 1; i < c.rawAcp.length; i++) {
-                     let diff = c.rawAcp[i] - c.rawAcp[i-1];
-                     if (diff <= GAP_TOLERANCE_MS) totalMsAcp += diff;
-                     else totalMsAcp += BASE_CRITERIA_MS;
+                let sortedAcp = c.rawAcp.filter(t => typeof t === 'number' && !isNaN(t)).sort((a,b) => a - b);
+                let totalMsAcp = 0;
+                if (sortedAcp.length > 0) {
+                    totalMsAcp += BASE_CRITERIA_MS;
+                    let lastValidTsAcp = sortedAcp[0];
+                    for (let i = 1; i < sortedAcp.length; i++) {
+                         let diff = sortedAcp[i] - lastValidTsAcp;
+                         if (diff <= 0) continue;
+                         if (diff <= GAP_SESSION_MS) {
+                             totalMsAcp += diff;
+                             lastValidTsAcp = sortedAcp[i];
+                         } else {
+                             totalMsAcp += BASE_CRITERIA_MS;
+                             lastValidTsAcp = sortedAcp[i];
+                         }
+                    }
                 }
                 c.acpTsTotal = totalMsAcp / 60000;
             }
@@ -312,6 +332,7 @@
             let globals = {
                 lmsAprobados: 0, lmsProceso: 0, 
                 acompAprobados: 0, acompProceso: 0,
+                lmsProgressSum: 0, acompProgressSum: 0,
                 totalAsigs: filteredData.length,
                 evidencias: 0, bursts: 0,
                 lateB: 0, lateW: 0
@@ -329,6 +350,7 @@
                         coord: r.coord,
                         total: 0,
                         lmsAprobados: 0, lmsProceso: 0,
+                        lmsProgressSum: 0, acompProgressSum: 0,
                         // Promedio Min LMS (audit_time clásico)
                         auditLmsTotal: 0, auditLmsCount: 0,
                         auditLmsTotalW: [0,0,0,0,0,0], auditLmsCountW: [0,0,0,0,0,0],
@@ -347,19 +369,62 @@
                 let c = coordMap[r.coord];
                 c.total++;
 
-                // LMS Logic (Sensible a la semana/unidad seleccionada)
-                if (wkIdx === -1) {
-                    if(r.s_lms !== null && r.s_lms > 0) { 
-                        c.lmsAprobados++; globals.lmsAprobados++;
-                    } else if (r.startedLms) {
-                        c.lmsProceso++; globals.lmsProceso++;
-                    }
+                // ===== CÁLCULO DE PROGRESO GRANULAR LMS (Por Criterios Reales) =====
+                let lmsProgCourse = 0;
+                let evalW = r.eval_lms_w || [0,0,0,0,0,0];
+                let rawW = r.raw_lms_w || [[],[],[],[],[],[]];
+
+                // Helper para contar evaluados por semana (mayor entre eval_lms_w y timestamps raw)
+                let cntW = (w) => Math.max(evalW[w] || 0, (rawW[w] ? rawW[w].length : 0));
+
+                if (wkIdx === 1) {
+                    let filledS1 = cntW(0) + cntW(1);
+                    lmsProgCourse = filledS1 >= 11 ? 100 : Math.min(100, (filledS1 / 11) * 100);
+                } else if (wkIdx === 2) {
+                    let filledS2 = cntW(2);
+                    lmsProgCourse = filledS2 >= 7 ? 100 : Math.min(100, (filledS2 / 7) * 100);
+                } else if (wkIdx === 3) {
+                    let filledS3 = cntW(3);
+                    let targetS3 = (r.modalidad === 'PRESENCIAL') ? 6 : 7;
+                    lmsProgCourse = filledS3 >= targetS3 ? 100 : Math.min(100, (filledS3 / targetS3) * 100);
+                } else if (wkIdx === 4) {
+                    let filledS4 = cntW(4) + cntW(5);
+                    let targetS4 = (r.modalidad === 'PRESENCIAL') ? 10 : 9;
+                    lmsProgCourse = filledS4 >= targetS4 ? 100 : Math.min(100, (filledS4 / targetS4) * 100);
                 } else {
-                    if (r.raw_lms_w && r.raw_lms_w[wkIdx] && r.raw_lms_w[wkIdx].length > 0) {
-                        c.lmsAprobados++; globals.lmsAprobados++;
+                    let filledAll = cntW(0) + cntW(1) + cntW(2) + cntW(3) + cntW(4) + cntW(5);
+                    let hasCompleteScore = (r.s_lms !== null && r.s_lms !== '' && !isNaN(Number(r.s_lms)) && Number(r.s_lms) > 0);
+                    
+                    if (filledAll >= 34 || (hasCompleteScore && filledAll >= 33)) {
+                        lmsProgCourse = 100;
                     } else {
-                        c.lmsProceso++; globals.lmsProceso++;
+                        lmsProgCourse = Math.min(100, (filledAll / 34) * 100);
                     }
+                }
+
+                c.lmsProgressSum = (c.lmsProgressSum || 0) + lmsProgCourse;
+                globals.lmsProgressSum = (globals.lmsProgressSum || 0) + lmsProgCourse;
+
+                if (lmsProgCourse >= 100) {
+                    c.lmsAprobados++; globals.lmsAprobados++;
+                } else if (lmsProgCourse > 0) {
+                    c.lmsProceso++; globals.lmsProceso++;
+                }
+
+                // ===== CÁLCULO DE PROGRESO GRANULAR ACOMPAÑAMIENTO =====
+                let acompProgCourse = 0;
+                if (r.raw_acp && r.raw_acp.length > 0) {
+                    acompProgCourse = Math.min(100, (r.raw_acp.length / 11) * 100);
+                } else if (r.s_acp !== null && r.s_acp > 0) {
+                    acompProgCourse = 100;
+                }
+                c.acompProgressSum = (c.acompProgressSum || 0) + acompProgCourse;
+                globals.acompProgressSum = (globals.acompProgressSum || 0) + acompProgCourse;
+
+                if (acompProgCourse >= 100) {
+                    c.acompAprobados++; globals.acompAprobados++;
+                } else if (acompProgCourse > 0) {
+                    c.acompProceso++; globals.acompProceso++;
                 }
 
                 // Acumulación de métricas tardías
@@ -398,12 +463,6 @@
                     }
                 }
 
-                // Acomp Logic
-                if(r.s_acp !== null && r.s_acp > 0) { 
-                    c.acompAprobados++; globals.acompAprobados++;
-                } else if (r.startedAcp) {
-                    c.acompProceso++; globals.acompProceso++;
-                }
                 if (r.raw_acp && r.raw_acp.length > 0) {
                     c.rawAcp.push(...r.raw_acp); 
                     c.acpTsCount++;
@@ -429,7 +488,7 @@
                 }
 
                 globals.evidencias += ((r.h || 0) + (r.m || 0) + (r.w || 0));
-                globals.bursts += c.audits;
+                globals.bursts += ((r.a_lms || 0) + (r.a_acp || 0));
             });
 
             // 3. Generar Arrays de Resumen
@@ -437,8 +496,8 @@
             
             // Calcular Avances para ordenar
             coordinadores.forEach(c => {
-                c.pctLms = c.total > 0 ? (c.lmsAprobados / c.total) * 100 : 0;
-                c.pctAcomp = c.total > 0 ? (c.acompAprobados / c.total) * 100 : 0;
+                c.pctLms = c.total > 0 ? (c.lmsProgressSum / c.total) : 0;
+                c.pctAcomp = c.total > 0 ? (c.acompProgressSum / c.total) : 0;
                 
                 // ===== PROMEDIO MIN LMS (audit_time clásico) =====
                 c.avgLmsW = [0,0,0,0,0,0];
@@ -448,24 +507,38 @@
                 c.avgLms = c.auditLmsCount > 0 ? c.auditLmsTotal / c.auditLmsCount : 0;
                 
                 // ===== TIEMPO ABSOLUTO LMS Y ACOMP (Clustering Algorithm) =====
+                // Regla Institucional:
+                // - Sesiones activas continuas: intervalos <= 20 min (suma neta del tiempo).
+                // - Exclusión de tiempos muertos: pausas > 30 min (se descarta el tiempo inactivo y se inicia nueva sesión con base 2 min).
+                // - Intervalos > 20 min y <= 30 min: se tratan como cambio de sesión activa (+2 min base).
                 c.lmsTsTotal = 0;
-                const GAP_TOLERANCE_MS = 15 * 60 * 1000;
+                const GAP_SESSION_MS = 20 * 60 * 1000;
                 const BASE_CRITERIA_MS = 2 * 60 * 1000;
                 
                 for (let w=0; w<6; w++) {
                     let bag = c.rawLmsW[w];
                     if (bag && bag.length > 0) {
-                        bag.sort((a,b) => a - b);
+                        let sorted = bag.filter(t => typeof t === 'number' && !isNaN(t)).sort((a,b) => a - b);
                         let totalMs = 0;
-                        let lastValidI = 0;
-                        for (let i = 0; i < bag.length; i++) {
-                            if (i === 0) {
-                                totalMs += BASE_CRITERIA_MS;
-                                c.dedicLmsW[w]++;
-                            } else {
-                                let diff = bag[i] - bag[lastValidI];
-                                if (diff <= GAP_TOLERANCE_MS) { totalMs += diff; lastValidI = i; }
-                                else if (diff > GAP_TOLERANCE_MS && diff <= 28800000) { totalMs += BASE_CRITERIA_MS; c.dedicLmsW[w]++; lastValidI = i; }
+                        if (sorted.length > 0) {
+                            totalMs += BASE_CRITERIA_MS;
+                            c.dedicLmsW[w]++;
+                            let lastValidTs = sorted[0];
+
+                            for (let i = 1; i < sorted.length; i++) {
+                                let diff = sorted[i] - lastValidTs;
+                                if (diff <= 0) continue;
+
+                                if (diff <= GAP_SESSION_MS) {
+                                    // Intervalo continuo en sesión (<= 20 min)
+                                    totalMs += diff;
+                                    lastValidTs = sorted[i];
+                                } else {
+                                    // Tiempos muertos > 30 min o pausas > 20 min: se excluye el tiempo inactivo y se inicia nueva sesión
+                                    totalMs += BASE_CRITERIA_MS;
+                                    c.dedicLmsW[w]++;
+                                    lastValidTs = sorted[i];
+                                }
                             }
                         }
                         c.lmsTsTotalW[w] = (totalMs / 60000);
@@ -475,14 +548,24 @@
                 // === Clustering ACOMP ===
                 c.acpTsTotal = 0;
                 if (c.rawAcp && c.rawAcp.length > 0) {
-                    c.rawAcp.sort((a,b) => a - b);
+                    let sortedAcp = c.rawAcp.filter(t => typeof t === 'number' && !isNaN(t)).sort((a,b) => a - b);
                     let tMs = 0;
-                    for (let i = 0; i < c.rawAcp.length; i++) {
-                        if (i === 0) tMs += BASE_CRITERIA_MS;
-                        else {
-                            let diff = c.rawAcp[i] - c.rawAcp[i-1];
-                            if (diff <= GAP_TOLERANCE_MS) tMs += diff;
-                            else tMs += BASE_CRITERIA_MS;
+                    if (sortedAcp.length > 0) {
+                        tMs += BASE_CRITERIA_MS;
+                        let lastValidTsAcp = sortedAcp[0];
+
+                        for (let i = 1; i < sortedAcp.length; i++) {
+                            let diff = sortedAcp[i] - lastValidTsAcp;
+                            if (diff <= 0) continue;
+
+                            if (diff <= GAP_SESSION_MS) {
+                                tMs += diff;
+                                lastValidTsAcp = sortedAcp[i];
+                            } else {
+                                // Exclusión de tiempos muertos
+                                tMs += BASE_CRITERIA_MS;
+                                lastValidTsAcp = sortedAcp[i];
+                            }
                         }
                     }
                     c.acpTsTotal = tMs / 60000;
@@ -594,16 +677,26 @@
             return true;
         });
         
+        const lmsP = globals.totalAsigs > 0 ? (globals.lmsProgressSum / globals.totalAsigs) : 0;
+        const acpP = globals.totalAsigs > 0 ? (globals.acompProgressSum / globals.totalAsigs) : 0;
+
         if(CURRENT_TAB === 'ALL') {
-            const lmsP = globals.totalAsigs > 0 ? (globals.lmsAprobados / globals.totalAsigs) * 100 : 0;
-            const acpP = globals.totalAsigs > 0 ? (globals.acompAprobados / globals.totalAsigs) * 100 : 0;
             pct = ((lmsP + acpP) / 2).toFixed(1);
         } else if (CURRENT_TAB === 'LMS') {
             titlePct = "Avance LMS";
-            pct = globals.totalAsigs > 0 ? ((globals.lmsAprobados / globals.totalAsigs) * 100).toFixed(1) : 0;
+            pct = lmsP.toFixed(1);
         } else {
             titlePct = "Avance Acomp";
-            pct = globals.totalAsigs > 0 ? ((globals.acompAprobados / globals.totalAsigs) * 100).toFixed(1) : 0;
+            pct = acpP.toFixed(1);
+        }
+
+        let valBursts = 0;
+        if (CURRENT_TAB === 'LMS') {
+            valBursts = filteredData.reduce((acc, r) => acc + (r.a_lms || 0), 0);
+        } else if (CURRENT_TAB === 'ACOMP') {
+            valBursts = filteredData.reduce((acc, r) => acc + (r.a_acp || 0), 0);
+        } else {
+            valBursts = globals.bursts;
         }
 
         // Trafico Info (Solo mostrar si no es Acomp)
@@ -623,7 +716,7 @@
                 </div>
                 <div>
                     <h5 style="margin:0; font-size:12px; font-weight:700; color:#d97706; text-transform:uppercase;">Burst Audits</h5>
-                    <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#b45309;">${globals.bursts}</p>
+                    <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#b45309;">${valBursts}</p>
                 </div>
             </div>` : '';
 
@@ -677,6 +770,15 @@
                 <div>
                     <h5 style="margin:0; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase;">Equipo Eval.</h5>
                     <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#0f172a;">${totalCoords}</p>
+                </div>
+            </div>
+            <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="width:48px; height:48px; border-radius:50%; background:#e0e7ff; color:#4f46e5; font-size:20px; display:flex; justify-content:center; align-items:center;">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+                <div>
+                    <h5 style="margin:0; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase;">Aulas a Revisar</h5>
+                    <p style="margin:2px 0 0; font-size:22px; font-weight:800; color:#0f172a;">${filteredData.length}</p>
                 </div>
             </div>
             <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
@@ -825,16 +927,21 @@
             else if (CURRENT_WEEK_TAB === 'S3') wkIdx = 3;
             else if (CURRENT_WEEK_TAB === 'S4') wkIdx = 4;
 
+            let evalW_det = r.eval_lms_w || [0,0,0,0,0,0];
+            let rawW_det = r.raw_lms_w || [[],[],[],[],[],[]];
+            let cntW_det = (w) => Math.max(evalW_det[w] || 0, (rawW_det[w] ? rawW_det[w].length : 0));
+
             if (wkIdx !== -1) {
                 if (r.audit_lms_w && r.audit_lms_w[wkIdx] > 0) {
                     rawLmsTime = r.audit_lms_w[wkIdx];
-                } else if (r.raw_lms_w && r.raw_lms_w[wkIdx] && r.raw_lms_w[wkIdx].length === 0) {
+                } else if (cntW_det(wkIdx) === 0) {
                     if (r.startedLms) isIncomplete = true;
                 } else {
                     rawLmsTime = 0;
                 }
             } else {
-                 if (rawLmsTime === 0 && r.startedLms) isIncomplete = true;
+                 let totEval_det = cntW_det(0) + cntW_det(1) + cntW_det(2) + cntW_det(3) + cntW_det(4) + cntW_det(5);
+                 if (rawLmsTime === 0 && r.startedLms && totEval_det === 0) isIncomplete = true;
             }
 
             let formatLms = isIncomplete ? "Incompleto" : formatMinutes(rawLmsTime);

@@ -1,106 +1,50 @@
-# Estado del Proyecto: Sistema de Monitoreo USMP
+# Estado del Proyecto: Sistema de Monitoreo USMP - Posgrado
 
-**Fecha de Última Actualización:** 01 de Abril de 2026
-**Versión:** 2.5.0 (Timestamps Inmutables y Trazabilidad en BI)
+**Fecha de Última Actualización:** 20 de Agosto de 2026  
+**Versión:** 2.7.0 (Métricas de Coordinadores BI, Clustering de Tiempos Absolutos, Ruteo y Reubicación de Hits Aula)
 
 ---
 
 ## 1. Resumen General del Sistema
 
-Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad** construido como una SPA (Single Page Application) en Google Apps Script. Permite a coordinadores evaluar asignaturas, generar fichas docentes, enviar resultados y analizar métricas de desempeño.
-
-- **Arquitectura:** Serverless (Google Workspace). Frontend SPA con HTML/JS/Tailwind CSS. Backend en GAS.
-- **Base de Datos:** Google Sheets como matriz relacional.
-- **Autenticación:** Implícita mediante `Session.getActiveUser().getEmail()`.
-- **Roles:** Admin, Jefe de área, Coordinador, Invitado.
-- **Concurrencia:** `LockService.getScriptLock()` para operaciones de escritura.
+Sistema de **Monitoreo del Cumplimiento de los Estándares de Calidad (Posgrado)** construido como una SPA (Single Page Application) en Google Apps Script. Permite a coordinadores y jefaturas evaluar asignaturas de maestrías y doctorados, registrar Acompañamiento Pedagógico, generar fichas docentes, enviar resultados y analizar métricas de desempeño mediante dashboards ejecutivos de Business Intelligence.
 
 ---
 
-## 2. Estructura de Archivos (Clave)
+## 2. Principales Mejoras y Correcciones Recientes (v2.7.0)
 
-### Backend (.gs)
-- `Code.gs`: Controlador principal. Maneja autenticación, enrutamiento `doGet()` y guardado `saveGrade()` con concurrencia.
-- `GeneradorDoc.gs`: Motor de clonado de Fichas Docentes (`Virtual`, `Presencial`, `Acompañamiento`). Usa plantillas y destina los reportes a carpetas ID parametrizadas.
-- `GeneradorResultados.gs`: Consolidación en 33 columnas para envío de PDFs automáticos extraídos desde las URLs generadas por `GeneradorDoc`.
-- `GeneradorBI.gs` / `Backend_BI.gs`: Generador y Endpoint para el Data Mart BI (Dashboard General).
-- `Backend_Coordinadores.gs`: Data Lake de Coordinadores.
-- `SincronizacionIntern.gs`: Distribuye data de asignaciones de coordinador hacia las hojas de origen. Activa y desactiva el `MAINTENANCE_MODE`.
-- `ImportacionExterna.gs` / `generar matriz.gs`: Funciones para importar datos desde el registro externo y generar la nueva matriz (filtrada por POSGRADO).
+### A. Trazabilidad y Asignación de Hits Aula
+1. **Ruteo Estricto de Semana en `trackAccess`**:
+   - El cliente envía la semana activa de evaluación (`currentWeekId`), garantizando que los accesos realizados durante la etapa de inicio/Semana 1 se guarden en `hits_s1_ap` / `hits_s1_usmp`.
+2. **Reasignación Automática en Backend**:
+   - En `Backend_Coordinadores.gs`, si existen hits en columnas de semanas posteriores (S2, S3 o S4) pero esas semanas aún no tienen registros de evaluación (semanas no iniciadas/evaluadas), los hits se consolidan automáticamente en la **Semana 1**.
+3. **Herramienta en Menú de Google Sheets**:
+   - En `Menu.gs` se integró la opción `🔄 Sincronización -> 🎯 Reubicar Hits de prueba a Semana 1` (`corregirHitsSemana1()`), permitiendo con 1 clic limpiar las columnas de S2 y S3 y consolidarlas físicamente en la columna S1 de la hoja.
 
-### Frontend (.html)
-- `JS_Client.html`: Controlador frontend central y diccionario de Criterios (`CURRENT_CRITERIA_MAP`).
-- `View_Home.html`, `View_Dashboard.html`, `View_Dashboard_BI.html`, `View_Dashboard_Coordinadores.html`: Vistas principales.
-- `JS_BI.html`, `JS_Resultados.html`, `JS_Coordinadores.html`: Controladores modulares por cada vista.
-- `Propuesta_Plantillas_Resultados.html`: Mockups y estilos quemados para correos y plantillas.
+### B. Tiempo Absoluto LMS (Clustering y Exclusión de Tiempos Muertos)
+1. **Sesiones Activas Continuas ($\Delta t \le 20\text{ min}$)**:
+   - Se calcula la suma neta del tiempo transcurrido entre acciones consecutivas dentro de un intervalo $\le 20$ minutos.
+2. **Exclusión Estricta de Tiempos Muertos ($> 30\text{ min}$)**:
+   - Toda pausa o inactividad superior a 30 minutos se **descarta al 100%**.
+   - Al retomarse la actividad, se inicia una nueva sesión de trabajo sumando únicamente el tiempo base estimado por acción (2 minutos).
+3. **Pausas intermedias ($> 20\text{ min}$ y $\le 30\text{ min}$)**:
+   - Se tratan como cierre de sesión activa e inicio de un nuevo bloque (+2 min base).
 
----
+### C. Precisión en el Avance de Monitoreo LMS (100% vs 97%)
+1. **Doble Validación (Calificaciones + Timestamps)**:
+   - `Backend_Coordinadores.gs` evalúa tanto las columnas de notas (`c_...`, `cp_...`) como las columnas de auditoría (`c_..._ts`, `cp_..._ts`), consolidando el arreglo `eval_lms_w`.
+   - Se resolvió la discrepancia donde cursos evaluados al 100% figuraban al 97% ($33/34$) debido a ausencia de timestamp en un único criterio o variaciones de cierre.
+2. **Umbrales Semanales y de Ciclo**:
+   - S1 (Bienvenida + Semana 1): Meta de 11 criterios evaluados = 100%.
+   - S2: Meta de 7 criterios = 100%.
+   - S3: Meta de 7 (Virtual) / 6 (Presencial) = 100%.
+   - S4: Meta de 9 (Virtual) / 10 (Presencial) = 100%.
+   - Ciclo Completo (General): $\ge 34$ criterios evaluados o puntaje LMS consolidado con $\ge 33$ criterios = 100%.
 
-## 3. Cambios Recientes (30 de Marzo de 2026 - Sesión Actual)
-
-### 3.1 Estabilización y Resiliencia de Datos
-- **Seguridad en Chips Inteligentes (Smart Chips):** Se detectó que Google Apps Script genera errores críticos de interrupción cuando intenta leer o escribir celdas que contienen metadatos restrictivos de Drive (Enlaces o Chips). Para evitar el bloqueo de la importación y la sincronización (específicamente la que nutre a "Acompañamiento del desempeño Pedagógico"), se protegió la instrucción `setRichTextValues` con bloques `try...catch` en `generar matriz.gs` y `SincronizacionIntern.gs`. Esto asegura que los textos continuos e información sensible prevalezcan sin abortar el script.
-
-### 3.2 Lógica de Importación de Matriz
-- **Filtro Exclusivo de Posgrado:** Se refactorizó la expresión regular en la función `procesarSincronizacionCompleta()` (archivo `generar matriz.gs`) para que el motor de importación filtre y traiga de forma exclusiva las asignaturas correspondientes al grado de `"POSGRADO"`, eliminando el antiguo filtro de `PREGRADO|PAT|SEGUNDA CARRERA`.
-
-### 3.3. Consistencia de Nomenclatura (UI y BI)
-- **Actualización de OVA a Materiales:** Se reemplazó integralmente el nombre del criterio principal en el diccionario de validación (`JS_Client.html` IDs: `c_1_1_pre` y `cp_1_1_pre`) pasando de `"1.1 Actualiza OVAs (Antes S1)"` a **`"1.1 Actualiza Materiales del Aula virtual"`**. Este cambio visual Frontend se emparejó con la actualización manual de las cabeceras matriz en Google Sheets realizada por el administrador, garantizando que los tableros dinámicos en `JS_BI.html` (Leyendas LMS y gráficos) asuman automáticamente el nuevo rótulo oficial.
-- **Plantillas de Referencia:** El nuevo título numérico se aplicó de igual manera sobre los layouts renderizados en `Propuesta_Plantillas_Resultados.html`.
-
-### 3.4 Actualización de Infraestructura de Almacenamiento
-- **Nuevas Carpetas de Destino Documental:** Se reprogramó `GeneradorDoc.gs` para conectar las rutas y plantillas actualizadas en Google Drive para la consolidación de los PDF/Docs. 
-  - *Carpeta Acompañamiento:* `1lsW7oxzJFdm6K5883_JnCVoj1HVb2T0m`
-  - *Carpeta Virtual/Presencial:* `1gWE1NEjp8fDeCpB6SzRTSH6Z5XQe6FHu`
-
----
-
-## 4. Cambios Recientes (01 de Abril de 2026 - Sesión Actual)
-
-### 4.1 Arquitectura First-Write-Only en Timestamps 
-- **Inmutabilidad de Auditoría:** Se rediseñó el mecanismo de grabación en `saveGrade()` (archivo `Code.gs`). Anteriormente, los timestamps se sobrescribían en cada modificación. Ahora graban de forma inmutable la primera vez que se evalúa un criterio. Esto blinda el cálculo de la herramienta "Tiempo Absoluto LMS" para generar reportes exactos e infalibles sobre la velocidad real del coordinador.
-
-### 4.2 Trazabilidad de Revisiones (Criterios vs Cambios)
-- **Nuevas Columnas Operativas:** Se definieron y documentaron dos nuevas métricas de seguimiento llamadas `criterios_notificados` y `cambios_realizados`. Se insertan al extremo derecho de la hoja LMS (Columnas EF y EG) y Acompañamiento (Columnas BF y BG).
-- **Contadores Asíncronos:** El primer guardado de nota incrementa `criterios_notificados`. Toda edición o actualización posterior de una nota existente eleva silenciosamente el termómetro de `cambios_realizados`.
-
-### 4.3 Expansión Periférica del Data Mart (Sábana BI)
-- **Mapeo a prueba de fallos:** Se planificó la actualización de `GeneradorBI.gs` aumentando artificialmente el "alcance" dinámico de lectura (de 44 a 48 columnas y de 8 a 13) para capturar los metadatos de las columnas "EF/EG" y "BF/BG". Posteriormente el script fuerza esta data hacia las columnas finales perimetrales de la visualización en la **Sábana General Docente (Mapeo explícito en columnas FP, FQ, FR, FS, FT, FU)** garantizando cero alteraciones/desplazamientos de todos los subsistemas anteriores e impidiendo colisiones entre Modalidades (Virtual vs Presencial).
-
----
-
-## 5. Cambios Recientes (08 de Abril de 2026 - Sesión Actual)
-
-### 5.1 Corrección de Mapeo de Timestamps para Clustering
-- **Solución del Bug de Timestamps:** Se eliminó la dependencia inflexible de `tsCodes_V` y `tsCodes_P` (`masterTsMapping`) en `Backend_Coordinadores.gs`. Ahora, el motor de extracción lee orgánicamente las semanas (`_s2`, `_s3`, `_s4`) inspeccionando directamente el string nominal desde `headerCodes` en la "Sábana General Docente". Esto asegura un empaquetado milimétrico de los arreglos (`raw_lms_w` y `lms_audited_w`) resolviendo las asincronías previas.
-- **Validación de Métricas:** Con este rediseño estructural, el frontend (`JS_Coordinadores.html`) vuelve a recibir matrices puras para sus operaciones de Map-Reduce (Tiempo Absoluto LMS y Dedicación LMS).
-- **Snapshot Listo:** Las dependencias del `Histórico_Tiempos_Coord` también obtienen resultados transparentes para inyecciones correctas.
-
----
-
-## 6. Cambios Recientes (20 de Julio de 2026 - Sesión Actual)
-
-### 6.1 Reconstrucción y Auditoría Integral de Subsistemas
-- **Restauración y Clonado:** Se realizó la descarga completa del repositorio de GitHub (`Posgrado---Sistema-de-gesti-n-y-monitoreo-de-asignaturas`) tras el formateo del equipo de desarrollo, sincronizando los 9 subsistemas del proyecto.
-- **Auditoría de Arquitectura:** Se auditó la coherencia entre el frontend SPA (`Index.html`, `JS_Client.html`, `JS_Coordinadores.html`, `JS_BI.html`) y el backend en Google Apps Script (`Code.gs`, `Backend_Coordinadores.gs`, `GeneradorBI.gs`, `GeneradorDoc.gs`, `GeneradorResultados.gs`).
-
-### 6.3 Filtro por Unidad/Semana y Nota Vigesimal (Base 20) en Dashboard BI Docentes
-- **Selector de Unidad Dinámico:** Se agregó en `View_Dashboard_BI.html` el selector `filtroBiUnidad` (`TODAS`, `U1`, `U2`, `U3`, `U4`), permitiendo analizar de manera focalizada el rendimiento de cada unidad de aprendizaje o el consolidado total.
-- **Cálculo Vigesimal Adaptativo (Base 20):** Se creó la función `calcularPuntajeVigesimalCurso()` en `JS_BI.html` que evalúa las asignaturas en escala de 0 a 20 en función del 100% de los criterios pertenecientes estrictamente a la unidad seleccionada.
-- **Leyenda Interactiva de Dimensiones LMS:** Botones de alternancia (`Ambas`, `Virtual / Híbrida`, `Presencial`) mediante `toggleBiLeyendaCol(mode)` para ocultar/mostrar columnas y reestructurar el grid de dimensiones.
-- **Desempeño Detallado por Programa (LMS Exclusivo):** Implementado el contenedor `bi-lista-agrupada-lms` y la función `renderListaAgrupadaLms()` para agrupar asignaturas por programa académico ordenadas por nota vigesimal de la unidad elegida.
-
-### 6.4 Convivencia Pararela e Independiente de Subsistemas (BI Docentes & Coordinadores)
-- **Resolución de Enrutamiento SPA:** Refactorizado el manejador `loadModule()` en `JS_Client.html`, `JS_BI.html` y `JS_Coordinadores.html` para asegurar la ocultación mutua de vistas principales y prevenir solapamientos visuales.
-- **Eliminación de IDs Duplicados:** Se eliminó la duplicidad del contenedor de la tabla de resumen (`containerTablaResumen` / `coordTablaResumen`) en `View_Dashboard_Coordinadores.html` que provocaba bloqueos de renderizado en el navegador.
-- **Auto-Generación del Data Mart:** Se configuraron `GeneradorBI.gs`, `Backend_BI.gs` y `Backend_Coordinadores.gs` para detectar la falta o vacuidad de la hoja `"Sábana General Docente"` e inicializar/sincronizar automáticamente sus 125 columnas sin detener la ejecución.
-- **Notificaciones Defensivas:** Integración del helper global `window.showToast` en las cabeceras frontend para garantizar que la falla de dependencias auxiliares no interrumpa la renderización.
-
----
-
-## 7. Pasos para la Próxima Sesión
-
-1. **Despliegue de Nueva Versión en Google Apps Script:** Publicar la versión web actualizada en Google Workspace para que la comunidad de coordinadores y directivos disponga de ambos módulos estratégicos operativos.
-2. **Auditoría de Permisos en Drive:** Verificar la correcta emisión de PDFs de fichas docentes en las carpetas de destino de Google Drive.
-3. **Monitoreo de Snapshots:** Ejecutar pruebas de guardado de snapshots en `Histórico_Tiempos_Coord`.
-
+### D. Blindaje de Seguridad y Control de Acceso por Rol (Row-Level Security)
+1. **Bloqueo Estricto de Usuarios Invitados**:
+   - `getInitialData` rechaza con `UNAUTHORIZED` a cualquier usuario que no esté registrado como Coordinador, Jefe o Admin en `Datos de los coordinadores`.
+2. **Filtro de Fila Exclusivo para Coordinadores**:
+   - En *Acompañamiento Pedagógico*, *Virtual* y *Presencial*, un coordinador solo recibe los cursos asignados a su correo (Col S) o a su nombre (Col R). Los cursos de otros coordinadores quedan completamente invisibles.
+3. **Validación de Propiedad en Escritura (`saveGrade`)**:
+   - Se valida en backend que el usuario que intenta calificar sea el coordinador asignado a la fila o un Administrador/Jefe. Si un usuario intenta enviar una nota a un curso no asignado, la petición se bloquea con `Acceso denegado`.

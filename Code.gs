@@ -147,6 +147,17 @@ function getInitialData(moduleKey) {
     const userEmail = Session.getActiveUser().getEmail();
     const sessionData = getGlobalSessionData();
     const role = sessionData.role;
+    const sessionName = sessionData.name;
+    const isSuperUser = role === ROLES.ADMIN || role === ROLES.JEFE || role === 'Admin' || role === 'Jefe de área';
+
+    if (role === ROLES.INVITADO || role === 'Invitado') {
+      return { 
+        role: 'UNAUTHORIZED', 
+        userEmail: userEmail,
+        courses: [], 
+        message: 'Acceso Restringido: Su cuenta (' + userEmail + ') no cuenta con permisos de Coordinador o Jefatura asignados.' 
+      };
+    }
 
     const courses = [];
     let totalCoursesCount = 0;
@@ -159,13 +170,14 @@ function getInitialData(moduleKey) {
 
         totalCoursesCount++;
 
-        const coordEmail = String(row[18] || '').trim(); // Col S
-        const coordName = String(row[17] || '').trim(); // Col R
+        const coordEmail = String(row[18] || '').trim().toLowerCase(); // Col S
+        const coordName = String(row[17] || '').trim().toLowerCase();  // Col R
 
-        // Filtro de seguridad estricto (Jefes y Coordinadores regulares ven solo lo suyo)
-        // Invitados y Admins ven todo (los Invitados solo verán el resumen por bloqueo en el frontend)
-        if (role !== 'Admin' && role !== 'Invitado') {
-          if (coordEmail.toLowerCase() !== userEmail.toLowerCase()) continue;
+        // Filtro de seguridad estricto (Coordinadores ven únicamente sus asignaturas por email o por nombre)
+        if (!isSuperUser) {
+          const matchesEmail = coordEmail && coordEmail === userEmail.trim().toLowerCase();
+          const matchesName = sessionName && coordName && coordName === sessionName.trim().toLowerCase();
+          if (!matchesEmail && !matchesName) continue;
         }
 
         let startDateStr = '';
@@ -282,22 +294,37 @@ function getAssignmentData() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // 1. Obtener lista de posibles coordinadores
+    // 1. Obtener lista de posibles coordinadores (Detección Dinámica de Columnas)
     const coordSheet = ss.getSheetByName(SHEET_COORDINATORS);
     if (!coordSheet) throw new Error('No se encontró la hoja: ' + SHEET_COORDINATORS);
 
-    const coordLastRow = coordSheet.getLastRow();
+    const coordData = coordSheet.getDataRange().getValues();
     const coordinators = [];
-    if (coordLastRow >= 2) {
-      // Cols: F (6)=Rol, G (7)=Correo, J (10)=Nombres
-      const data = coordSheet.getRange(2, 6, coordLastRow - 1, 5).getValues();
-      for (let i = 0; i < data.length; i++) {
-        const rol = String(data[i][0]).trim().toLowerCase();
-        const email = String(data[i][1]).trim();
-        const nombre = String(data[i][4]).trim();
-        // Filtrar: Jefes y Coordinadores (no invitados)
-        if ((rol.includes('coordinador') || rol.includes('jefe')) && email && nombre) {
-          coordinators.push({ name: nombre, email: email, role: rol });
+    if (coordData.length >= 2) {
+      const cHeaders = coordData[0].map(h => String(h || '').trim().toLowerCase());
+      let nameIdx = cHeaders.findIndex(h => h.includes('nombre') || h.includes('coordinador') || h.includes('docente') || h.includes('apellidos'));
+      let emailIdx = cHeaders.findIndex(h => h.includes('correo') || h.includes('email') || h.includes('mail'));
+      let roleIdx = cHeaders.findIndex(h => h.includes('rol') || h.includes('perfil') || h.includes('cargo'));
+
+      if (emailIdx === -1) {
+        if (coordData[0].length >= 7) emailIdx = 6;
+        else if (coordData[0].length >= 2) emailIdx = 1;
+      }
+      if (roleIdx === -1) {
+        if (coordData[0].length >= 6) roleIdx = 5;
+        else if (coordData[0].length >= 3) roleIdx = 2;
+      }
+      if (nameIdx === -1) {
+        if (coordData[0].length >= 10) nameIdx = 9;
+        else nameIdx = 0;
+      }
+
+      for (let i = 1; i < coordData.length; i++) {
+        const name = String(coordData[i][nameIdx] !== undefined ? coordData[i][nameIdx] : '').trim();
+        const cEmail = String(coordData[i][emailIdx] !== undefined ? coordData[i][emailIdx] : '').trim();
+        const cRole = String(coordData[i][roleIdx] !== undefined ? coordData[i][roleIdx] : '').trim();
+        if (name && cEmail && !name.match(/^\d+$/)) {
+          coordinators.push({ name: name, email: cEmail, role: cRole });
         }
       }
     }
@@ -307,38 +334,64 @@ function getAssignmentData() {
     if (!asignSheet)
       throw new Error('No se encontró la hoja de Asignación: ' + SHEET_MAP['ASIGNACION']);
 
-    const asignLastRow = asignSheet.getLastRow();
-    if (asignLastRow < 3) return { courses: [], coordinators: coordinators }; // Asumiendo datos inician fila 3
-
-    // Asumimos encabezados en fila 1 y/o 2. Leemos todo y mapeamos
-    // Como las demás hojas, Col R = Index 17 (Nombre), Col S = Index 18 (Email)
-    // Curso = Col E (Index 4), Docente = Col G (Index 6), Modalidad/Tipo = Col C (Index 2)
-    const allValues = asignSheet.getRange(1, 1, asignLastRow, 22).getValues();
-
-    // Para Asignación, ignoramos la cabecera (Fila 1). Los datos inician en la Fila 2.
-    // getHeaders retorna rowIndex 0 para Fila 1.
-    const startRowIndex = 1; // Fila 2 en array (índice 1)
-
+    const asigData = asignSheet.getDataRange().getValues();
     const courses = [];
-    for (let i = startRowIndex; i < allValues.length; i++) {
-      const row = allValues[i];
-      if (!row[4]) continue; // Saltar vacíos
+    if (asigData.length >= 2) {
+      const aHeaders = asigData[0].map(h => String(h || '').trim().toLowerCase());
+      
+      let colCourse = aHeaders.findIndex(h => h.includes('asignatura') || h.includes('curso'));
+      if (colCourse === -1) colCourse = 4;
 
-      courses.push({
-        rowIndex: i + 1,
-        courseName: String(row[4] || ''),
-        professor: String(row[6] || ''),
-        program: String(row[2] || ''), // Col C
-        studentsCount: String(row[14] || '0'), // Col O
-        currentCoordName: String(row[17] || ''), // R
-        currentCoordEmail: String(row[18] || ''), // S
-      });
+      let colProf = aHeaders.findIndex(h => h.includes('docente') || h.includes('profesor'));
+      if (colProf === -1) colProf = 6;
+
+      let colProg = aHeaders.findIndex(h => h.includes('programa') || h.includes('carrera') || h.includes('facultad') || h.includes('grado'));
+      if (colProg === -1) colProg = 2;
+
+      let colStudents = aHeaders.findIndex(h => h.includes('estudiante') || h.includes('alumno'));
+      if (colStudents === -1) colStudents = 14;
+
+      let colCoordName = aHeaders.findIndex(h => h.includes('asignación de coordinador') || (h.includes('coordinador') && !h.includes('correo') && !h.includes('email')));
+      if (colCoordName === -1) colCoordName = 17;
+
+      let colCoordEmail = aHeaders.findIndex(h => h.includes('correo uva') || (h.includes('coordinador') && (h.includes('correo') || h.includes('email'))));
+      if (colCoordEmail === -1) colCoordEmail = 18;
+
+      for (let r = 1; r < asigData.length; r++) {
+        const row = asigData[r];
+        const courseName = String(row[colCourse] || '').trim();
+        if (!courseName) continue;
+
+        const profName = String(row[colProf] || '').trim();
+        const progName = String(row[colProg] || '').trim();
+        const coordName = String(row[colCoordName] || '').trim();
+        const coordEmail = String(row[colCoordEmail] || '').trim();
+        const sCount = String(row[colStudents] || '0').trim();
+
+        courses.push({
+          rowIndex: r + 1,
+          periodo: String(row[0] || ''),
+          sede: String(row[1] || ''),
+          facultad: progName,
+          program: progName,
+          modalidad: String(row[3] || ''),
+          courseName: courseName,
+          dni: String(row[5] || ''),
+          teacherName: profName,
+          professor: profName,
+          studentsCount: sCount,
+          currentCoordName: coordName,
+          currentCoordEmail: coordEmail,
+          assignedCoordName: coordName,
+          assignedCoordEmail: coordEmail
+        });
+      }
     }
 
-    // Retornamos todo al front
     return {
       courses: courses,
       coordinators: coordinators,
+      totalCourses: courses.length
     };
   } catch (e) {
     return { error: true, message: 'Error cargando asignaciones: ' + e.toString() };
@@ -412,6 +465,17 @@ function saveGrade(rowIndex, criteriaId, value, weekKey, moduleKey) {
 
   const lock = LockService.getScriptLock();
   try {
+    // Validar Permisos y Propiedad de Asignatura
+    const userEmail = Session.getActiveUser().getEmail();
+    const session = getGlobalSessionData();
+    const role = session.role;
+    const sessionName = session.name;
+    const isSuperUser = role === ROLES.ADMIN || role === ROLES.JEFE || role === 'Admin' || role === 'Jefe de área';
+
+    if (role === ROLES.INVITADO || role === 'Invitado') {
+      return { success: false, message: 'Acceso denegado: Usuario invitado no autorizado para calificar.' };
+    }
+
     // Esperar hasta 10 segundos por el lock (para concurrencia)
     lock.waitLock(10000);
 
@@ -419,6 +483,19 @@ function saveGrade(rowIndex, criteriaId, value, weekKey, moduleKey) {
     if (!sheetName) throw new Error('Módulo inválido');
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+
+    // Si es coordinador regular, verificar que sea el dueño asignado a esta fila
+    if (!isSuperUser) {
+      const rowEmail = String(sheet.getRange(rowIndex, 19).getValue() || '').trim().toLowerCase(); // Col S
+      const rowName = String(sheet.getRange(rowIndex, 18).getValue() || '').trim().toLowerCase();  // Col R
+      const matchesEmail = rowEmail && rowEmail === userEmail.trim().toLowerCase();
+      const matchesName = sessionName && rowName && rowName === sessionName.trim().toLowerCase();
+
+      if (!matchesEmail && !matchesName) {
+        return { success: false, message: 'Acceso denegado: Solo el coordinador asignado a esta asignatura puede registrar o modificar calificaciones.' };
+      }
+    }
+
     const headerObj = getHeaders(sheet);
     const idsRow = headerObj.values;
 
@@ -700,7 +777,7 @@ function analyzeRapidFill(sheet, rowIndex, weekKey, idsRow, isUpdate) {
 }
 
 // --- ANALYTICS CLICKS (Con LockService) ---
-function trackAccess(rowIndex, type, moduleKey) {
+function trackAccess(rowIndex, type, moduleKey, weekKey) {
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(5000);
@@ -720,9 +797,9 @@ function trackAccess(rowIndex, type, moduleKey) {
 
     // Determinar nombre de columna destino
     let targetHeader = '';
+    const typeSuffix = type === 'AP' ? 'ap' : 'usmp';
 
     if (moduleKey === 'ACOMPANAMIENTO') {
-      const typeSuffix = type === 'AP' ? 'ap' : 'usmp';
       if (isAdmin) {
         targetHeader = `A_hits_admin_${typeSuffix}`;
       } else {
@@ -732,37 +809,40 @@ function trackAccess(rowIndex, type, moduleKey) {
       if (isAdmin) {
         targetHeader = type === 'AP' ? 'hits_admin_ap' : 'hits_admin_usmp';
       } else {
-        // Buscar columna "Periodo fecha" dinámicamente
-        const colIndexDate = headers.findIndex((h) =>
-          String(h).trim().toLowerCase().includes('periodo fecha')
-        );
-
-        let startDateCell;
-        if (colIndexDate !== -1) {
-          startDateCell = sheet.getRange(rowIndex, colIndexDate + 1).getValue();
+        let weekLabel = 's1';
+        if (weekKey) {
+          let wk = String(weekKey).toLowerCase().replace('w', 's');
+          if (wk === 'b' || wk === 's0' || wk === 'pre' || wk === 'bien') wk = 's1';
+          weekLabel = wk;
         } else {
-          startDateCell = sheet.getRange(rowIndex, 20).getValue();
+          // Buscar columna "Periodo fecha" dinámicamente
+          const colIndexDate = headers.findIndex((h) =>
+            String(h).trim().toLowerCase().includes('periodo fecha')
+          );
+
+          let startDateCell;
+          if (colIndexDate !== -1) {
+            startDateCell = sheet.getRange(rowIndex, colIndexDate + 1).getValue();
+          } else {
+            startDateCell = sheet.getRange(rowIndex, 20).getValue();
+          }
+
+          let start = null;
+          if (startDateCell instanceof Date) start = startDateCell;
+          else start = new Date(startDateCell);
+
+          if (start && !isNaN(start.getTime())) {
+            const now = new Date();
+            if (Math.abs(now - start) / (1000 * 3600 * 24) > 180) start.setFullYear(now.getFullYear());
+            const diffDays = Math.floor((now - start) / (1000 * 3600 * 24));
+            if (diffDays >= 0 && diffDays <= 7) weekLabel = 's1';
+            else if (diffDays > 7 && diffDays <= 14) weekLabel = 's2';
+            else if (diffDays > 14 && diffDays <= 21) weekLabel = 's3';
+            else if (diffDays > 21 && diffDays <= 28) weekLabel = 's4';
+            else if (diffDays > 28) weekLabel = 'post';
+          }
         }
 
-        let start = null;
-        if (startDateCell instanceof Date) start = startDateCell;
-        else start = new Date(startDateCell);
-
-        if (!start || isNaN(start.getTime())) return;
-
-        const now = new Date();
-        if (Math.abs(now - start) / (1000 * 3600 * 24) > 180) start.setFullYear(now.getFullYear());
-
-        const diffDays = Math.floor((now - start) / (1000 * 3600 * 24));
-
-        let weekLabel = 's1';
-        if (diffDays >= 0 && diffDays <= 7) weekLabel = 's1';
-        else if (diffDays > 7 && diffDays <= 14) weekLabel = 's2';
-        else if (diffDays > 14 && diffDays <= 21) weekLabel = 's3';
-        else if (diffDays > 21 && diffDays <= 28) weekLabel = 's4';
-        else if (diffDays > 28) weekLabel = 'post';
-
-        const typeSuffix = type === 'AP' ? 'ap' : 'usmp';
         targetHeader = `hits_${weekLabel}_${typeSuffix}`;
       }
     }
@@ -779,6 +859,74 @@ function trackAccess(rowIndex, type, moduleKey) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Reubica hits acumulados indebidamente en S2 y S3 durante la etapa inicial/pruebas de vuelta a Semana 1.
+ */
+function corregirHitsSemana1() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ['Sábana General Docente', 'LMS Virtual', 'LMS Presencial'];
+  let totalFixed = 0;
+  
+  sheets.forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) return;
+    
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+    
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+    
+    const colS1_AP = headers.indexOf('hits_s1_ap');
+    const colS1_USMP = headers.indexOf('hits_s1_usmp');
+    const colS2_AP = headers.indexOf('hits_s2_ap');
+    const colS2_USMP = headers.indexOf('hits_s2_usmp');
+    const colS3_AP = headers.indexOf('hits_s3_ap');
+    const colS3_USMP = headers.indexOf('hits_s3_usmp');
+    
+    if (colS1_AP === -1 && colS1_USMP === -1) return;
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    let modified = false;
+    
+    for (let i = 0; i < data.length; i++) {
+      let row = data[i];
+      let h2_ap = colS2_AP !== -1 ? (parseInt(row[colS2_AP]) || 0) : 0;
+      let h2_usmp = colS2_USMP !== -1 ? (parseInt(row[colS2_USMP]) || 0) : 0;
+      let h3_ap = colS3_AP !== -1 ? (parseInt(row[colS3_AP]) || 0) : 0;
+      let h3_usmp = colS3_USMP !== -1 ? (parseInt(row[colS3_USMP]) || 0) : 0;
+      
+      if (h2_ap > 0 || h2_usmp > 0 || h3_ap > 0 || h3_usmp > 0) {
+        if (colS1_AP !== -1) {
+          let currS1_ap = parseInt(row[colS1_AP]) || 0;
+          row[colS1_AP] = currS1_ap + h2_ap + h3_ap;
+        }
+        if (colS1_USMP !== -1) {
+          let currS1_usmp = parseInt(row[colS1_USMP]) || 0;
+          row[colS1_USMP] = currS1_usmp + h2_usmp + h3_usmp;
+        }
+        if (colS2_AP !== -1) row[colS2_AP] = '';
+        if (colS2_USMP !== -1) row[colS2_USMP] = '';
+        if (colS3_AP !== -1) row[colS3_AP] = '';
+        if (colS3_USMP !== -1) row[colS3_USMP] = '';
+        modified = true;
+        totalFixed++;
+      }
+    }
+    
+    if (modified) {
+      sheet.getRange(2, 1, data.length, lastCol).setValues(data);
+    }
+  });
+  
+  try {
+    SpreadsheetApp.getUi().alert('✅ Corrección Completada: Se reubicaron los hits de S2 y S3 a Semana 1 en ' + totalFixed + ' registros.');
+  } catch(e) {
+    Logger.log('Corrección Hits: ' + totalFixed + ' registros actualizados.');
+  }
+  return { success: true, fixed: totalFixed };
 }
 
 // --- EMAILS ---

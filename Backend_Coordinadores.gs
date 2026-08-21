@@ -77,6 +77,7 @@ function getMetricasCoordinadores(forceSync) {
     // Ahora leemos el código de semana ('_s2', '_s3', etc.) directamente desde 'headerCodes'.
 
     // Arrays para clasificar los índices de los metadatos
+    var idxCriteriaLms = [];
     var idxTsLms = [];
     var idxTsAcomp = [];
     var idxAuditTimeLms = []; 
@@ -100,6 +101,10 @@ function getMetricasCoordinadores(forceSync) {
           idxTsLms.push(c);
       } else if (endsT && (code.indexOf('_c0') !== -1 || code.indexOf('_c1') !== -1)) {
           idxTsAcomp.push(c);
+      } else if (code.startsWith('c_') || code.startsWith('cp_')) {
+          if (code !== 'criterios_notificados' && code !== 'cambios_realizados' && code !== 'detalle_ediciones') {
+              idxCriteriaLms.push(c);
+          }
       } else if (code === 'audit_time' || code === 'audit_time_alll' || code.indexOf('a_audit_time') !== -1) {
           // Acomp time columns: 'audit_time' (promedio 9 primeros), 'audit_time_alll' (total 11)
           // NOTA: Deben checarse ANTES de audit_time_s* para no caer en LMS
@@ -141,9 +146,10 @@ function getMetricasCoordinadores(forceSync) {
         var scoreLMS = idxScoreLMS !== -1 ? row[idxScoreLMS] : '';
         var scoreAcomp = idxScoreAcomp !== -1 ? row[idxScoreAcomp] : '';
 
-        // Tiempos LMS: Extracción Raw para Clustering en Frontend (6 Bins: Bienvenida, S1-S4, Cierre)
+        // Tiempos y Evaluaciones LMS: Extracción Raw y conteo granular por semana (0=Bienvenida, 1=S1, 2=S2, 3=S3, 4=S4, 5=Cierre)
         var tieneTsLms = false;
         var raw_lms_w = [[], [], [], [], [], []];
+        var eval_lms_w = [0, 0, 0, 0, 0, 0];
         var late_b_count = 0;
         var late_w_count = 0;
         var late_lms_w = [0, 0, 0, 0, 0, 0];
@@ -151,53 +157,78 @@ function getMetricasCoordinadores(forceSync) {
         var rawStartDate = row[19];
         var startDate = parseDateHelper(rawStartDate);
 
+        // 1. Mapeo de Criterios con Calificación Registrada (> 0)
+        var evaluatedCriteriaMap = {};
+        for (var t = 0; t < idxCriteriaLms.length; t++) {
+            var colIndex = idxCriteriaLms[t];
+            var codeName = String(headerCodes[colIndex]).trim().toLowerCase();
+            var valGrade = row[colIndex];
+            if (valGrade !== null && valGrade !== undefined && String(valGrade).trim() !== '' && !isNaN(Number(valGrade)) && Number(valGrade) > 0) {
+                evaluatedCriteriaMap[codeName] = true;
+                tieneTsLms = true;
+            }
+        }
+
+        // 2. Mapeo de Timestamps LMS y consolidación de Criterios Evaluados
         for (var t = 0; t < idxTsLms.length; t++) {
             var colIndex = idxTsLms[t];
             var codeName = String(headerCodes[colIndex]).trim().toLowerCase();
+            var baseCode = codeName.replace(/_ts$/, '');
 
             var val = row[colIndex];
+            var hasValidTs = false;
+            var d = null;
             if (val && String(val).trim() !== '') {
-                var d = parseDateHelper(val);
+                d = parseDateHelper(val);
                 if (d && !isNaN(d.getTime())) {
-                    var wk = -1;
-                    if (codeName.indexOf('_b') !== -1 || codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1) wk = 0;
-                    else if (codeName.indexOf('_s1') !== -1) wk = 1;
-                    else if (codeName.indexOf('_s2') !== -1) wk = 2;
-                    else if (codeName.indexOf('_s3') !== -1) wk = 3;
-                    else if (codeName.indexOf('_s4') !== -1) wk = 4;
-                    else if (codeName.indexOf('_cier') !== -1 || codeName.indexOf('_s5') !== -1) wk = 5;
+                    hasValidTs = true;
+                    tieneTsLms = true;
+                }
+            }
 
-                    if (wk !== -1) {
-                        raw_lms_w[wk].push(d.getTime());
-                        
-                        if (startDate) {
-                            var diffDays = (d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-                            var isLate = false;
-                            if (wk === 0 && diffDays > 5) {
-                                late_b_count++;
-                                isLate = true;
-                            } else if (wk === 1 && diffDays > 10) {
-                                late_w_count++;
-                                isLate = true;
-                            } else if (wk === 2 && diffDays > 17) {
-                                late_w_count++;
-                                isLate = true;
-                            } else if (wk === 3 && diffDays > 24) {
-                                late_w_count++;
-                                isLate = true;
-                            } else if (wk === 4 && diffDays > 31) {
-                                late_w_count++;
-                                isLate = true;
-                            } else if (wk === 5 && diffDays > 35) {
-                                late_w_count++;
-                                isLate = true;
-                            }
-                            if (isLate) {
-                                late_lms_w[wk]++;
-                            }
+            var isEvaluated = hasValidTs || !!evaluatedCriteriaMap[baseCode];
+
+            var wk = -1;
+            if (codeName.indexOf('_s1') !== -1) wk = 1;
+            else if (codeName.indexOf('_s2') !== -1) wk = 2;
+            else if (codeName.indexOf('_s3') !== -1) wk = 3;
+            else if (codeName.indexOf('_s4') !== -1) wk = 4;
+            else if (codeName.indexOf('_cier') !== -1 || codeName.indexOf('_s5') !== -1 || codeName.indexOf('_post') !== -1) wk = 5;
+            else if (codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1 || codeName.indexOf('_w0') !== -1 || codeName.indexOf('_b_') !== -1 || codeName.endsWith('_b') || codeName.endsWith('_b_ts')) wk = 0;
+
+            if (wk !== -1) {
+                if (hasValidTs && d) {
+                    raw_lms_w[wk].push(d.getTime());
+                    
+                    if (startDate) {
+                        var diffDays = (d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                        var isLate = false;
+                        if (wk === 0 && diffDays > 5) {
+                            late_b_count++;
+                            isLate = true;
+                        } else if (wk === 1 && diffDays > 10) {
+                            late_w_count++;
+                            isLate = true;
+                        } else if (wk === 2 && diffDays > 17) {
+                            late_w_count++;
+                            isLate = true;
+                        } else if (wk === 3 && diffDays > 24) {
+                            late_w_count++;
+                            isLate = true;
+                        } else if (wk === 4 && diffDays > 31) {
+                            late_w_count++;
+                            isLate = true;
+                        } else if (wk === 5 && diffDays > 35) {
+                            late_w_count++;
+                            isLate = true;
+                        }
+                        if (isLate) {
+                            late_lms_w[wk]++;
                         }
                     }
-                    tieneTsLms = true;
+                }
+                if (isEvaluated) {
+                    eval_lms_w[wk]++;
                 }
             }
         }
@@ -212,12 +243,12 @@ function getMetricasCoordinadores(forceSync) {
             var colIndex = idxAuditTimeLms[t];
             var codeName = String(headerCodes[colIndex]).trim().toLowerCase();
             var wkIdx = -1;
-            if (codeName.indexOf('_b') !== -1 || codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1) wkIdx = 0;
-            else if (codeName.indexOf('_s1') !== -1) wkIdx = 1;
+            if (codeName.indexOf('_s1') !== -1) wkIdx = 1;
             else if (codeName.indexOf('_s2') !== -1) wkIdx = 2;
             else if (codeName.indexOf('_s3') !== -1) wkIdx = 3;
             else if (codeName.indexOf('_s4') !== -1) wkIdx = 4;
-            else if (codeName.indexOf('_cier') !== -1 || codeName.indexOf('_s5') !== -1) wkIdx = 5;
+            else if (codeName.indexOf('_cier') !== -1 || codeName.indexOf('_s5') !== -1 || codeName.indexOf('_post') !== -1) wkIdx = 5;
+            else if (codeName.indexOf('_bien') !== -1 || codeName.indexOf('_pre') !== -1 || codeName.indexOf('_w0') !== -1 || codeName.indexOf('_b_') !== -1 || codeName.endsWith('_b')) wkIdx = 0;
 
             var valAuditStr = String(row[colIndex] || '').trim();
             if (valAuditStr !== '') {
@@ -287,15 +318,17 @@ function getMetricasCoordinadores(forceSync) {
             }
         }
 
-        // Función auxiliar para extraer semana de la columna
+        // Función auxiliar para extraer semana de la columna de manera precisa
         function extractWk(cIdx) {
             var colName = String(headerCodes[cIdx]).trim().toLowerCase();
-            if (colName.indexOf('_b') !== -1 || colName.indexOf('_bien') !== -1 || colName.indexOf('_pre') !== -1) return 0;
+            // 1. Semanas específicas (prioridad alta para no confundir con _burst ni prefijos)
             if (colName.indexOf('_s1') !== -1) return 1;
             if (colName.indexOf('_s2') !== -1) return 2;
             if (colName.indexOf('_s3') !== -1) return 3;
             if (colName.indexOf('_s4') !== -1) return 4;
-            if (colName.indexOf('_cier') !== -1 || colName.indexOf('_s5') !== -1) return 5;
+            if (colName.indexOf('_cier') !== -1 || colName.indexOf('_s5') !== -1 || colName.indexOf('_post') !== -1) return 5;
+            // 2. Bienvenida / Pre-inicio (W0)
+            if (colName.indexOf('_bien') !== -1 || colName.indexOf('_pre') !== -1 || colName.indexOf('_w0') !== -1 || colName.indexOf('_b_') !== -1 || colName.endsWith('_b') || colName.endsWith('_b_ts')) return 0;
             return -1;
         }
 
@@ -308,6 +341,15 @@ function getMetricasCoordinadores(forceSync) {
                 h += valH;
                 var w = extractWk(idxHits[idx]);
                 if (w !== -1) h_w[w] += valH;
+            }
+        }
+
+        // Si existen hits en S2/S3/S4 pero esa semana no tiene evaluaciones registradas (semana aún no iniciada/evaluada),
+        // reasignar automáticamente los hits al ciclo de monitoreo activo (Semana 1)
+        for (var wkCheck = 2; wkCheck <= 4; wkCheck++) {
+            if (h_w[wkCheck] > 0 && (!raw_lms_w[wkCheck] || raw_lms_w[wkCheck].length === 0)) {
+                h_w[1] += h_w[wkCheck];
+                h_w[wkCheck] = 0;
             }
         }
 
@@ -373,7 +415,8 @@ function getMetricasCoordinadores(forceSync) {
             // Promedio Min LMS (método clásico audit_time)
             audit_lms: parseFloat(audit_lms_total.toFixed(1)),
             audit_lms_w: audit_lms_w,
-            // Tiempo Absoluto LMS (raw arrays para clustering frontend)
+            // Evaluaciones LMS por semana (criterios evaluados) y tiempos raw
+            eval_lms_w: eval_lms_w,
             raw_lms_w: raw_lms_w,
             raw_acp: raw_acp,
             ts_acp: parseFloat(diffMinAcomp.toFixed(1)),

@@ -19,5 +19,7 @@ function onOpen() {
       .addSeparator()
       .addItem('🚀 (BI) Generar Cabeceras Sábana Docente', 'generarCabecerasSabanaGeneral')
       .addItem('📊 (BI) Sincronizar Sábana General Docente', 'sincronizarSabanaBI')
+      .addSeparator()
+      .addItem('🎯 Reubicar Hits de prueba a Semana 1', 'corregirHitsSemana1')
       .addToUi();
 }

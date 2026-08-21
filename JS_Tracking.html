@@ -4,14 +4,25 @@
      * Maneja el registro de interacciones (Hits, Emails, WhatsApp)
      */
 
-    function logAccess(type) {
-        if (!currentCourse || !currentCourse.rowIndex) return;
-        console.log("Logging access:", type);
+    function logAccess(type, courseOrRowIndex, customWeek) {
+        let rIndex = null;
+        if (typeof courseOrRowIndex === 'number') {
+            rIndex = courseOrRowIndex;
+        } else if (courseOrRowIndex && courseOrRowIndex.rowIndex) {
+            rIndex = courseOrRowIndex.rowIndex;
+        } else if (typeof currentCourse !== 'undefined' && currentCourse && currentCourse.rowIndex) {
+            rIndex = currentCourse.rowIndex;
+        }
+        if (!rIndex) return;
+
+        const week = customWeek || (typeof currentWeekId !== 'undefined' ? currentWeekId : 'S1');
+        const mod = typeof currentModule !== 'undefined' ? currentModule : 'VIRTUAL';
+        console.log("Logging access:", type, "Row:", rIndex, "Week:", week, "Module:", mod);
 
         // Llamada al backend
         google.script.run
             .withFailureHandler(e => console.warn("Error logAccess", e))
-            .trackAccess(currentCourse.rowIndex, type, currentModule);
+            .trackAccess(rIndex, type, mod, week);
     }
 
     function logInteraction(channel, type) {

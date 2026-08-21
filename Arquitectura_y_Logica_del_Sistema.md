@@ -94,19 +94,17 @@ Módulo analítico (`View_Dashboard_BI.html` / `JS_BI.html` / `Backend_BI.gs`) d
 
 Módulo analítico ejecutivo (`View_Dashboard_Coordinadores.html` / `JS_Coordinadores.html` / `Backend_Coordinadores.gs`) para supervisar el rendimiento administrativo de cada coordinador académico.
 
-- **Arquitectura Data Lake (Backend):** A diferencia de los módulos operativos que envían resúmenes precalculados, `Backend_Coordinadores.gs` extrae la totalidad de las aulas crudas de la "Sábana General Docente" y las despacha como un arreglo JSON masivo al navegador. Esto permite filtros instantáneos sin recargas de red.
-- **Separación Estricta de Tiempos (LMS vs Acomp):** El backend indexa las columnas de tiempo usando prefijos discriminantes:
-  - `audit_time_s1..s4` → Minutos precalculados de evaluación LMS (Virtual/Presencial).
-  - `a_audit_time_...` → Minutos precalculados de acompañamiento pedagógico.
-  - Ambos extraen el valor numérico con `parseFloat` purgando sufijos textuales ("15.4 min" → 15.4).
-- **Separación Estricta de Ráfagas (Burst Audits):** Las alertas de ráfaga auditiva (`audit_burst`) quedan separadas por prefijo (`a_audit_burst` para Acomp), permitiendo que la pestaña activa muestre exclusivamente sus propias alertas.
-- **Motor Map-Reduce de Cliente (`JS_Coordinadores.html`):** El frontend agrupa por coordinador, calcula % de avance LMS/Acomp, promedia tiempos, y suma tráfico. Los resultados alimentan 4 gráficos Chart.js (Avance LMS, Avance Acomp, Tiempos, Tráfico Apilado) y dos tablas (Ranking Resumen + Detalle DataTables).
-- **Sistema de Pestañas (Nav Tabs):** Variable de estado `CURRENT_TAB` (ALL/LMS/ACOMP) controla la visibilidad dinámica de columnas DataTables (`.column().visible()`), gráficos y KPIs, permitiendo vistas aisladas sin recargar datos.
-- **Formato Horario Natural:** La función `formatMinutes()` convierte minutos crudos a etiquetas legibles (ej. 145.3 → "2h 25m"), aplicado tanto en la tabla resumen como en el detalle de asignaturas.
-- **Modales Informativos:** Cada KPI tiene un botón `(?)` que abre un modal explicativo (`coordInfoModal`) documentando la fórmula y el significado del indicador.
+- **Doble Validación Integral (Notas + Timestamps):** Evalúa criterios calificados y marcas de tiempo, asegurando un cálculo exacto del 100% de avance en asignaturas completadas y descartando desalineaciones por omisión de timestamps individuales.
+- **Algoritmo de Clustering para Tiempo Absoluto LMS:**
+  - Sesiones activas continuas: intervalos $\le 20\text{ min}$ acumulan tiempo neto transcurrido.
+  - Tiempos muertos ($> 30\text{ min}$): se descartan en su totalidad reiniciando una nueva sesión con base de 2 minutos.
+  - Pausas intermedias ($> 20\text{ min}$ y $\le 30\text{ min}$): se consideran cambio de bloque sumando 2 minutos base.
+- **Consolidación y Ruteo de Tráfico (Hits Aula):** Ruteo explícito de accesos a la semana en curso y reasignación automática de hits de semanas futuras no evaluadas hacia la semana activa (Semana 1).
+- **Separación Estricta de Tiempos y Ráfagas (LMS vs Acomp):** Tiempos y alertas diferenciados por origen (`audit_time_s*` vs `a_audit_time_*`, `audit_burst` vs `a_audit_burst`).
+- **Tablas Semanales de Resumen ($W_0$ a Cierre):** Desglose granular por coordinador de tiempos, dedicación, hits, correos, WhatsApps y auditorías ráfaga.
 
 ---
 
 ### Conclusión Técnica de la Evolución Sistémica
 
-El LMS del entorno actual de USMP transicionó de un entorno de cuadrícula plana a un ecosistema centralizado donde la lógica no es controlada por Visual Basic for Applications (VBA), sino puramente por una SPA desacoplada apoyada por el Cloud de Google (V8 JS Engine), logrando escabilidad asíncrona, robustez anti-concurrente, roles estructurados, auditoría granular, **análisis visual de resultados docentes** mediante dashboards BI interactivos, y ahora **inteligencia de gestión de coordinadores** con arquitectura Data Lake de alto rendimiento.
+El LMS del entorno actual de USMP transicionó de un entorno de cuadrícula plana a un ecosistema centralizado donde la lógica no es controlada por Visual Basic for Applications (VBA), sino puramente por una SPA desacoplada apoyada por el Cloud de Google (V8 JS Engine), logrando escalabilidad asíncrona, robustez anti-concurrente, roles estructurados, seguridad a nivel de fila (Row-Level Security), auditoría granular inmutable, dashboards de inteligencia de negocios docente y control de gestión del equipo de coordinación.

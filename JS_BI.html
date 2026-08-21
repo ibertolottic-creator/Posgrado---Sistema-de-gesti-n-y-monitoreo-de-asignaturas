@@ -1024,8 +1024,10 @@ function renderListaAgrupadaLms(dataFiltrada, filtroUnidad) {
   
   var labelUnidad = filtroUnidad === 'U1' ? 'Unidad I (Sem 1)' : (filtroUnidad === 'U2' ? 'Unidad II (Sem 2)' : (filtroUnidad === 'U3' ? 'Unidad III (Sem 3)' : (filtroUnidad === 'U4' ? 'Unidad IV (Sem 4)' : 'Total Consolidado')));
 
-  var h = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">';
+  var h = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">';
   h += '<h6 style="margin:0; font-size:14px; font-weight:700; color:#334155;"><i class="fa-solid fa-table-list" style="color:#06b6d4; margin-right:6px;"></i>Desempeño Detallado por Programa (LMS) • '+labelUnidad+'</h6>';
+  h += '<button id="btn-export-pdf-lms-prog" onclick="descargarTablaPdfLmsPorPrograma(\''+filtroUnidad+'\')" style="padding:6px 14px; font-size:12px; font-weight:700; border-radius:8px; border:1px solid #06b6d4; background:#ecfeff; color:#0891b2; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; box-shadow:0 1px 2px rgba(0,0,0,0.05);">';
+  h += '<i class="fa-solid fa-file-pdf" style="color:#0891b2;"></i> Imprimir / Descargar PDF</button>';
   h += '</div>';
   h += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left; background:#fff;">';
   
@@ -1375,6 +1377,70 @@ function descargarTablaPdfPorPrograma() {
       btn.style.opacity = '1';
     }
     alert("Ocurrió un error al generar el PDF.");
+  });
+}
+
+function descargarTablaPdfLmsPorPrograma(filtroUnidad) {
+  if (typeof html2pdf === 'undefined') {
+    if (typeof showToast === 'function') {
+      showToast("Dependencia Faltante", "La librería de PDF (html2pdf) no cargó.", "error");
+    } else {
+      alert("Error: Librería de PDF (html2pdf) no cargada o bloqueada por el navegador.");
+    }
+    return;
+  }
+
+  var btn = document.getElementById('btn-export-pdf-lms-prog');
+  var origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando PDF...';
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+  }
+
+  var element = document.getElementById('bi-lista-agrupada-lms');
+  if (!element) {
+    if (btn) { btn.innerHTML = origHtml; btn.disabled = false; btn.style.opacity = '1'; }
+    return;
+  }
+
+  // Clonar el contenedor para una exportación limpia
+  var clone = element.cloneNode(true);
+  var cloneBtn = clone.querySelector('#btn-export-pdf-lms-prog');
+  if (cloneBtn) cloneBtn.remove();
+
+  var tagUnidad = filtroUnidad || 'Consolidado';
+  var fileName = 'Desempeno_Detallado_LMS_Por_Programa_' + tagUnidad + '.pdf';
+
+  var opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     fileName,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(clone).save().then(function() {
+    if (btn) {
+      btn.innerHTML = origHtml;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
+    if (typeof showToast === 'function') {
+      showToast("PDF Generado", "El reporte LMS por Programa se descargó con éxito.", "success");
+    }
+  }).catch(function(e) {
+    console.error("Error PDF LMS:", e);
+    if (btn) {
+      btn.innerHTML = origHtml;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
+    if (typeof showToast === 'function') {
+      showToast("Error", "Ocurrió un problema al generar el PDF.", "error");
+    } else {
+      alert("Ocurrió un error al generar el PDF.");
+    }
   });
 }
 

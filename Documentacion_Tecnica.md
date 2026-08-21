@@ -65,55 +65,45 @@ Este archivo contiene la lógica del servidor. A continuación, cada función ex
 
 ### `getInitialData(moduleKey)`
 
-- **Función:** API principal de carga de datos.
+- **Función:** API principal de carga de datos con seguridad a nivel de fila (Row-Level Security).
 - **Lógica:**
-  1.  **Selección de Hoja:** Usa `moduleKey` ('VIRTUAL' o 'PRESENCIAL') para abrir la pestaña correcta.
-  2.  **Seguridad:** Verifica el email del usuario activo (`Session.getActiveUser()`).
-      - Si es `ADMIN`: Carga todas las filas.
-      - Si no: Filtra las filas donde la columna "Coordinador" coincide con el email del usuario.
-  3.  **Mapeo de Datos y Fallbacks:** Recorre las filas y construye un arreglo de objetos `course` con:
+  1.  **Validación de Permisos:** Verifica el rol del usuario mediante `getGlobalSessionData()`. Si el usuario tiene rol `INVITADO` (correo no registrado en `Datos de los coordinadores`), retorna inmediatamente `{ role: 'UNAUTHORIZED', courses: [], message: 'Acceso Restringido...' }`.
+  2.  **Selección de Hoja:** Usa `moduleKey` ('VIRTUAL', 'PRESENCIAL' o 'ACOMPANAMIENTO') para abrir la pestaña correspondiente.
+  3.  **Filtrado por Rol:**
+      - Si es `ADMIN` o `JEFE`: Carga todas las asignaturas para supervisión general.
+      - Si es `COORDINADOR`: Filtra y entrega únicamente las filas donde la **Columna S** (`Correo UVA`) coincide con su email institucional o la **Columna R** (`Asignación de COORDINADOR ACADÉMICO`) coincide con su nombre registrado.
+  4.  **Mapeo de Datos y Fallbacks:** Recorre las filas y construye un arreglo de objetos `course` con:
       - `rowIndex`: Índice real en la hoja (para guardar después).
       - `grades`: Objeto con pares `id_criterio: nota`.
-      - `timestamps`: Objeto con fechas de modificación (incluyendo la conversión explícita de sufijos `_T` a formato ISO string para compatibilidad de JSON).
-      - `hits/audit`: Datos de tracking.
-      - **Extracción de Enlaces (Robustez):** Intenta extraer la URL mediante `getRichTextValues()`. Si falla u obtiene texto plano (fallback), emplea algoritmos para interpretar columnas M/N (12/13) inyectando prefijos "https://" al vuelo si están ausentes, garantizando el despliegue de los botones AP/USMP en el Frontend.
-  4.  **Retorno:** Objeto JSON con `courses`, `userEmail` y `role`. (Nota: Los invitados reciben toda la carga pero son restringidos visualmente en el frontend).
+      - `timestamps`: Objeto con fechas de modificación (conversión explícita a formato ISO / DD/MM/YYYY).
+      - `hits/audit`: Datos de tracking y analítica.
+      - **Extracción de Enlaces (Robustez):** Intenta extraer la URL mediante `getRichTextValues()`. Si falla u obtiene texto plano (fallback), emplea algoritmos para interpretar columnas M/N (12/13) inyectando prefijos "https://" al vuelo si están ausentes.
+  5.  **Retorno:** Objeto JSON con `courses`, `userEmail` y `role`.
 
 ### `getSpreadsheetInfo()`
 
-- **Función:** API auxiliar para contexto visual y comunicaciones (Fase 3.4).
+- **Función:** API auxiliar para contexto visual y comunicaciones.
 - **Lógica:**
   - Ejecuta `SpreadsheetApp.getActiveSpreadsheet().getName()`.
-  - **Propósito:** Provee al Frontend el nombre del archivo en tiempo real para identificar la sede conectada ("PREGRADO" o "POSGRADO") y actuar en consecuencia (mostrar Insignias en el Home y armar el correo de contacto adecuado para la sede virtual conectada).
+  - **Propósito:** Provee al Frontend el nombre del archivo en tiempo real para identificar la sede conectada ("PREGRADO" o "POSGRADO") y actuar en consecuencia.
 
 ### `saveGrade(rowIndex, criteriaId, value, weekKey, moduleKey)`
 
-- **Función:** Guarda una nota y audita la acción.
+- **Función:** Guarda una calificación y audita la acción con control de concurrencia y validación de propiedad.
 - **Lógica Compleja:**
-  1.  **Bloqueo:** Usa `LockService` para evitar condiciones de carrera (dos usuarios editando a la vez).
-  2.  **Búsqueda de Columna:** Busca el índice de la columna que coincide con `criteriaId` en la fila de encabezados detectada.
-  3.  **Corrección de Prefijos (Presencial):**
-      - El sistema Presencial usa criterios `cp_...` pero columnas de timestamp `c_..._ts`.
-      - El código detecta `cp_` y busca automáticamente la columna `c_` equivalente para guardar el timestamp.
-  4.  **Escritura (First-Write-Only Inmutable):**
-      - Guarda la nota (`value`).
-      - Busca el Timestamp. Solo graba la fecha actual (`new Date()`) **si la celda de Timestamp origen está en blanco**. Esto imposibilita la corrupción de la auditoría y asegura el cálculo fidedigno inter-asignaturas.
-      - **Contadores Operacionales:** Si el Timestamp estba vacío (ingreso inicial) sube en 1 el contador `criterios_notificados`. Si la celda de la Nota ya tenía un valor preexistente (Update), sube en 1 el tabulador de `cambios_realizados`.
-  5.  **Auditoría:** Llama a `analyzeRapidFill` para verificar la velocidad de llenado (Se basa en las fechas inmutables subyacentes).
+  1.  **Bloqueo:** Usa `LockService` para evitar condiciones de carrera.
+  2.  **Validación de Propiedad:** Si el usuario es un coordinador regular, verifica que la fila pertenezca a su email (Col S) o nombre (Col R); si no es el dueño, rechaza la operación con error de autorización.
+  3.  **Búsqueda de Columna:** Busca el índice de la columna que coincide con `criteriaId` en la fila de encabezados.
+  4.  **Corrección de Prefijos (Presencial):** Detecta `cp_` y busca automáticamente la columna `c_..._ts` equivalente para guardar el timestamp.
+  5.  **Escritura (First-Write-Only Inmutable):** Guarda la nota (`value`). Solo graba la fecha actual (`new Date()`) si la celda de Timestamp origen está en blanco.
+  6.  **Auditoría y Chivato:** Incrementa contadores de criterios notificados o modificaciones (`detalle_ediciones`).
 
-### `trackAccess(rowIndex, type, moduleKey)`
+### `trackAccess(rowIndex, type, weekKey)`
 
-- **Función:** Registra clics en enlaces (Hits).
-- **Lógica de Fechas (Estricta):**
-  1.  Busca la columna **"Periodo fecha"**.
-  2.  Calcula `dias_transcurridos = Hoy - Fecha_Inicio`.
-  3.  **Reglas de Negocio:**
-      - `0-7 días` -> **S1**
-      - `8-14 días` -> **S2**
-      - `15-21 días` -> **S3**
-      - `22-28 días` -> **S4**
-      - `>28 días` -> **Post**
-  4.  **Incremento:** Construye el nombre de la columna (ej. `hits_s1_ap`) y suma +1 al valor actual.
+- **Función:** Registra clics en enlaces de Aulas Virtuales (AP o USMP) con ruteo explícito de semana (`weekKey`).
+- **Lógica:**
+  - Recibe el `rowIndex`, el tipo (`AP` o `USMP`) y la semana activa de evaluación (`weekKey` ej. `'S1'`).
+  - Escribe el hit directamente en la columna correspondiente (`hits_s1_ap`, `hits_s1_usmp`), evitando desvíos por días transcurridos.
 
 ### `trackInteraction(rowIndex, headerName, moduleKey)`
 

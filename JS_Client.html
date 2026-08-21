@@ -158,6 +158,16 @@
       return null;
   }
 
+  function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+  }
+
   // --- LOGIC: STATUS AND COLOR ---
   function getWeekStats(startDateStr, weekKey, grades) {
       const start = parseDate(startDateStr);
@@ -276,12 +286,14 @@
         google.script.run
         .withSuccessHandler(d => {
              if(handleMaintenanceResponse(d)) return;
-             if (d && d.role === 'ERROR') {
-                 alert("Error Backend: " + d.message);
+             if (d && (d.role === 'ERROR' || d.role === 'UNAUTHORIZED')) {
+                 alert(d.message || "Acceso restringido a coordinadores asignados.");
+                 goHome();
                  return;
              }
              if (!d || !d.courses) {
                  alert("Error: No se recibieron datos de Acompañamiento.");
+                 goHome();
                  return;
              }
              
@@ -291,6 +303,7 @@
         })
         .withFailureHandler(e => {
             alert("Error de Conexión: " + e);
+            goHome();
         })
         .getInitialData(key);
         
@@ -376,29 +389,30 @@
     if (globalActions) globalActions.style.display = 'none';
 
     google.script.run
-    .withSuccessHandler(d => {
-         if(handleMaintenanceResponse(d)) return;
-         if (d && d.role === 'ERROR') {
-             alert("Error Backend: " + d.message);
-             document.getElementById('spinner-box').innerHTML = `<p class="text-red-600 font-bold">${d.message}</p>`;
-             return;
-         }
-         if (!d || !d.courses) {
-             alert("Error: No se recibieron datos.");
-             return;
-         }
+     .withSuccessHandler(d => {
+          if(handleMaintenanceResponse(d)) return;
+          if (d && (d.role === 'ERROR' || d.role === 'UNAUTHORIZED')) {
+              alert(d.message || "Acceso restringido.");
+              goHome();
+              return;
+          }
+          if (!d || !d.courses) {
+              alert("Error: No se recibieron datos.");
+              goHome();
+              return;
+          }
 
-         document.getElementById('spinner-box').classList.add('hidden');
-         document.getElementById('main-content').classList.remove('hidden');
-         document.getElementById('user-email').innerText = d.userEmail;
-         globalData = d;
-         toggleView('OVERVIEW');
-    })
-    .withFailureHandler(e => {
-        alert("Error de Conexión: " + e);
-        document.getElementById('spinner-box').innerHTML = `<p class="text-red-600 font-bold">Error de Conexión: ${e}</p>`;
-    })
-    .getInitialData(key);
+          document.getElementById('spinner-box').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
+          document.getElementById('user-email').innerText = d.userEmail;
+          globalData = d;
+          toggleView('OVERVIEW');
+     })
+     .withFailureHandler(e => {
+         alert("Error de Conexión: " + e);
+         document.getElementById('spinner-box').innerHTML = `<p class="text-red-600 font-bold">Error de Conexión: ${e}</p>`;
+     })
+     .getInitialData(key);
   }
   
   function toggleView(view) {
@@ -492,23 +506,30 @@
 
   function renderAssignmentDashboard() {
       // 1. Calcular totales por coordinador
-      // El key será 'nombre|email' o solo 'nombre' si email no viene 100% igual. Usaremos nombre+email garantizado por option.
       const stats = {};
       let totalAssigned = 0;
       let totalUnassigned = 0;
 
       // Inicializar stats para todos los posibles (incluso si tienen 0)
       globalCoordinators.forEach(c => {
-          stats[`${c.name}|${c.email}`] = { name: c.name, courses: 0, students: 0, color: getRandomColor(c.name) };
+          stats[`${c.name}|${c.email}`] = { name: c.name, email: c.email, courses: 0, students: 0, color: getRandomColor(c.name) };
       });
 
       globalAssignments.forEach(c => {
           let sCount = parseInt(c.studentsCount) || 0;
-          if(c.currentCoordName && c.currentCoordEmail) {
-              const key = `${c.currentCoordName}|${c.currentCoordEmail}`;
-              if(!stats[key]) {
-                  // Si por alguna razón el asignado actual no está en la lista de coordinadores general
-                  stats[key] = { name: c.currentCoordName, courses: 0, students: 0, color: getRandomColor(c.currentCoordName) };
+          const coordName = (c.currentCoordName || c.assignedCoordName || '').trim();
+          const coordEmail = (c.currentCoordEmail || c.assignedCoordEmail || '').trim();
+
+          if (coordName) {
+              let key = `${coordName}|${coordEmail}`;
+              if (!stats[key]) {
+                  // Buscar coincidencia por nombre en globalCoordinators
+                  const found = globalCoordinators.find(gc => gc.name.toLowerCase() === coordName.toLowerCase());
+                  if (found) {
+                      key = `${found.name}|${found.email}`;
+                  } else {
+                      stats[key] = { name: coordName, email: coordEmail, courses: 0, students: 0, color: getRandomColor(coordName) };
+                  }
               }
               stats[key].courses++;
               stats[key].students += sCount;
@@ -653,14 +674,17 @@
       const container = document.getElementById('assign-list');
       container.innerHTML = '';
 
-      const term = document.getElementById('assign-search').value.toLowerCase();
+      const term = document.getElementById('assign-search').value.toLowerCase().trim();
       const filtered = globalAssignments.filter(c => {
-          const isUnassigned = term === "sin asignar" && (!c.currentCoordName || c.currentCoordName.trim() === "");
+          const coordName = (c.currentCoordName || c.assignedCoordName || '').trim();
+          const prof = (c.professor || c.teacherName || '').trim();
+          const prog = (c.program || c.facultad || '').trim();
+          const isUnassigned = term === "sin asignar" && (!coordName || coordName === "");
           return isUnassigned ||
-                 String(c.courseName).toLowerCase().includes(term) || 
-                 String(c.professor).toLowerCase().includes(term) ||
-                 String(c.program).toLowerCase().includes(term) ||
-                 String(c.currentCoordName).toLowerCase().includes(term);
+                 String(c.courseName || '').toLowerCase().includes(term) || 
+                 String(prof).toLowerCase().includes(term) ||
+                 String(prog).toLowerCase().includes(term) ||
+                 String(coordName).toLowerCase().includes(term);
       });
 
       document.getElementById('assign-count').innerText = `${filtered.length} REGISTROS`;
@@ -682,12 +706,18 @@
           const row = document.createElement('div');
           row.className = "bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4";
           
+          const coordName = (c.currentCoordName || c.assignedCoordName || '').trim();
+          const coordEmail = (c.currentCoordEmail || c.assignedCoordEmail || '').trim();
           let selectValue = "";
-          if(c.currentCoordName && c.currentCoordEmail) {
-             selectValue = `${c.currentCoordName}|${c.currentCoordEmail}`;
-             // Verificar si ya existe. (Ignorando la estrellita en la validación del value, porque el HTML busca coincidencias exactas del atributo value)
-             if(!optionsHTML.includes(`value="${selectValue}"`)) {
-                 optionsHTML += `<option value="${selectValue}" selected>${c.currentCoordName} (${c.currentCoordEmail})</option>`;
+          if (coordName) {
+             if (coordEmail) {
+                 selectValue = `${coordName}|${coordEmail}`;
+             } else {
+                 const found = globalCoordinators.find(gc => gc.name.toLowerCase() === coordName.toLowerCase());
+                 if (found) selectValue = `${found.name}|${found.email}`;
+             }
+             if (selectValue && !optionsHTML.includes(`value="${selectValue}"`)) {
+                 optionsHTML += `<option value="${selectValue}" selected>${coordName} ${coordEmail ? '('+coordEmail+')' : ''}</option>`;
              }
           }
 
@@ -1167,8 +1197,8 @@
            </div>
            
            <div class="flex gap-2">
-              <a href="${c.links.AP.url || '#'}" target="_blank" onclick="logAccess('AP')" class="${c.links.AP.url?'':'opacity-50 pointer-events-none'} text-xs bg-blue-50 text-blue-600 px-2 py-1.5 rounded font-bold hover:bg-blue-100 transition-colors" title="Aula Virtual AP"><i class="fa-solid fa-globe"></i></a>
-              <a href="${c.links.USMP.url || '#'}" target="_blank" onclick="logAccess('USMP')" class="${c.links.USMP.url?'':'opacity-50 pointer-events-none'} text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded font-bold hover:bg-red-100 transition-colors" title="Aula Virtual USMP"><i class="fa-solid fa-university"></i></a>
+              <a href="${c.links.AP.url || '#'}" target="_blank" onclick="logAccess('AP', ${c.rowIndex}, 'S1')" class="${c.links.AP.url?'':'opacity-50 pointer-events-none'} text-xs bg-blue-50 text-blue-600 px-2 py-1.5 rounded font-bold hover:bg-blue-100 transition-colors" title="Aula Virtual AP"><i class="fa-solid fa-globe"></i></a>
+              <a href="${c.links.USMP.url || '#'}" target="_blank" onclick="logAccess('USMP', ${c.rowIndex}, 'S1')" class="${c.links.USMP.url?'':'opacity-50 pointer-events-none'} text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded font-bold hover:bg-red-100 transition-colors" title="Aula Virtual USMP"><i class="fa-solid fa-university"></i></a>
               <button class="text-xs font-bold text-gray-400 group-hover:text-gray-600 px-2 py-1.5 hover:bg-gray-100 rounded transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
            </div>
         `;

@@ -1,0 +1,6 @@
+node_modules/
+git_diff_js.txt
+git_diff_js_utf8.txt
+temp.js
+*.pyc
+__pycache__/
